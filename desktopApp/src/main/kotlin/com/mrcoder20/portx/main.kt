@@ -28,16 +28,19 @@ fun main() {
             undecorated = true, // Removes standard title bar and borders
             icon = icon
         ) {
-            WindowDraggableArea {
-                App(
-                    onMinimize = { windowState.isMinimized = true },
-                    onMaximize = { 
-                        windowState.placement = if (windowState.placement == WindowPlacement.Maximized) 
-                            WindowPlacement.Floating else WindowPlacement.Maximized 
-                    },
-                    onClose = { exitApplication() }
-                )
-            }
+            App(
+                onMinimize = { windowState.isMinimized = true },
+                onMaximize = { 
+                    windowState.placement = if (windowState.placement == WindowPlacement.Maximized) 
+                        WindowPlacement.Floating else WindowPlacement.Maximized 
+                },
+                onClose = { exitApplication() },
+                windowDraggableArea = { content ->
+                    WindowDraggableArea {
+                        content()
+                    }
+                }
+            )
         }
     }
 }

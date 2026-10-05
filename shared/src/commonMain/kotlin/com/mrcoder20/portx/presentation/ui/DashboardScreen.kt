@@ -463,6 +463,27 @@ fun EngineConfigurationCard(state: ScanUIState, viewModel: ScanViewModel, accent
                     )
                 )
             }
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.5f))
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(LocalizedStrings.get("socket_timeout", lang), color = if (isDark) Color.White else Color.Black, style = MaterialTheme.typography.bodySmall)
+                    Text("${state.timeout} ${LocalizedStrings.get("ms", lang)}", color = accent, style = MaterialTheme.typography.labelMedium)
+                }
+                Slider(
+                    value = state.timeout.toFloat(),
+                    onValueChange = { viewModel.onTimeoutChange(it.toInt()) },
+                    valueRange = 100f..3000f,
+                    steps = 28,
+                    modifier = Modifier.weight(2f),
+                    colors = SliderDefaults.colors(
+                        thumbColor = accent, 
+                        activeTrackColor = accent, 
+                        inactiveTrackColor = if (isDark) GlassBorder else GlassBorderLight
+                    )
+                )
+            }
         }
     }
 }

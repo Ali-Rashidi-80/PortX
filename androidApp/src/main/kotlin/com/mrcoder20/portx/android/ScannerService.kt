@@ -166,9 +166,10 @@ class ScannerService : Service() {
 
     private fun showFinishNotification(result: ScanResult) {
         try {
+            val deviceSuffix = if (!result.deviceName.isNullOrBlank()) " (${result.deviceName})" else ""
             val notification = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Scan Complete")
-                .setContentText("Found ${result.openPorts.size} open ports on ${result.target}")
+                .setContentText("Found ${result.openPorts.size} open ports on ${result.target}$deviceSuffix")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)

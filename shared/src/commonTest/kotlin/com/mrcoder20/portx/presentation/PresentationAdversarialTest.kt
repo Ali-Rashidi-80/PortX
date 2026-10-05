@@ -214,4 +214,28 @@ class PresentationAdversarialTest {
         assertEquals("Modbus Industrial ICS", dp.title)
         assertEquals(DangerNeon, dp.color)
     }
+
+    @Test
+    fun testTimeoutConfigurationAndLocalization() {
+        // 1. Verify Localization of socket_timeout and ms in EN, FA, RU, ZH
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "en"))
+        assertEquals("مهلت زمانی اتصال", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fa"))
+        assertEquals("Тайм-аут сокета", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "ru"))
+        assertEquals("套接字超时", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "zh"))
+
+        assertEquals("ms", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "en"))
+        assertEquals("میلی‌ثانیه", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "fa"))
+        assertEquals("мс", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "ru"))
+        assertEquals("毫秒", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "zh"))
+
+        // 2. Fallback to English for unmapped language
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fr"))
+
+        // 3. ScanUIState timeout default and bounds
+        val defaultState = com.mrcoder20.portx.presentation.viewmodel.ScanUIState()
+        assertEquals(1000, defaultState.timeout)
+        val modifiedState = defaultState.copy(timeout = 2500)
+        assertEquals(2500, modifiedState.timeout)
+    }
 }
+

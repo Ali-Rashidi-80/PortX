@@ -39,6 +39,7 @@ fun NavigationWrapper(
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
     onClose: () -> Unit = {},
+    windowDraggableArea: @Composable (@Composable () -> Unit) -> Unit = { it() },
     content: @Composable () -> Unit
 ) {
     val accent = LocalAccentColor.current
@@ -51,11 +52,12 @@ fun NavigationWrapper(
             // Desktop UI
             Column(modifier = Modifier.fillMaxSize().background(if(settings.theme == "DARK") BackgroundDark else Color.White)) {
                 // --- CUSTOM TOP TITLE BAR ---
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    color = if(settings.theme == "DARK") SurfaceDark else SurfaceLight,
-                    border = BorderStroke(0.5.dp, GlassBorder.copy(alpha = 0.1f))
-                ) {
+                windowDraggableArea {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        color = if(settings.theme == "DARK") SurfaceDark else SurfaceLight,
+                        border = BorderStroke(0.5.dp, GlassBorder.copy(alpha = 0.1f))
+                    ) {
                     Row(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -80,6 +82,7 @@ fun NavigationWrapper(
                         }
                     }
                 }
+            }
 
                 Box(modifier = Modifier.weight(1f)) {
                     LiquidGlowBackground()

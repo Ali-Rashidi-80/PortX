@@ -78,7 +78,9 @@ object LocalizedStrings {
             "scanning_network" to "SCANNING NETWORK...",
             "threats_detected" to "Threats Detected",
             "device_profile" to "Device Profile",
-            "firewall_perimeter" to "Perimeter"
+            "firewall_perimeter" to "Perimeter",
+            "socket_timeout" to "Socket Timeout",
+            "ms" to "ms"
         ),
         "fa" to mapOf(
             "dashboard" to "داشبورد",
@@ -141,7 +143,9 @@ object LocalizedStrings {
             "scanning_network" to "در حال بررسی شبکه...",
             "threats_detected" to "تهدید شناسایی شد",
             "device_profile" to "مشخصات دستگاه",
-            "firewall_perimeter" to "محدوده شبکه"
+            "firewall_perimeter" to "محدوده شبکه",
+            "socket_timeout" to "مهلت زمانی اتصال",
+            "ms" to "میلی‌ثانیه"
         ),
         "ar" to mapOf(
             "dashboard" to "لوحة القيادة",
@@ -180,7 +184,9 @@ object LocalizedStrings {
             "refresh" to "Обновить",
             "threats_detected" to "Обнаружены угрозы",
             "device_profile" to "Профиль устройства",
-            "firewall_perimeter" to "Периметр"
+            "firewall_perimeter" to "Периметр",
+            "socket_timeout" to "Тайм-аут сокета",
+            "ms" to "мс"
         ),
         "zh" to mapOf(
             "dashboard" to "仪表板",
@@ -206,7 +212,9 @@ object LocalizedStrings {
             "refresh" to "刷新",
             "threats_detected" to "检测到威胁",
             "device_profile" to "设备信息",
-            "firewall_perimeter" to "边界防御"
+            "firewall_perimeter" to "边界防御",
+            "socket_timeout" to "套接字超时",
+            "ms" to "毫秒"
         ),
         "ja" to mapOf("dashboard" to "ダッシュボード", "tools" to "ツール", "reports" to "レポート", "settings" to "設定"),
         "hi" to mapOf("dashboard" to "डैशबोर्ड", "tools" to "उपकरण", "reports" to "रिपोर्ट", "settings" to "सेटिंग्स")

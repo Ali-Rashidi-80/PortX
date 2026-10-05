@@ -15,7 +15,8 @@ import org.koin.compose.KoinContext
 fun App(
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
-    onClose: () -> Unit = {}
+    onClose: () -> Unit = {},
+    windowDraggableArea: @Composable (@Composable () -> Unit) -> Unit = { it() }
 ) {
     PortXTheme {
         Surface(
@@ -25,7 +26,8 @@ fun App(
             MainScreen(
                 onMinimize = onMinimize,
                 onMaximize = onMaximize,
-                onClose = onClose
+                onClose = onClose,
+                windowDraggableArea = windowDraggableArea
             )
         }
     }

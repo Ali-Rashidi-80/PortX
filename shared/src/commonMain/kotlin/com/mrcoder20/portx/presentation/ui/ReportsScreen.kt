@@ -59,8 +59,11 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                             LocalizedStrings.get("reports", lang).uppercase(), 
                             style = MaterialTheme.typography.labelMedium.copy(color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, fontWeight = FontWeight.Bold),
                         )
-                        IconButton(onClick = { showDeleteConfirm = true }) {
-                            Icon(Icons.Default.DeleteSweep, null, tint = DangerNeon.copy(alpha = 0.7f))
+                        IconButton(
+                            onClick = { showDeleteConfirm = true },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear All Reports", tint = DangerNeon.copy(alpha = 0.7f))
                         }
                     }
                     
@@ -273,16 +276,25 @@ fun ReportHistoryItem(
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            IconButton(onClick = onDownload) {
-                Icon(Icons.Default.Download, null, tint = accent, modifier = Modifier.size(20.dp))
+            IconButton(
+                onClick = onDownload,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(Icons.Default.Download, contentDescription = "Download Report", tint = accent, modifier = Modifier.size(20.dp))
             }
 
-            IconButton(onClick = onExport) {
-                Icon(Icons.Default.Share, null, tint = SecondaryNeon, modifier = Modifier.size(20.dp))
+            IconButton(
+                onClick = onExport,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(Icons.Default.Share, contentDescription = "Export Report", tint = SecondaryNeon, modifier = Modifier.size(20.dp))
             }
             
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.DeleteOutline, null, tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(20.dp))
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Report", tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(20.dp))
             }
         }
     }

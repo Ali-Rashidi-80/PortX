@@ -11,7 +11,8 @@ import org.koin.compose.koinInject
 fun MainScreen(
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
-    onClose: () -> Unit = {}
+    onClose: () -> Unit = {},
+    windowDraggableArea: @Composable (@Composable () -> Unit) -> Unit = { it() }
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val viewModel: ScanViewModel = koinInject()
@@ -24,7 +25,8 @@ fun MainScreen(
         settings = settings,
         onMinimize = onMinimize,
         onMaximize = onMaximize,
-        onClose = onClose
+        onClose = onClose,
+        windowDraggableArea = windowDraggableArea
     ) {
         AnimatedContent(
             targetState = selectedTab,
