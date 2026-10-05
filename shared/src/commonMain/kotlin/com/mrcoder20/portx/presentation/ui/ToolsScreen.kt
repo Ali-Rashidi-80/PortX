@@ -6,6 +6,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -240,7 +241,7 @@ fun PingResultPanel(results: List<com.mrcoder20.portx.domain.PingResult>, isLoad
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(results) { res ->
+                    itemsIndexed(results, key = { index, res -> "${index}_${res.sequence}" }) { _, res ->
                         Row(modifier = Modifier.clickable { onCopyItem(res.message) }) {
                             Text("> ", color = accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                             Text(res.message, color = if (res.isSuccess) (if (isDark) Color.White else Color.Black) else DangerNeon, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
@@ -263,7 +264,7 @@ fun DnsResultPanel(results: List<String>, isLoading: Boolean, accent: Color, onC
             if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(results) { ip ->
+                    itemsIndexed(results, key = { index, ip -> "${index}_$ip" }) { _, ip ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onCopyItem(ip) }.padding(vertical = 4.dp)) {
                             Icon(Icons.Default.Adjust, null, tint = accent, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(12.dp))

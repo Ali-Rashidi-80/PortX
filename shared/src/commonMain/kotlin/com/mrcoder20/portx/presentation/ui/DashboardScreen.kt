@@ -6,6 +6,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -377,7 +378,7 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).border(1.dp, GlassBorder.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                 LazyColumn(state = logListState, modifier = Modifier.fillMaxSize()) {
-                    items(state.logs) { log ->
+                    itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
                         Row(modifier = Modifier.padding(vertical = 2.dp)) {
                             Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
                             Text(log, color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
@@ -406,7 +407,7 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     }
                     Row(modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape).border(1.dp, GlassBorder, CircleShape)) {
                         IconButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
-                        IconButton(onClick = { scope.launch { val count = state.result?.openPorts?.size ?: 0; if (count > 0) listState.animateScrollToItem(count - 1) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
+                        IconButton(onClick = { scope.launch { val count = state.result?.openPorts?.distinct()?.size ?: 0; if (count > 0) listState.animateScrollToItem(count - 1) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
                     }
                 }
             }

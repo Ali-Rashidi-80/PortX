@@ -20,7 +20,6 @@ object SecurityHarden {
             install(ContentNegotiation) {
                 json(Json { 
                     ignoreUnknownKeys = true 
-                    prettyPrint = true
                 })
             }
             

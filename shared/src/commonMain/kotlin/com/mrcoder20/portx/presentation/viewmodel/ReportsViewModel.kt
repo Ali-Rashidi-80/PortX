@@ -34,17 +34,25 @@ class ReportsViewModel(
     }
 
     fun shareScan(scan: ScanResult) {
-        val (_, content, fileName, mimeType) = prepareExport(scan)
-        fileSharer.shareFile(content, fileName, mimeType)
+        try {
+            val (_, content, fileName, mimeType) = prepareExport(scan)
+            fileSharer.shareFile(content, fileName, mimeType)
+        } catch (e: Exception) {
+            showSnackbar("Share failed: ${e.message ?: "Unknown error"}")
+        }
     }
 
     fun downloadScan(scan: ScanResult) {
-        val (_, content, fileName, mimeType) = prepareExport(scan)
-        val path = fileSharer.downloadFile(content, fileName, mimeType)
-        if (path != null) {
-            showSnackbar("Saved to: $path")
-        } else {
-            showSnackbar("Download failed")
+        try {
+            val (_, content, fileName, mimeType) = prepareExport(scan)
+            val path = fileSharer.downloadFile(content, fileName, mimeType)
+            if (path != null) {
+                showSnackbar("Saved to: $path")
+            } else {
+                showSnackbar("Download failed")
+            }
+        } catch (e: Exception) {
+            showSnackbar("Download failed: ${e.message ?: "Unknown error"}")
         }
     }
 
@@ -92,13 +100,21 @@ class ReportsViewModel(
 
     fun deleteScan(id: Long) {
         viewModelScope.launch {
-            scanRepository.deleteScan(id)
+            try {
+                scanRepository.deleteScan(id)
+            } catch (e: Exception) {
+                showSnackbar("Failed to delete record: ${e.message}")
+            }
         }
     }
 
     fun clearAll() {
         viewModelScope.launch {
-            scanRepository.deleteAllScans()
+            try {
+                scanRepository.deleteAllScans()
+            } catch (e: Exception) {
+                showSnackbar("Failed to clear history: ${e.message}")
+            }
         }
     }
 }

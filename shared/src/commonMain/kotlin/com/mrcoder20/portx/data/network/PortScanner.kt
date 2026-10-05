@@ -193,20 +193,6 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         val bannerChannel = Channel<ScanPortResult>(concurrency / 2)
         val finalResultsChannel = Channel<ScanPortResult>(concurrency * 2)
 
-        // RATE LIMITER: Token Bucket logic
-        val rateLimitJob = launch {
-            var tokens = 0.0
-            while (isActive) {
-                val currentRate = timing.getRate()
-                tokens = (tokens + currentRate / 100.0).coerceAtMost(currentRate.toDouble())
-                if (tokens >= 1.0) {
-                    delay(10) // 100Hz resolution
-                } else {
-                    delay(5)
-                }
-            }
-        }
-
         // WORKER POOL: Main Scanner
         val workers = List(concurrency) {
             launch {
@@ -254,8 +240,11 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                             }
                         }
                         if (socket != null) {
-                            val probe = probeOpenTcpPort(socket, resolvedTarget, res.port)
-                            try { socket.close() } catch (_: Exception) {}
+                            val probe = try {
+                                probeOpenTcpPort(socket, resolvedTarget, res.port)
+                            } finally {
+                                try { socket.close() } catch (_: Exception) {}
+                            }
                             probe.copy(rtt = res.rtt)
                         } else res
                     } catch (e: CancellationException) {
@@ -316,7 +305,6 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         try {
             consumerJob.join()
         } finally {
-            rateLimitJob.cancel()
             workers.forEach { it.cancel() }
             bannerWorkers.forEach { it.cancel() }
             selectorManager.close()
@@ -432,7 +420,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
 
             val httpPorts = setOf(80, 8080, 443, 8000, 8081, 8088, 8443, 8888, 9090, 3000, 5000)
             if (httpPorts.contains(port)) {
-                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: $target\r\nUser-Agent: PortX/5.1\r\nConnection: close\r\n\r\n")
+                val hostHeader = if (target.contains(":") && !target.startsWith("[")) "[$target]" else target
+                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: $hostHeader\r\nUser-Agent: PortX/5.1\r\nConnection: close\r\n\r\n")
             }
 
             val buffer = ByteArray(2048)

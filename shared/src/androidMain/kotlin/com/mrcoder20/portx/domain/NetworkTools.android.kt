@@ -60,24 +60,28 @@ class AndroidNetworkTools : NetworkTools {
 
     private fun executeAndroidPing(ipStr: String, address: InetAddress, timeoutMs: Int): PingAttempt {
         val timeoutSec = maxOf(1, timeoutMs / 1000)
+        var process: Process? = null
         try {
             val start = System.currentTimeMillis()
-            val process = Runtime.getRuntime().exec(arrayOf("/system/bin/ping", "-c", "1", "-W", timeoutSec.toString(), ipStr))
-            val finished = process.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
+            val proc = Runtime.getRuntime().exec(arrayOf("/system/bin/ping", "-c", "1", "-W", timeoutSec.toString(), ipStr))
+            process = proc
+            val finished = proc.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
             if (!finished) {
-                process.destroy()
+                proc.destroy()
                 return PingAttempt(false, null, null)
             }
-            val output = process.inputStream.bufferedReader().readText()
+            val output = proc.inputStream.bufferedReader().readText()
             val elapsed = System.currentTimeMillis() - start
 
-            if (process.exitValue() == 0 && !output.contains("100% packet loss", ignoreCase = true)) {
+            if (proc.exitValue() == 0 && !output.contains("100% packet loss", ignoreCase = true)) {
                 val parsedTime = parseTimeFromPingOutput(output) ?: elapsed
                 val parsedTtl = parseTtlFromPingOutput(output)
                 return PingAttempt(true, parsedTime, parsedTtl)
             }
         } catch (e: Exception) {
             // Android exec failed or restricted, fallback to isReachable
+        } finally {
+            try { process?.destroy() } catch (_: Exception) {}
         }
 
         return try {

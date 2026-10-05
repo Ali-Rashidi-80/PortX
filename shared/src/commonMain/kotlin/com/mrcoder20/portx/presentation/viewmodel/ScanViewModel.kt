@@ -270,8 +270,8 @@ class ScanViewModel(
         _uiState.update { it.copy(isLoading = false) }
     }
 
-    fun exportReport(): String? {
+    fun exportReport(format: String = "JSON"): String? {
         val result = _uiState.value.result ?: return null
-        return exportReportUseCase(result)
+        return exportReportUseCase(result, format)
     }
 }

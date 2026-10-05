@@ -275,4 +275,78 @@ class NetworkToolsHardeningTest {
         ScanManager.setScanning(false)
         assertFalse(ScanManager.isScanning.value)
     }
+
+    @Test
+    fun testSecurityHardenTransformSymmetry() {
+        val original = "PortX-Professional-V5.1.0-SecCheck-192.168.1.1"
+        val obfuscated = SecurityHarden.transform(original)
+        assertFalse(obfuscated == original, "Obfuscated string must not equal original")
+        val restored = SecurityHarden.transform(obfuscated)
+        assertEquals(original, restored, "Transform must be fully symmetric and reversible")
+    }
+
+    @Test
+    fun testExportReportFormatsAndEscaping() {
+        val useCase = com.mrcoder20.portx.domain.usecase.ExportReportUseCase()
+        val mockResult = ScanResult(
+            target = "192.168.1.50",
+            openPorts = listOf(80, 445),
+            portServices = mapOf(80 to "http", 445 to "microsoft-ds,smb"),
+            portBanners = mapOf(80 to "nginx|1.24", 445 to "Windows 11 SMB"),
+            timestamp = 1775390400000L,
+            securityScore = 75,
+            scanType = "TCP"
+        )
+
+        // CSV must replace commas with semicolons
+        val csv = useCase(mockResult, "CSV")
+        assertTrue(csv.contains("80,TCP,http,nginx|1.24,open"))
+        assertTrue(csv.contains("445,TCP,microsoft-ds;smb,Windows 11 SMB,open"))
+
+        // Markdown must escape pipes
+        val md = useCase(mockResult, "MD")
+        assertTrue(md.contains("# PortX Scan Report"))
+        assertTrue(md.contains("`80` | http | nginx\\|1.24"))
+        assertTrue(md.contains("Security Score:** 75%"))
+
+        // JSON must serialize correctly
+        val json = useCase(mockResult, "JSON")
+        assertTrue(json.contains("\"target\": \"192.168.1.50\""))
+        assertTrue(json.contains("\"securityScore\": 75"))
+    }
+
+    @Test
+    fun testSanitizeHostIPv6Brackets() {
+        assertEquals("2001:db8::1", sanitizeHost("[2001:db8::1]:8080"))
+        assertEquals("2001:db8::1", sanitizeHost("[2001:db8::1]"))
+        assertEquals("2001:db8::1", sanitizeHost("https://[2001:db8::1]/path?query=1"))
+        assertEquals("127.0.0.1", sanitizeHost("http://127.0.0.1:3000/"))
+        assertEquals("example.com", sanitizeHost("https://example.com:8443/api/v1"))
+    }
+
+    @Test
+    fun testAnomalyDetectionCriticalVectors() {
+        val useCase = com.mrcoder20.portx.domain.usecase.AnomalyDetectionUseCase()
+        val cleanResult = ScanResult(
+            target = "10.0.0.1",
+            openPorts = listOf(80, 443),
+            timestamp = 0L,
+            securityScore = 95
+        )
+        assertTrue(useCase(cleanResult).isEmpty(), "Clean web server should have zero critical anomalies")
+
+        val vulnerableResult = ScanResult(
+            target = "10.0.0.2",
+            openPorts = listOf(21, 23, 445, 5555, 6379),
+            timestamp = 0L,
+            securityScore = 15
+        )
+        val anomalies = useCase(vulnerableResult)
+        assertEquals(5, anomalies.size)
+        assertTrue(anomalies.any { it.contains("EternalBlue") })
+        assertTrue(anomalies.any { it.contains("Android Debug Bridge") })
+        assertTrue(anomalies.any { it.contains("Redis") })
+        assertTrue(anomalies.any { it.contains("Telnet") })
+        assertTrue(anomalies.any { it.contains("FTP") })
+    }
 }

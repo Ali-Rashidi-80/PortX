@@ -174,7 +174,6 @@ fun InfiniteBottomBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val isDark = LocalAppSettings.current.theme == "DARK"
             BottomNavItem(
                 icon = Icons.Default.Home,
                 label = LocalizedStrings.get("dashboard", lang),

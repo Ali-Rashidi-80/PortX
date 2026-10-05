@@ -68,15 +68,17 @@ class JvmNetworkTools : NetworkTools {
             listOf("ping", "-c", "1", "-W", timeoutSec.toString(), ipStr)
         }
 
+        var process: Process? = null
         try {
             val start = System.currentTimeMillis()
-            val process = ProcessBuilder(cmd).redirectErrorStream(true).start()
-            val finished = process.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
+            val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+            process = proc
+            val finished = proc.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
             if (!finished) {
-                process.destroyForcibly()
+                proc.destroyForcibly()
                 return PingAttempt(false, null, null)
             }
-            val output = process.inputStream.bufferedReader().readText()
+            val output = proc.inputStream.bufferedReader().readText()
             val elapsed = System.currentTimeMillis() - start
 
             val isFailure = output.contains("100% loss", ignoreCase = true) ||
@@ -84,13 +86,15 @@ class JvmNetworkTools : NetworkTools {
                     output.contains("Request timed out", ignoreCase = true) ||
                     output.contains("Destination host unreachable", ignoreCase = true)
 
-            if (process.exitValue() == 0 && !isFailure) {
+            if (proc.exitValue() == 0 && !isFailure) {
                 val parsedTime = parseTimeFromPingOutput(output) ?: elapsed
                 val parsedTtl = parseTtlFromPingOutput(output)
                 return PingAttempt(true, parsedTime, parsedTtl)
             }
         } catch (e: Exception) {
             // ProcessBuilder fallback to address.isReachable
+        } finally {
+            try { process?.destroyForcibly() } catch (_: Exception) {}
         }
 
         // Graceful fallback to InetAddress.isReachable

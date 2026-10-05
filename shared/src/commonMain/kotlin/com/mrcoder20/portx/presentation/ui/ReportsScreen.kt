@@ -87,7 +87,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                         }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(state.scans) { scan ->
+                            items(state.scans, key = { it.id ?: it.timestamp }) { scan ->
                                 ReportHistoryItem(
                                     scan = scan,
                                     accent = accent,

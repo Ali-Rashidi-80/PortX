@@ -16,7 +16,7 @@ class AndroidFileSharer : FileSharer {
         if (!cacheDir.exists()) cacheDir.mkdirs()
         
         val file = File(cacheDir, fileName)
-        file.writeText(content)
+        file.writeText(content, Charsets.UTF_8)
         
         val uri = FileProvider.getUriForFile(
             appContext,
@@ -52,14 +52,14 @@ class AndroidFileSharer : FileSharer {
                 
                 uri?.let {
                     resolver.openOutputStream(it)?.use { outputStream ->
-                        outputStream.write(content.toByteArray())
+                        outputStream.write(content.toByteArray(Charsets.UTF_8))
                     }
                     "Downloads/$fileName"
                 }
             } else {
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 val file = File(downloadsDir, fileName)
-                FileOutputStream(file).use { it.write(content.toByteArray()) }
+                FileOutputStream(file).use { it.write(content.toByteArray(Charsets.UTF_8)) }
                 "Downloads/$fileName"
             }
         } catch (e: Exception) {
