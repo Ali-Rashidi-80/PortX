@@ -40,17 +40,37 @@ class AndroidSecurityProvider : SecurityProvider {
     }
 
     private fun checkRootFiles(): Boolean {
-        val paths = arrayOf("/system/app/Superuser.apk", "/sbin/su", "/system/bin/su", "/system/xbin/su")
+        val paths = arrayOf(
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/data/local/su",
+            "/system/app/SuperSU.apk",
+            "/system/app/SuperSU/SuperSU.apk",
+            "/system/app/Magisk/Magisk.apk"
+        )
         return paths.any { File(it).exists() }
     }
 
     private fun checkSuBinary(): Boolean {
         return try {
             val process = Runtime.getRuntime().exec(arrayOf("which", "su"))
-            val output = process.inputStream.bufferedReader().readLine()
-            process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            val output = process.inputStream.bufferedReader().readLine()?.trim()
+            val finished = process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                return false
+            }
+            val exitCode = process.exitValue()
             process.destroy()
-            !output.isNullOrBlank()
+            exitCode == 0 && !output.isNullOrBlank() && 
+                !output.contains("not found", ignoreCase = true) && 
+                !output.contains("no su", ignoreCase = true)
         } catch (e: Exception) { false }
     }
 

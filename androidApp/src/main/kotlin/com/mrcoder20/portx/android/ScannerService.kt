@@ -151,23 +151,35 @@ class ScannerService : Service() {
     private fun maybeUpdateNotification(progress: Int) {
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastNotificationUpdateTime >= MIN_NOTIFICATION_INTERVAL || progress == 100) {
-            val notification = createNotificationBuilder(progress).build()
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.notify(NOTIFICATION_ID, notification)
-            lastNotificationUpdateTime = currentTime
+            try {
+                val notification = createNotificationBuilder(progress).build()
+                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                manager.notify(NOTIFICATION_ID, notification)
+                lastNotificationUpdateTime = currentTime
+            } catch (e: SecurityException) {
+                // Notification permission revoked or missing on Android 13+
+            } catch (e: Exception) {
+                Log.w("ScannerService", "Notification update skipped: ${e.message}")
+            }
         }
     }
 
     private fun showFinishNotification(result: ScanResult) {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Scan Complete")
-            .setContentText("Found ${result.openPorts.size} open ports on ${result.target}")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .build()
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID + 1, notification)
+        try {
+            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Scan Complete")
+                .setContentText("Found ${result.openPorts.size} open ports on ${result.target}")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .build()
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.notify(NOTIFICATION_ID + 1, notification)
+        } catch (e: SecurityException) {
+            // Notification permission revoked or missing on Android 13+
+        } catch (e: Exception) {
+            Log.w("ScannerService", "Could not show finish notification: ${e.message}")
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

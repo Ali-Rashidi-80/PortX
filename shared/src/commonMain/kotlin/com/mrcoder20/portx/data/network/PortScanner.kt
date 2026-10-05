@@ -438,7 +438,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         }
     }
 
-    private fun extractTitle(banner: String): String {
+    internal fun extractTitle(banner: String): String {
         val regex = Regex("""<title\b[^>]*>(.*?)</title>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         val raw = regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: return ""
         return raw.replace("&amp;", "&")
@@ -447,7 +447,9 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             .replace("&apos;", "'")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
+            .replace("|", "/")
             .trim()
+            .take(120)
     }
 
     private fun guessService(port: Int): String {

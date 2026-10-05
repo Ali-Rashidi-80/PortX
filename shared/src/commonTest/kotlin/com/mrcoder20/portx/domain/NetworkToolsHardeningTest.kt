@@ -420,4 +420,39 @@ class NetworkToolsHardeningTest {
         assertTrue(isTargetLocalOrPrivate("cluster.internal"))
         assertTrue(isTargetLocalOrPrivate("gateway.home.arpa"))
     }
+
+    @Test
+    fun testCloudAndDevOpsAnomalyVectors() {
+        val useCase = com.mrcoder20.portx.domain.usecase.AnomalyDetectionUseCase()
+        val devopsResult = ScanResult(
+            target = "10.0.0.5",
+            openPorts = listOf(2375, 9200, 10250, 11211),
+            timestamp = 0L,
+            securityScore = 20
+        )
+        val anomalies = useCase(devopsResult)
+        assertEquals(4, anomalies.size)
+        assertTrue(anomalies.any { it.contains("Docker Daemon") })
+        assertTrue(anomalies.any { it.contains("Elasticsearch") })
+        assertTrue(anomalies.any { it.contains("Kubernetes Kubelet") })
+        assertTrue(anomalies.any { it.contains("Memcached") })
+
+        val scoreUseCase = com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase()
+        val score = scoreUseCase(devopsResult)
+        // 100 - (4*3=12) - 20(Docker) - 15(ES) - 20(Kubelet) - 15(Memcached) = 100 - 12 - 70 = 18
+        assertEquals(18, score)
+    }
+
+    @Test
+    fun testExtractTitleSanitization() {
+        val scanner = PortScanner()
+        val htmlBanner = "HTTP/1.1 200 OK\r\n\r\n<html><head><title>Admin Panel &amp; Dashboard | v1.0 &lt;PRO&gt;</title></head></html>"
+        val title = scanner.extractTitle(htmlBanner)
+        assertEquals("Admin Panel & Dashboard / v1.0 <PRO>", title)
+        assertFalse(title.contains("|"), "Title should replace pipe with slash to avoid breaking Markdown tables")
+        
+        val giantTitleHtml = "<html><head><title>" + "A".repeat(300) + "</title></head></html>"
+        val truncatedTitle = scanner.extractTitle(giantTitleHtml)
+        assertEquals(120, truncatedTitle.length, "Title should be bounded to 120 characters")
+    }
 }

@@ -14,10 +14,14 @@ class AnomalyDetectionUseCase {
             135 to "RPC Endpoint Mapper (Remote attack surface)",
             139 to "NetBIOS Session Service (Legacy Windows vector)",
             445 to "SMB (WannaCry / EternalBlue ransomware vector)",
+            2375 to "Docker Daemon (Unauthenticated remote container escape risk)",
             3389 to "RDP (Remote Desktop exposed)",
             5555 to "ADB (Android Debug Bridge unauthenticated access)",
             5900 to "VNC (Remote control service exposed)",
             6379 to "Redis (Unauthenticated key-value store risk)",
+            9200 to "Elasticsearch (Unauthenticated cluster API risk)",
+            10250 to "Kubernetes Kubelet (Remote execution risk)",
+            11211 to "Memcached (Unauthenticated cache & DDoS amplification risk)",
             27017 to "MongoDB (Unauthenticated database risk)"
         )
 

@@ -17,10 +17,14 @@ class SecurityScoreUseCase {
             135 to 10, // RPC endpoint mapper
             139 to 10, // NetBIOS
             445 to 20, // SMB / EternalBlue
+            2375 to 20,// Docker daemon unauthenticated API
             3389 to 15,// RDP exposed
             5555 to 15,// ADB remote debugging
             5900 to 10,// VNC remote access
             6379 to 15,// Redis unauthenticated
+            9200 to 15,// Elasticsearch unauthenticated cluster API
+            10250 to 20,// Kubernetes Kubelet unauthenticated API
+            11211 to 15,// Memcached unauthenticated cache & DDoS amplification
             27017 to 15// MongoDB unauthenticated
         )
 
