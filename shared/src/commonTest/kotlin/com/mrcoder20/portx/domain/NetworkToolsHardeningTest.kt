@@ -259,4 +259,20 @@ class NetworkToolsHardeningTest {
         val restoredValid = if ((validArgb ushr 24) == 0) androidx.compose.ui.graphics.Color(0xFF00D1FF) else androidx.compose.ui.graphics.Color(validArgb)
         assertEquals(androidx.compose.ui.graphics.Color(0xFF00D1FF), restoredValid, "Valid full-alpha accent color must be preserved")
     }
+
+    @Test
+    fun testScanManagerUiEventBuffering() {
+        // Must not throw or block when triggering event without collector
+        ScanManager.triggerUiEvent(ScanUIEvent.RequestNotificationPermission)
+        
+        // Changing state must be atomic and non-blocking
+        ScanManager.setScanning(true)
+        assertTrue(ScanManager.isScanning.value)
+        
+        ScanManager.updateProgress(45)
+        assertEquals(45, ScanManager.progress.value)
+
+        ScanManager.setScanning(false)
+        assertFalse(ScanManager.isScanning.value)
+    }
 }

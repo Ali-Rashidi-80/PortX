@@ -57,7 +57,7 @@ val commonModule = module {
     factory { AnomalyDetectionUseCase() }
     factory { ExportReportUseCase() }
     
-    factory { ScanViewModel(get(), get(), get(), get(), get(), get()) }
-    factory { ReportsViewModel(get(), get()) }
-    factory { ToolsViewModel() }
+    single { ScanViewModel(get(), get(), get(), get(), get(), get()) }
+    single { ReportsViewModel(get(), get()) }
+    single { ToolsViewModel() }
 }
