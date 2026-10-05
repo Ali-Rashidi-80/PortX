@@ -26,11 +26,13 @@ class SettingsManager(private val database: AppDatabase) {
         scope.launch {
             val dbSettings = queries.getSettings().executeAsOneOrNull()
             if (dbSettings != null) {
+                val rawArgb = dbSettings.accentColor.toInt()
+                val restoredColor = if ((rawArgb ushr 24) == 0) Color(0xFF00D1FF) else Color(rawArgb)
                 _settings.update {
                     it.copy(
                         language = dbSettings.language,
                         theme = dbSettings.theme,
-                        accentColor = Color(dbSettings.accentColor.toInt())
+                        accentColor = restoredColor
                     )
                 }
             }

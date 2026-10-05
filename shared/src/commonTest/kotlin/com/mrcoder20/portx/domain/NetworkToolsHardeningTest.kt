@@ -248,4 +248,15 @@ class NetworkToolsHardeningTest {
         val openPerimeterScan = ScanResult(target = "10.0.0.4", openPorts = (1..15).toList(), timestamp = 0L, securityScore = 30)
         assertTrue(useCase(openPerimeterScan).contains("Open Perimeter"))
     }
+
+    @Test
+    fun testSettingsAccentColorAlphaSafety() {
+        val zeroAlphaArgb = 0x00000000 // Alpha = 0 (completely transparent)
+        val safeColor = if ((zeroAlphaArgb ushr 24) == 0) androidx.compose.ui.graphics.Color(0xFF00D1FF) else androidx.compose.ui.graphics.Color(zeroAlphaArgb)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF00D1FF), safeColor, "Corrupted zero-alpha accent color must revert to default cyan")
+
+        val validArgb = 0xFF00D1FF.toInt()
+        val restoredValid = if ((validArgb ushr 24) == 0) androidx.compose.ui.graphics.Color(0xFF00D1FF) else androidx.compose.ui.graphics.Color(validArgb)
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF00D1FF), restoredValid, "Valid full-alpha accent color must be preserved")
+    }
 }

@@ -30,10 +30,11 @@ class AndroidSecurityProvider : SecurityProvider {
 
     private fun isHookingDetected(): Boolean {
         return try {
-            val libraries = File("/proc/self/maps").readLines()
-            libraries.any { line ->
-                line.contains("frida", true) || line.contains("xposed", true) || 
-                line.contains("substrate", true) || line.contains("magisk", true)
+            File("/proc/self/maps").useLines { lines ->
+                lines.any { line ->
+                    line.contains("frida", true) || line.contains("xposed", true) || 
+                    line.contains("substrate", true) || line.contains("magisk", true)
+                }
             }
         } catch (e: Exception) { false }
     }
@@ -45,7 +46,11 @@ class AndroidSecurityProvider : SecurityProvider {
 
     private fun checkSuBinary(): Boolean {
         return try {
-            Runtime.getRuntime().exec("which su").inputStream.bufferedReader().readLine() != null
+            val process = Runtime.getRuntime().exec(arrayOf("which", "su"))
+            val output = process.inputStream.bufferedReader().readLine()
+            process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            process.destroy()
+            !output.isNullOrBlank()
         } catch (e: Exception) { false }
     }
 
