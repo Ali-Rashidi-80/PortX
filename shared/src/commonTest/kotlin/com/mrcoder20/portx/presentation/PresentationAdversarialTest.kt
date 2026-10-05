@@ -15,17 +15,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+import com.mrcoder20.portx.domain.isValidTarget
+
 class PresentationAdversarialTest {
-
-    private val ipRegex = Regex("""^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$""")
-    private val hostnameRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$""")
-
-    private fun isValidTarget(raw: String): Boolean {
-        val target = raw.trim()
-        if (target.isBlank()) return false
-        val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
-        return if (isAllNumericDotted) ipRegex.matches(target) else hostnameRegex.matches(target)
-    }
 
     private fun validatePortRange(startStr: String, endStr: String, allPorts: Boolean): Pair<Boolean, String?> {
         if (allPorts) return true to null

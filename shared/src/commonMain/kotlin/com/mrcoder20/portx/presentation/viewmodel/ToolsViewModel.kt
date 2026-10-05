@@ -71,9 +71,14 @@ class ToolsViewModel : ViewModel() {
     }
 
     fun runPing() {
-        val rawHost = sanitizeHost(_uiState.value.target)
-        if (rawHost.isEmpty()) {
+        val rawInput = _uiState.value.target.trim()
+        if (rawInput.isBlank()) {
             _uiState.update { it.copy(error = "Please enter a target IP or Domain") }
+            return
+        }
+        val target = sanitizeHost(rawInput)
+        if (!isValidTarget(target)) {
+            _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8 or example.com)") }
             return
         }
         
@@ -81,7 +86,7 @@ class ToolsViewModel : ViewModel() {
         activeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, pingResults = emptyList(), error = null) }
             try {
-                networkTools.ping(rawHost).collect { res ->
+                networkTools.ping(target).collect { res ->
                     _uiState.update { it.copy(pingResults = it.pingResults + res) }
                 }
             } catch (e: CancellationException) {
@@ -95,9 +100,14 @@ class ToolsViewModel : ViewModel() {
     }
 
     fun runDnsLookup() {
-        val host = sanitizeHost(_uiState.value.target)
-        if (host.isEmpty()) {
+        val rawInput = _uiState.value.target.trim()
+        if (rawInput.isBlank()) {
             _uiState.update { it.copy(error = "Please enter a Domain to resolve") }
+            return
+        }
+        val target = sanitizeHost(rawInput)
+        if (!isValidTarget(target)) {
+            _uiState.update { it.copy(error = "Invalid domain format (e.g. example.com)") }
             return
         }
 
@@ -105,9 +115,9 @@ class ToolsViewModel : ViewModel() {
         activeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, dnsResults = emptyList(), error = null) }
             try {
-                val results = networkTools.dnsLookup(host)
+                val results = networkTools.dnsLookup(target)
                 if (results.isEmpty()) {
-                    _uiState.update { it.copy(error = "No resolution found for $host. Check your internet.") }
+                    _uiState.update { it.copy(error = "No resolution found for $target. Check your internet.") }
                 } else {
                     _uiState.update { it.copy(dnsResults = results) }
                 }
@@ -122,9 +132,14 @@ class ToolsViewModel : ViewModel() {
     }
 
     fun runWhois() {
-        val host = sanitizeHost(_uiState.value.target)
-        if (host.isEmpty()) {
+        val rawInput = _uiState.value.target.trim()
+        if (rawInput.isBlank()) {
             _uiState.update { it.copy(error = "Please enter a domain (e.g. google.com)") }
+            return
+        }
+        val target = sanitizeHost(rawInput)
+        if (!isValidTarget(target)) {
+            _uiState.update { it.copy(error = "Invalid domain format (e.g. google.com)") }
             return
         }
 
@@ -132,7 +147,7 @@ class ToolsViewModel : ViewModel() {
         activeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, whoisResult = "Connecting to Authority Database...", error = null) }
             try {
-                val result = networkTools.whois(host)
+                val result = networkTools.whois(target)
                 _uiState.update { it.copy(whoisResult = result) }
             } catch (e: CancellationException) {
                 throw e

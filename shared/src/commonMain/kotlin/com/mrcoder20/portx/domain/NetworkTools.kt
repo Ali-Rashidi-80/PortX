@@ -140,6 +140,21 @@ fun isTargetLocalOrPrivate(target: String): Boolean {
     return false
 }
 
+val HOSTNAME_REGEX = Regex("""^([a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?\.)*[a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?$""")
+
+/**
+ * Validates whether an input target is a compliant IPv4, IPv6, or valid Hostname/FQDN.
+ */
+fun isValidTarget(target: String): Boolean {
+    val clean = target.trim()
+    if (clean.isBlank()) return false
+    val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(clean)
+    return when {
+        isAllNumericDotted || clean.contains(":") -> isValidIpAddress(clean)
+        else -> HOSTNAME_REGEX.matches(clean)
+    }
+}
+
 /**
  * Validates whether an input string is a strictly compliant IPv4 or IPv6 address.
  * Neutralizes HTML error pages, captive portals, or corrupted text from polluting IP state.

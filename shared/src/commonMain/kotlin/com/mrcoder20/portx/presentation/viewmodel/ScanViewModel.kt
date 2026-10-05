@@ -155,13 +155,7 @@ class ScanViewModel(
         }
         val target = com.mrcoder20.portx.domain.sanitizeHost(rawInput)
 
-        // Support IPv4, IPv6, Domain names, and Local hostnames (e.g. localhost, router, server-01)
-        val hostnameRegex = Regex("""^([a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?\.)*[a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?$""")
-        val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
-        val isValid = when {
-            isAllNumericDotted || target.contains(":") -> com.mrcoder20.portx.domain.isValidIpAddress(target)
-            else -> hostnameRegex.matches(target)
-        }
+        val isValid = com.mrcoder20.portx.domain.isValidTarget(target)
         val isLocal = com.mrcoder20.portx.domain.isTargetLocalOrPrivate(target)
         
         if (!isValid) {
