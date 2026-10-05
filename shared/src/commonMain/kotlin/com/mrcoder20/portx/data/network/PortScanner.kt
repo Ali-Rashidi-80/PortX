@@ -154,7 +154,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         } catch (_: Exception) { config.target }
 
         val results = mutableListOf<ScanPortResult>()
-        val concurrency = if (config.concurrency > 0) config.concurrency else 5000
+        val concurrency = (if (config.concurrency > 0) config.concurrency else 1000).coerceIn(10, 2500)
         val ports = (config.startPort..config.endPort).toList().let {
             if (config.randomizePorts) it.shuffled() else it
         }
@@ -181,7 +181,6 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 val currentRate = timing.getRate()
                 tokens = (tokens + currentRate / 100.0).coerceAtMost(currentRate.toDouble())
                 if (tokens >= 1.0) {
-                    // Tokens available, workers will consume from portChannel
                     delay(10) // 100Hz resolution
                 } else {
                     delay(5)
@@ -193,55 +192,50 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         val workers = List(concurrency) {
             launch {
                 for ((proto, port) in portChannel) {
-                    if (!isActive) break
-                    
-                    val start = timeSource.markNow()
-                    val result = try {
-                        if (proto == "UDP") {
+                    val finalResult = try {
+                        val start = timeSource.markNow()
+                        val result = if (proto == "UDP") {
                             scanUdpPort(selectorManager, resolvedTarget, port)
                         } else {
                             val adaptiveTimeout = timing.getAdaptiveTimeout(config.timeoutMs)
                             var res = scanTcpPort(selectorManager, resolvedTarget, port, adaptiveTimeout)
                             
-                            // Accuracy Retry
-                            if (res.state == "filtered" && config.concurrency > 1000) {
-                                delay(20)
+                            // Accuracy Retry on filtered ports
+                            if (res.state == "filtered" && concurrency > 500) {
+                                delay(15)
                                 res = scanTcpPort(selectorManager, resolvedTarget, port, adaptiveTimeout * 2)
                             }
                             res
                         }
+                        val latency = start.elapsedNow().inWholeMilliseconds
+                        batchLatency += latency
+                        result.copy(rtt = latency)
                     } catch (e: Exception) {
                         ScanPortResult(port, proto, "closed", reason = e.message ?: "error")
                     }
-                    
-                    val latency = start.elapsedNow().inWholeMilliseconds
-                    batchLatency += latency
-                    
-                    val resultWithRtt = result.copy(rtt = latency)
-                    
-                    if (resultWithRtt.state == "open" && config.serviceDetect && proto == "TCP") {
-                        bannerChannel.send(resultWithRtt)
+
+                    if (finalResult.state == "open" && config.serviceDetect && proto == "TCP") {
+                        bannerChannel.send(finalResult)
                     } else {
-                        finalResultsChannel.send(resultWithRtt)
+                        finalResultsChannel.send(finalResult)
                     }
                 }
             }
         }
 
         // WORKER POOL: Banner Detectors (Decoupled)
-        val bannerWorkers = List(max(20, concurrency / 10)) {
+        val bannerWorkers = List(max(10, concurrency / 10)) {
             launch {
                 for (res in bannerChannel) {
-                    if (!isActive) break
                     val enriched = try {
-                        val socket = withTimeoutOrNull(3000) {
+                        val socket = withTimeoutOrNull(2500) {
                             aSocket(selectorManager).tcp().connect(resolvedTarget, res.port) {
                                 socketTimeout = 2000
                             }
                         }
                         if (socket != null) {
                             val probe = probeOpenTcpPort(socket, res.port)
-                            socket.close()
+                            try { socket.close() } catch (_: Exception) {}
                             probe.copy(rtt = res.rtt)
                         } else res
                     } catch (e: Exception) { res }

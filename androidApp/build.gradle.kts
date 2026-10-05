@@ -41,15 +41,6 @@ android {
             excludes += "/META-INF/INDEX.LIST"
         }
     }
-    buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("debug") // Placeholder for now, will replace next
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-        }
-    }
-
     signingConfigs {
         create("release") {
             val properties = Properties()
@@ -58,16 +49,25 @@ android {
                 properties.load(propertiesFile.inputStream())
             }
 
-            storeFile = file("../release.jks")
-            storePassword = properties.getProperty("RELEASE_STORE_PASSWORD") ?: ""
-            keyAlias = properties.getProperty("RELEASE_KEY_ALIAS") ?: ""
-            keyPassword = properties.getProperty("RELEASE_KEY_PASSWORD") ?: ""
+            val keystorePath = properties.getProperty("RELEASE_STORE_FILE") ?: "../release.jks"
+            val keystoreFile = file(keystorePath)
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = properties.getProperty("RELEASE_STORE_PASSWORD") ?: ""
+                keyAlias = properties.getProperty("RELEASE_KEY_ALIAS") ?: ""
+                keyPassword = properties.getProperty("RELEASE_KEY_PASSWORD") ?: ""
+            }
         }
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile?.exists() == true) {
+                releaseSigning
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
