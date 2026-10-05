@@ -90,6 +90,16 @@ class ScanRepositoryImpl(
                     concurrentScans = scan.concurrentScans.toLong(),
                     timeout = scan.timeout.toLong()
                 )
+                if (!scan.deviceName.isNullOrBlank() || !scan.osFingerprint.isNullOrBlank()) {
+                    queries.insertDevice(
+                        ipAddress = scan.target,
+                        hostname = scan.deviceName,
+                        osName = scan.osFingerprint,
+                        osVersion = null,
+                        macAddress = null,
+                        vendor = null
+                    )
+                }
             }
         }
     }

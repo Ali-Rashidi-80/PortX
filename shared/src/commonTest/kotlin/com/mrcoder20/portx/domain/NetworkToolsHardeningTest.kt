@@ -817,6 +817,11 @@ class NetworkToolsHardeningTest {
         assertEquals("Network Printer", hpPrinterResult.deviceName)
         assertEquals("HP LaserJet / JetDirect", hpPrinterResult.osFingerprint)
 
+        // Exact PJL quoted printer identification model extraction
+        val pjlPrinterResult = useCase(listOf(9100), mapOf(9100 to "@PJL INFO ID\r\n\"HP LaserJet Pro MFP M428fdw\"\r\n"))
+        assertEquals("Network Printer", pjlPrinterResult.deviceName)
+        assertEquals("HP LaserJet Pro MFP M428fdw", pjlPrinterResult.osFingerprint)
+
         // Network Attached Storage (NAS)
         val synologyResult = useCase(listOf(5000, 5001), mapOf(5000 to "Synology DiskStation DSM 7.2"))
         assertEquals("Network Storage (NAS)", synologyResult.deviceName)
@@ -826,6 +831,23 @@ class NetworkToolsHardeningTest {
         val unifiResult = useCase(listOf(80, 443), mapOf(443 to "UniFi OS Dream Machine"))
         assertEquals("Network Gateway", unifiResult.deviceName)
         assertEquals("UniFi OS", unifiResult.osFingerprint)
+    }
+
+    @Test
+    fun testPortScannerServiceGuessing() {
+        val scanner = com.mrcoder20.portx.data.network.PortScanner()
+        assertEquals("jetdirect", scanner.guessService(9100))
+        assertEquals("vnc", scanner.guessService(5900))
+        assertEquals("postgres", scanner.guessService(5432))
+        assertEquals("mssql", scanner.guessService(1433))
+        assertEquals("oracle", scanner.guessService(1521))
+        assertEquals("mongodb", scanner.guessService(27017))
+        assertEquals("rdp", scanner.guessService(3389))
+        assertEquals("redis", scanner.guessService(6379))
+        assertEquals("modbus", scanner.guessService(502))
+        assertEquals("s7comm", scanner.guessService(102))
+        assertEquals("opcua", scanner.guessService(4840))
+        assertEquals("bacnet", scanner.guessService(47808))
     }
 
     @Test

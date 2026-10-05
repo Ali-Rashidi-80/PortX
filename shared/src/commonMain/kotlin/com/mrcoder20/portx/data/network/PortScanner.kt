@@ -449,6 +449,28 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 service = "memcached"
                 version = grabbed.removePrefix("VERSION ").trim()
             }
+            lowBanner.contains("rfb") || port == 5900 -> {
+                service = "vnc"
+                if (lowBanner.contains("rfb")) version = grabbed.lines().firstOrNull()?.trim() ?: ""
+            }
+            port == 9100 || lowBanner.contains("jetdirect") || lowBanner.contains("pjl") -> {
+                service = "jetdirect"
+            }
+            port == 5432 || lowBanner.contains("postgresql") -> {
+                service = "postgres"
+            }
+            port == 1433 || lowBanner.contains("microsoft sql") -> {
+                service = "mssql"
+            }
+            port == 1521 || lowBanner.contains("oracle") -> {
+                service = "oracle"
+            }
+            port == 27017 || lowBanner.contains("mongodb") -> {
+                service = "mongodb"
+            }
+            port == 3389 || lowBanner.contains("rdp") -> {
+                service = "rdp"
+            }
             port == 502 -> {
                 service = "modbus"
             }
@@ -487,6 +509,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 sendChannel.writeStringUtf8("version\r\n")
             } else if (port == 502) {
                 sendChannel.writeFully(byteArrayOf(0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x01, 0x2b, 0x0e, 0x01, 0x00))
+            } else if (port == 9100) {
+                sendChannel.writeStringUtf8("@PJL INFO ID\r\n")
             }
 
             val buffer = ByteArray(2048)
@@ -592,6 +616,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             8888, 9090 -> "http-alt"
             9000 -> "sonarqube"
             9092 -> "kafka"
+            9100 -> "jetdirect"
             9200, 9300 -> "elasticsearch"
             10250 -> "kubelet"
             11211 -> "memcached"

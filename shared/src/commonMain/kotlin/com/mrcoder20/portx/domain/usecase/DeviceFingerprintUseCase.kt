@@ -25,7 +25,9 @@ class DeviceFingerprintUseCase {
             allBannersLower.contains("epson") || allBannersLower.contains("brother") || allBannersLower.contains("canon") ||
             allBannersLower.contains("xerox") || allBannersLower.contains("kyocera") || allBannersLower.contains("ricoh")
         ) {
+            val quotedModel = Regex(""""([^"]{3,60})"""").find(banners.values.joinToString("\n"))?.groupValues?.get(1)?.trim()
             val printerModel = when {
+                !quotedModel.isNullOrBlank() && (quotedModel.contains("HP", true) || quotedModel.contains("LaserJet", true) || quotedModel.contains("Brother", true) || quotedModel.contains("Canon", true) || quotedModel.contains("Epson", true) || quotedModel.contains("Xerox", true)) -> quotedModel
                 allBannersLower.contains("laserjet") || allBannersLower.contains("jetdirect") -> "HP LaserJet / JetDirect"
                 allBannersLower.contains("canon") -> "Canon Network Print Device"
                 allBannersLower.contains("xerox") -> "Xerox Network Print Device"
