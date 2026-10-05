@@ -30,7 +30,7 @@ class SettingsManager(private val database: AppDatabase) {
                     it.copy(
                         language = dbSettings.language,
                         theme = dbSettings.theme,
-                        accentColor = Color(dbSettings.accentColor)
+                        accentColor = Color(dbSettings.accentColor.toInt())
                     )
                 }
             }

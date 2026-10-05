@@ -37,14 +37,23 @@ compose.desktop {
 
             windows {
                 iconFile.set(project.file("src/main/resources/ic1.ico"))
+                shortcut = true
+                menu = true
+                menuGroup = "PortX"
+                dirChooser = true
                 // Ensure the runtime has more memory and clear error reporting
                 jvmArgs("-Xmx2G", "-Dcompose.application.configure.stdio=true")
             }
             macOS {
                 iconFile.set(project.file("src/main/resources/ic1.icns"))
+                bundleID = "com.mrcoder20.portx"
+                dockName = "PortX"
+                appCategory = "public.app-category.developer-tools"
             }
             linux {
                 iconFile.set(project.file("../shared/src/commonMain/composeResources/drawable/ic1.png"))
+                shortcut = true
+                menuGroup = "Utility"
             }
         }
     }

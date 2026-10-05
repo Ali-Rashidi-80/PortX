@@ -12,15 +12,22 @@ class JvmFileSharer : FileSharer {
             try {
                 // Initialize JFileChooser with standard home directory to avoid NPE with system nodes
                 val fsv = FileSystemView.getFileSystemView()
+                val ext = fileName.substringAfterLast(".", "")
+                val defaultFile = File(fsv.homeDirectory, fileName)
                 val fileChooser = JFileChooser(fsv.homeDirectory).apply {
                     dialogTitle = "Save Scan Report"
-                    selectedFile = File(fileName)
-                    fileFilter = FileNameExtensionFilter("Scan Report", fileName.substringAfterLast("."))
+                    selectedFile = defaultFile
+                    if (ext.isNotEmpty()) {
+                        fileFilter = FileNameExtensionFilter("Scan Report (*.$ext)", ext)
+                    }
                 }
                 
                 val result = fileChooser.showSaveDialog(null)
                 if (result == JFileChooser.APPROVE_OPTION) {
-                    val file = fileChooser.selectedFile
+                    var file = fileChooser.selectedFile
+                    if (ext.isNotEmpty() && !file.name.endsWith(".$ext", ignoreCase = true)) {
+                        file = File(file.parentFile ?: fsv.homeDirectory, "${file.name}.$ext")
+                    }
                     file.writeText(content)
                 }
             } catch (e: Exception) {

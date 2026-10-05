@@ -12,7 +12,7 @@ import com.mrcoder20.portx.di.initKoin
 
 fun main() {
     // High-performance desktop networking optimizations
-    System.setProperty("java.net.preferIPv4Stack", "true")
+    System.setProperty("java.net.preferIPv6Addresses", "false")
     System.setProperty("sun.net.useExclusiveBind", "false")
     System.setProperty("file.encoding", "UTF-8")
 
