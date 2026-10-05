@@ -161,7 +161,7 @@ class ToolsViewModel : ViewModel() {
             "PING" -> state.pingResults.joinToString("\n") { it.message }
             "DNS" -> state.dnsResults.joinToString("\n")
             "WHOIS" -> state.whoisResult ?: ""
-            "LOCAL" -> state.localIp?.let { "Internal IP: ${it.ipAddress}\nInterface: ${it.interfaceName}\nPublic IP: ${state.publicIp}" } ?: ""
+            "LOCAL" -> state.localIp?.let { "Internal IP: ${it.ipAddress}\nInterface: ${it.interfaceName}\nPublic IP: ${state.publicIp ?: "Not available"}" } ?: (state.publicIp?.let { "Public IP: $it" } ?: "")
             else -> ""
         }
         if (text.isNotBlank()) {

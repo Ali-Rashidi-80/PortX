@@ -126,20 +126,25 @@ class JvmNetworkTools : NetworkTools {
     override suspend fun whois(host: String): String = withContext(Dispatchers.IO) {
         try {
             val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
+            if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
+
             val socket = Socket("whois.iana.org", 43)
-            socket.soTimeout = 7000
-            val out = socket.getOutputStream()
-            out.write((cleanHost + "\r\n").toByteArray())
-            out.flush()
-            
-            val scanner = Scanner(socket.getInputStream())
-            val sb = StringBuilder()
-            while (scanner.hasNextLine()) {
-                sb.append(scanner.nextLine()).append("\n")
+            val result = try {
+                socket.soTimeout = 7000
+                val out = socket.getOutputStream()
+                out.write((cleanHost + "\r\n").toByteArray())
+                out.flush()
+                
+                val scanner = Scanner(socket.getInputStream())
+                val sb = StringBuilder()
+                while (scanner.hasNextLine()) {
+                    sb.append(scanner.nextLine()).append("\n")
+                }
+                sb.toString()
+            } finally {
+                try { socket.close() } catch (_: Exception) {}
             }
-            socket.close()
             
-            val result = sb.toString()
             if (result.contains("whois:", true)) {
                 val nextServer = result.lines()
                     .find { it.contains("whois:", true) && !it.contains("iana.org") }
@@ -149,15 +154,18 @@ class JvmNetworkTools : NetworkTools {
 
                 try {
                     val socket2 = Socket(nextServer, 43)
-                    socket2.soTimeout = 7000
-                    socket2.getOutputStream().write((cleanHost + "\r\n").toByteArray())
-                    val scanner2 = Scanner(socket2.getInputStream())
-                    val sb2 = StringBuilder()
-                    while (scanner2.hasNextLine()) {
-                        sb2.append(scanner2.nextLine()).append("\n")
+                    try {
+                        socket2.soTimeout = 7000
+                        socket2.getOutputStream().write((cleanHost + "\r\n").toByteArray())
+                        val scanner2 = Scanner(socket2.getInputStream())
+                        val sb2 = StringBuilder()
+                        while (scanner2.hasNextLine()) {
+                            sb2.append(scanner2.nextLine()).append("\n")
+                        }
+                        sb2.toString()
+                    } finally {
+                        try { socket2.close() } catch (_: Exception) {}
                     }
-                    socket2.close()
-                    sb2.toString()
                 } catch (e: Exception) {
                     result + "\n\n[Authority Redirect to $nextServer failed: ${e.message}]"
                 }

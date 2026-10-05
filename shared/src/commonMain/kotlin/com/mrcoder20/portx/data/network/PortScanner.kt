@@ -94,11 +94,15 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
     }
 
     private fun getAction(currentState: String): String {
-        if (Random.nextDouble() < epsilon) {
-            return listOf("turbo", "increase", "maintain", "safety").random()
+        val candidateActions = if (currentState == "congested" || currentState == "high_latency") {
+            listOf("safety", "maintain", "increase")
+        } else {
+            listOf("maintain", "increase", "turbo", "safety")
         }
-        val actions = listOf("turbo", "increase", "maintain", "safety")
-        return actions.maxByOrNull { qTable["$currentState:$it"] ?: 0.0 } ?: "maintain"
+        if (Random.nextDouble() < epsilon) {
+            return candidateActions.random()
+        }
+        return candidateActions.maxByOrNull { qTable["$currentState:$it"] ?: 0.0 } ?: "maintain"
     }
 
     private fun update(state: String, action: String, reward: Double, nextState: String) {
@@ -120,14 +124,14 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
             else -> "optimized"
         }
         
-        val action = getAction(state)
+        val action = getAction(nextState)
         val reward = (successRate / 10.0) - (latencyMs / 150.0) + (if (action == "turbo" && successRate > 90.0) 30.0 else 0.0)
         
         update(state, action, reward, nextState)
         
         when (action) {
-            "turbo" -> currentRate = (currentRate * 1.8).toInt().coerceIn(minRate, maxRate * 5)
-            "increase" -> currentRate = (currentRate * 1.3).toInt().coerceIn(minRate, maxRate)
+            "turbo" -> currentRate = (currentRate * 1.5).toInt().coerceIn(minRate, maxRate)
+            "increase" -> currentRate = (currentRate * 1.2).toInt().coerceIn(minRate, maxRate)
             "safety" -> currentRate = (currentRate * 0.5).toInt().coerceIn(minRate, maxRate)
             "maintain" -> { /* Stable */ }
         }
@@ -408,13 +412,18 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             val receiveChannel = socket.openReadChannel()
             val sendChannel = socket.openWriteChannel(autoFlush = true)
 
-            if (port == 80 || port == 8080 || port == 443) {
+            val httpPorts = setOf(80, 8080, 443, 8000, 8443, 8888, 9090, 3000, 5000)
+            if (httpPorts.contains(port)) {
                 sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
             }
 
             val buffer = ByteArray(2048)
             val read = receiveChannel.readAvailable(buffer)
-            if (read > 0) buffer.decodeToString(0, read) else null
+            if (read > 0) {
+                val raw = buffer.decodeToString(0, read)
+                val sanitized = raw.filter { it.code in 32..126 || it == '\n' || it == '\r' || it == '\t' }.trim()
+                if (sanitized.isNotEmpty()) sanitized else null
+            } else null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -423,8 +432,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
     }
 
     private fun extractTitle(banner: String): String {
-        val regex = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
-        return regex.find(banner)?.groupValues?.get(1) ?: ""
+        val regex = Regex("<title>(.*?)</title>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        return regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: ""
     }
 
     private fun guessService(port: Int): String {

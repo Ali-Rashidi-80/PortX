@@ -54,6 +54,8 @@ fun sanitizeHost(input: String): String {
     // Handle port if present, while avoiding stripping colons from IPv6 addresses (e.g. 2001:db8::1)
     if (host.startsWith("[") && host.contains("]:")) {
         host = host.substring(1, host.indexOf("]:"))
+    } else if (host.startsWith("[") && host.endsWith("]")) {
+        host = host.substring(1, host.length - 1)
     } else if (host.contains(':') && !host.contains("::")) {
         val colonCount = host.count { it == ':' }
         if (colonCount == 1) {

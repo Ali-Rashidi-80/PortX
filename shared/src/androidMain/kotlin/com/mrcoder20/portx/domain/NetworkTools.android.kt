@@ -113,6 +113,7 @@ class AndroidNetworkTools : NetworkTools {
         val client = SecurityHarden.createSecureClient()
         try {
             val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
+            if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
             val response: HttpResponse = client.get("https://rdap.org/domain/$cleanHost")
             if (response.status.value in 200..299) {
                 response.bodyAsText().take(5000)

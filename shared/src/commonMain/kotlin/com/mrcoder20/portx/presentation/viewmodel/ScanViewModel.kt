@@ -158,7 +158,7 @@ class ScanViewModel(
         // Support IPv4, IPv6, Domain names, and Local hostnames (e.g. localhost, router, server-01)
         val ipRegex = Regex("""^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$""")
         val ipv6Regex = Regex("""^[0-9a-fA-F:]+$""")
-        val hostnameRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$""")
+        val hostnameRegex = Regex("""^([a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?\.)*[a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?$""")
         
         val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
         val isValid = when {

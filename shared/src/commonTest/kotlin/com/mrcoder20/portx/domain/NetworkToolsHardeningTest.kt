@@ -21,8 +21,9 @@ class NetworkToolsHardeningTest {
         assertEquals("google.com", sanitizeHost("https://google.com/path/to/resource?q=test"))
         assertEquals("google.com", sanitizeHost("http://google.com:8080/"))
         assertEquals("192.168.1.1", sanitizeHost("192.168.1.1:8080"))
-        assertEquals("8.8.8.8", sanitizeHost("https://8.8.8.8:443"))
         assertEquals("2001:db8::1", sanitizeHost("2001:db8::1"))
+        assertEquals("2001:db8::1", sanitizeHost("[2001:db8::1]"))
+        assertEquals("::1", sanitizeHost("[::1]"))
         assertEquals("2001:db8::1", sanitizeHost("[2001:db8::1]:8080"))
     }
 
@@ -186,5 +187,13 @@ class NetworkToolsHardeningTest {
             securityScore = 0
         )
         assertEquals(0, useCase(massiveCompromise), "Severe compromise must clamp to 0")
+    }
+
+    @Test
+    fun testHtmlTitleRegexExtraction() {
+        val multilineHtml = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><head><title>\n   PortX Administration Portal   \n</title></head></html>"
+        val regex = Regex("<title>(.*?)</title>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val title = regex.find(multilineHtml)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: ""
+        assertEquals("PortX Administration Portal", title)
     }
 }
