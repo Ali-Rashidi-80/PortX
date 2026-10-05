@@ -59,13 +59,16 @@ class JvmNetworkTools : NetworkTools {
     private fun executeJvmPing(ipStr: String, address: InetAddress, timeoutMs: Int): PingAttempt {
         val os = System.getProperty("os.name")?.lowercase() ?: ""
         val isWindows = os.contains("win")
+        val isIpv6 = ipStr.contains(":")
         val cmd = if (isWindows) {
             listOf("ping", "-n", "1", "-w", timeoutMs.toString(), ipStr)
         } else if (os.contains("mac")) {
-            listOf("ping", "-c", "1", "-W", timeoutMs.toString(), ipStr)
+            if (isIpv6) listOf("ping6", "-c", "1", "-W", timeoutMs.toString(), ipStr)
+            else listOf("ping", "-c", "1", "-W", timeoutMs.toString(), ipStr)
         } else {
             val timeoutSec = maxOf(1, timeoutMs / 1000)
-            listOf("ping", "-c", "1", "-W", timeoutSec.toString(), ipStr)
+            if (isIpv6) listOf("ping6", "-c", "1", "-W", timeoutSec.toString(), ipStr)
+            else listOf("ping", "-c", "1", "-W", timeoutSec.toString(), ipStr)
         }
 
         var process: Process? = null
@@ -204,7 +207,7 @@ class JvmNetworkTools : NetworkTools {
                     val response = client.get(url)
                     if (response.status.value in 200..299) {
                         val ip = response.bodyAsText().trim()
-                        if (ip.isNotEmpty()) return@withContext ip
+                        if (isValidIpAddress(ip)) return@withContext ip
                     }
                 } catch (e: CancellationException) {
                     throw e

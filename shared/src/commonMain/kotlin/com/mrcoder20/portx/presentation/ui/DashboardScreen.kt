@@ -34,35 +34,171 @@ import org.koin.compose.koinInject
 
 // --- Data Models & Helpers ---
 
-data class DisplayPort(val number: Int, val description: String, val color: Color)
+data class DisplayPort(val number: Int, val title: String, val description: String, val color: Color)
 
 fun getPortColor(port: Int, accent: Color): Color {
-    return when(port) {
-        80, 443 -> accent
-        22 -> SecondaryNeon
+    return when (port) {
+        // High-risk, unencrypted, industrial or dangerous vectors
+        21, 23, 102, 135, 137, 138, 139, 445, 502, 1883, 2375, 47808, 5555, 10250, 11211 -> DangerNeon
+        // High-privilege / Admin / Database / Remote access
+        22, 1433, 1521, 3306, 3389, 4840, 5432, 5900, 6379, 6443, 8200, 8500, 9200, 9300, 27017 -> SecondaryNeon
+        // Standard Web / HTTPS / Proxy
+        80, 443, 8000, 8080, 8081, 8088, 8443, 8888, 9090, 3000, 5000 -> accent
+        // Standard Low-risk / Infrastructure
+        53, 123 -> TertiaryNeon
         else -> TertiaryNeon
     }
 }
 
-fun getMockDescription(port: Int): String {
-    return when(port) {
-        80 -> "HTTP Web Server"
-        443 -> "HTTPS Secure Web"
-        22 -> "SSH Remote Access"
+fun getServiceTitle(port: Int, rawService: String? = null): String {
+    return when (port) {
         21 -> "FTP File Transfer"
-        else -> "Active Service"
+        22 -> "SSH Secure Shell"
+        23 -> "Telnet Remote Shell"
+        25 -> "SMTP Mail Relay"
+        53 -> "DNS Name Server"
+        67, 68 -> "DHCP Network Config"
+        69 -> "TFTP Trivial FTP"
+        80 -> "HTTP Web Server"
+        102 -> "Siemens S7comm PLC"
+        110 -> "POP3 Mail Server"
+        123 -> "NTP Time Sync"
+        135 -> "MS RPC Endpoint Mapper"
+        137, 138, 139 -> "NetBIOS Session Service"
+        143 -> "IMAP Mail Server"
+        161, 162 -> "SNMP Network Agent"
+        389 -> "LDAP Directory Service"
+        443 -> "HTTPS Secure Web"
+        445 -> "SMB / Active Directory"
+        465 -> "SMTPS Secure Mail"
+        502 -> "Modbus Industrial ICS"
+        514 -> "Syslog Logging Agent"
+        515 -> "LPD Line Printer"
+        548 -> "AFP Apple Filing"
+        587 -> "SMTP Submission"
+        631 -> "IPP Internet Printing"
+        636 -> "LDAPS Secure Directory"
+        993 -> "IMAPS Secure Mail"
+        995 -> "POP3S Secure Mail"
+        1433 -> "Microsoft SQL Server"
+        1521 -> "Oracle Database"
+        1723 -> "PPTP VPN Tunnel"
+        1812, 1813 -> "RADIUS Auth/Acct"
+        1883 -> "MQTT IoT Broker"
+        1900 -> "SSDP UPnP Discovery"
+        2049 -> "NFS Network File System"
+        2375, 2376 -> "Docker Daemon API"
+        3000 -> "Node.js / React Dev"
+        3306 -> "MySQL Database"
+        3389 -> "RDP Remote Desktop"
+        4840 -> "OPC UA Industrial"
+        5000 -> "UPnP / Web Service"
+        5060, 5061 -> "SIP VoIP Signaling"
+        5432 -> "PostgreSQL Database"
+        5555 -> "Android ADB Debugger"
+        5672 -> "RabbitMQ Message Broker"
+        5900 -> "VNC Remote Display"
+        6379 -> "Redis In-Memory DB"
+        6443 -> "Kubernetes API Server"
+        8000 -> "HTTP Web Service"
+        8080 -> "HTTP Proxy / Alternate"
+        8081, 8088 -> "HTTP Alternate Web"
+        8200 -> "HashiCorp Vault"
+        8443 -> "HTTPS Secure Alt"
+        8500 -> "Consul Service Mesh"
+        8883 -> "MQTTS Secure IoT"
+        8888, 9090 -> "HTTP Web Console"
+        9000 -> "SonarQube / PHP-FPM"
+        9092 -> "Apache Kafka Broker"
+        9100 -> "RAW JetDirect Printer"
+        9200, 9300 -> "Elasticsearch Cluster"
+        10250 -> "Kubelet Node Agent"
+        11211 -> "Memcached Cache"
+        27017 -> "MongoDB Database"
+        47808 -> "BACnet Building Automation"
+        else -> {
+            if (!rawService.isNullOrBlank() && rawService != "unknown") {
+                rawService.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } + " Service"
+            } else {
+                "Service on Port $port"
+            }
+        }
     }
 }
 
-fun getServiceTitle(port: Int): String {
-    return when(port) {
-        80 -> "HTTP Web Service"
-        443 -> "HTTPS Secure Web"
-        22 -> "SSH Remote Access"
-        21 -> "FTP File Transfer"
-        3306 -> "MySQL Database"
-        5432 -> "PostgreSQL DB"
-        else -> "Service on Port $port"
+fun getServiceDescription(port: Int, rawService: String? = null): String {
+    return when (port) {
+        21 -> "Unencrypted file transfer protocol"
+        22 -> "Encrypted remote terminal and file transfer"
+        23 -> "Plaintext remote terminal session (insecure)"
+        25 -> "Simple Mail Transfer Protocol relay"
+        53 -> "Domain Name System resolver / nameserver"
+        67, 68 -> "Dynamic Host Configuration Protocol"
+        69 -> "Trivial File Transfer Protocol"
+        80 -> "Standard HyperText Transfer Protocol"
+        102 -> "Siemens Step7 industrial programmable logic controller"
+        110 -> "Post Office Protocol version 3"
+        123 -> "Network Time Protocol clock synchronization"
+        135 -> "Microsoft Windows RPC endpoint locator"
+        137, 138, 139 -> "NetBIOS name resolution and session transport"
+        143 -> "Internet Message Access Protocol"
+        161, 162 -> "Simple Network Management Protocol"
+        389 -> "Lightweight Directory Access Protocol"
+        443 -> "TLS/SSL encrypted web service"
+        445 -> "Microsoft SMB file sharing / Windows domain"
+        465 -> "Secure SMTP over SSL/TLS wrapper"
+        502 -> "Modbus TCP industrial supervisory control"
+        514 -> "Syslog system event logging listener"
+        515 -> "Line Printer Daemon network print spooler"
+        548 -> "Apple Filing Protocol macOS file sharing"
+        587 -> "Mail message submission with STARTTLS"
+        631 -> "Internet Printing Protocol CUPS service"
+        636 -> "Secure LDAP over TLS"
+        993 -> "Secure IMAP over TLS"
+        995 -> "Secure POP3 over TLS"
+        1433 -> "Microsoft SQL Server database engine"
+        1521 -> "Oracle TNS database listener"
+        1723 -> "Point-to-Point Tunneling Protocol"
+        1812, 1813 -> "Remote Authentication Dial-In User Service"
+        1883 -> "MQTT telemetry transport broker (unencrypted)"
+        1900 -> "Simple Service Discovery Protocol"
+        2049 -> "Network File System Unix sharing"
+        2375, 2376 -> "Docker container engine control API"
+        3000 -> "Node.js / web development framework port"
+        3306 -> "MySQL / MariaDB relational database"
+        3389 -> "Windows Remote Desktop Protocol terminal"
+        4840 -> "OPC Unified Architecture industrial server"
+        5000 -> "Web framework or UPnP media streaming"
+        5060, 5061 -> "Session Initiation Protocol VoIP telephony"
+        5432 -> "PostgreSQL advanced relational database"
+        5555 -> "Android Debug Bridge network listener"
+        5672 -> "Advanced Message Queuing Protocol broker"
+        5900 -> "Virtual Network Computing remote desktop"
+        6379 -> "Redis in-memory key-value data store"
+        6443 -> "Kubernetes cluster control plane API"
+        8000 -> "Alternate HTTP web / application server"
+        8080 -> "Common HTTP alternate / proxy listener"
+        8081, 8088 -> "Alternate HTTP web application port"
+        8200 -> "HashiCorp Vault secret management"
+        8443 -> "Secure HTTPS alternate web service"
+        8500 -> "Consul cluster discovery and KV store"
+        8883 -> "Secure MQTT IoT telemetry over TLS"
+        8888, 9090 -> "Alternate web console or Prometheus"
+        9000 -> "SonarQube scanner or PHP-FPM pool"
+        9092 -> "Apache Kafka event streaming broker"
+        9100 -> "HP JetDirect raw network print channel"
+        9200, 9300 -> "Elasticsearch RESTful search and transport"
+        10250 -> "Kubernetes Kubelet node agent API"
+        11211 -> "Memcached high-speed memory object cache"
+        27017 -> "MongoDB NoSQL document database"
+        47808 -> "BACnet/IP building automation network"
+        else -> {
+            if (!rawService.isNullOrBlank() && rawService != "unknown") {
+                "Active $rawService service"
+            } else {
+                "Active Network Service"
+            }
+        }
     }
 }
 
@@ -117,8 +253,8 @@ fun LargeDesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: 
             }
 
             AdvancedParametersCard(state, viewModel, accent, lang)
-            EngineConfigurationCard(state, viewModel, accent)
-            EngineLogsCard(state, modifier = Modifier.weight(1f), accent)
+            EngineConfigurationCard(state, viewModel, accent, lang)
+            EngineLogsCard(state, modifier = Modifier.weight(1f), accent = accent, lang = lang)
         }
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
@@ -152,13 +288,13 @@ fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color
             }
 
             SecurityVisualizerCard(state, modifier = Modifier.weight(1.2f), accent = accent, lang = lang)
-            EngineLogsCard(state, modifier = Modifier.weight(0.8f), accent = accent)
+            EngineLogsCard(state, modifier = Modifier.weight(0.8f), accent = accent, lang = lang)
         }
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             ActiveServicesCard(state, modifier = Modifier.weight(1f), accent = accent, lang = lang)
             AdvancedParametersCard(state, viewModel, accent = accent, lang = lang)
-            EngineConfigurationCard(state, viewModel, accent = accent)
+            EngineConfigurationCard(state, viewModel, accent = accent, lang = lang)
         }
     }
 }
@@ -194,7 +330,7 @@ fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AdvancedParametersCard(state, viewModel, accent, lang)
-                EngineConfigurationCard(state, viewModel, accent)
+                EngineConfigurationCard(state, viewModel, accent, lang)
             }
         }
 
@@ -294,26 +430,26 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
             Text(LocalizedStrings.get("advanced", lang), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = accent, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(16.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ScanChip("Banner Grabbing", state.bannerGrabbing, accent) { viewModel.toggleBannerGrabbing(it) }
-                ScanChip("Full Port Scan", state.allPorts, accent) { viewModel.toggleAllPorts(it) }
-                ScanChip("Multi-Protocol", state.allProtocols, accent) { viewModel.toggleAllProtocols(it) }
-                ScanChip("Stealth Mode", state.scanType == "SYN", accent) { viewModel.onScanTypeChange(if(it) "SYN" else "TCP") }
+                ScanChip(LocalizedStrings.get("banner_grabbing", lang), state.bannerGrabbing, accent) { viewModel.toggleBannerGrabbing(it) }
+                ScanChip(LocalizedStrings.get("full_port_scan", lang), state.allPorts, accent) { viewModel.toggleAllPorts(it) }
+                ScanChip(LocalizedStrings.get("multi_protocol", lang), state.allProtocols, accent) { viewModel.toggleAllProtocols(it) }
+                ScanChip(LocalizedStrings.get("stealth_mode", lang), state.scanType == "SYN", accent) { viewModel.onScanTypeChange(if(it) "SYN" else "TCP") }
             }
         }
     }
 }
 
 @Composable
-fun EngineConfigurationCard(state: ScanUIState, viewModel: ScanViewModel, accent: Color) {
+fun EngineConfigurationCard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
-            Text("ENGINE CONFIGURATION", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight, fontWeight = FontWeight.Bold)
+            Text(LocalizedStrings.get("engine_configuration", lang), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Parallel Threads", color = if (isDark) Color.White else Color.Black, style = MaterialTheme.typography.bodySmall)
-                    Text("${state.concurrentScans} connections", color = accent, style = MaterialTheme.typography.labelMedium)
+                    Text(LocalizedStrings.get("parallel_threads", lang), color = if (isDark) Color.White else Color.Black, style = MaterialTheme.typography.bodySmall)
+                    Text("${state.concurrentScans} ${LocalizedStrings.get("connections", lang)}", color = accent, style = MaterialTheme.typography.labelMedium)
                 }
                 Slider(
                     value = state.concurrentScans.toFloat(),
@@ -356,15 +492,26 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (state.isLoading) {
                     Text("${state.progress}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
-                    Text("ENGINE RUNNING", style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
+                    Text(LocalizedStrings.get("engine_running", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
                 } else {
                     val result = state.result
                     if (result != null) {
                         Text("${result.securityScore}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
                         Text(LocalizedStrings.get("security_score", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
+                        if (!state.firewallStatus.isNullOrBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = state.firewallStatus,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = if (isDark) TextMuted else TextMutedLight,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+                        }
                     } else {
                         Icon(Icons.Default.Radar, null, tint = if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f), modifier = Modifier.size(if (smallSize) 32.dp else 48.dp))
-                        Text("READY", style = MaterialTheme.typography.titleMedium.copy(color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 2.sp))
+                        Text(LocalizedStrings.get("ready", lang), style = MaterialTheme.typography.titleMedium.copy(color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 2.sp))
                     }
                 }
             }
@@ -373,7 +520,7 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
 }
 
 @Composable
-fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Color) {
+fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Color, lang: String = "en") {
     val isDark = LocalAppSettings.current.theme == "DARK"
     val logListState = rememberLazyListState()
     LaunchedEffect(state.logs.size) { if (state.logs.isNotEmpty()) logListState.animateScrollToItem(state.logs.size - 1) }
@@ -382,7 +529,7 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Terminal, null, tint = accent, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("LIVE ENGINE LOGS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight)
+                Text(LocalizedStrings.get("live_engine_logs", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight)
             }
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).border(1.dp, GlassBorder.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
@@ -393,7 +540,7 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
                             Text(log, color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
                         }
                     }
-                    if (state.logs.isEmpty()) item { Text("Waiting for engine activity...", color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)) }
+                    if (state.logs.isEmpty()) item { Text(LocalizedStrings.get("waiting_engine_activity", lang), color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)) }
                 }
             }
         }
@@ -405,14 +552,14 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
     val isDark = LocalAppSettings.current.theme == "DARK"
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val result = state.result
     GlassCard(modifier = modifier) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                 Text(LocalizedStrings.get("active_services", lang), style = MaterialTheme.typography.labelLarge.copy(color = if (isDark) TextMuted else TextMutedLight, fontWeight = FontWeight.Bold, letterSpacing = 1.sp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val result = state.result
                     if (result != null && result.openPorts.isNotEmpty()) {
-                        Text("${result.openPorts.size} FOUND", style = MaterialTheme.typography.labelSmall, color = accent, modifier = Modifier.background(accent.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+                        Text("${result.openPorts.size} ${LocalizedStrings.get("found", lang)}", style = MaterialTheme.typography.labelSmall, color = accent, modifier = Modifier.background(accent.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
                     }
                     Row(modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape).border(1.dp, GlassBorder, CircleShape)) {
                         IconButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
@@ -420,21 +567,71 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     }
                 }
             }
+
+            if (result != null && (!result.deviceName.isNullOrBlank() || !result.osFingerprint.isNullOrBlank())) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
+                        .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Devices, null, tint = accent, modifier = Modifier.size(16.dp))
+                    val deviceText = buildString {
+                        if (!result.deviceName.isNullOrBlank()) append(result.deviceName)
+                        if (!result.osFingerprint.isNullOrBlank()) {
+                            if (isNotEmpty()) append(" • ")
+                            append(result.osFingerprint)
+                        }
+                    }
+                    Text(
+                        text = deviceText,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (isDark) Color.White else Color.Black,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (state.anomalies.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .background(DangerNeon.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                        .border(1.dp, DangerNeon.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Warning, null, tint = DangerNeon, modifier = Modifier.size(16.dp))
+                    Text(
+                        text = "${state.anomalies.size} ${LocalizedStrings.get("threats_detected", lang)}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = DangerNeon
+                    )
+                }
+            }
+
             Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
-                    val result = state.result
                     val portsToShow = result?.openPorts?.distinct()?.sorted()?.map { portNumber ->
-                        val banner = result.portBanners[portNumber] ?: ""
-                        val service = result.portServices[portNumber] ?: getMockDescription(portNumber)
-                        val description = banner.ifEmpty { service }
-                        DisplayPort(portNumber, description, getPortColor(portNumber, accent))
+                        val banner = (result.portBanners[portNumber] ?: "").trim()
+                        val rawService = (result.portServices[portNumber] ?: "").trim()
+                        val title = getServiceTitle(portNumber, rawService.ifEmpty { null })
+                        val description = if (banner.isNotEmpty()) banner else getServiceDescription(portNumber, rawService.ifEmpty { null })
+                        DisplayPort(portNumber, title, description, getPortColor(portNumber, accent))
                     } ?: emptyList()
                     if (portsToShow.isEmpty()) item {
                         Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(if (state.isLoading) Icons.Default.HourglassEmpty else Icons.Default.SearchOff, null, tint = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.3f), modifier = Modifier.size(48.dp))
                                 Spacer(Modifier.height(12.dp))
-                                Text(if (state.isLoading) "SCANNING NETWORK..." else LocalizedStrings.get("no_services", lang), color = if (isDark) TextMuted else TextMutedLight, style = MaterialTheme.typography.bodySmall)
+                                Text(if (state.isLoading) LocalizedStrings.get("scanning_network", lang) else LocalizedStrings.get("no_services", lang), color = if (isDark) TextMuted else TextMutedLight, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     } else items(portsToShow, key = { it.number }) { port -> PortItem(port) }
@@ -495,8 +692,18 @@ fun PortItem(port: DisplayPort) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(getServiceTitle(port.number), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color.Black))
-                Text(port.description, style = MaterialTheme.typography.bodySmall.copy(color = if (isDark) TextSecondary else TextSecondaryLight), maxLines = 1)
+                Text(
+                    text = port.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color.Black),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                Text(
+                    text = port.description,
+                    style = MaterialTheme.typography.bodySmall.copy(color = if (isDark) TextSecondary else TextSecondaryLight),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(20.dp))
         }

@@ -2,6 +2,14 @@ package com.mrcoder20.portx.presentation
 
 import com.mrcoder20.portx.domain.model.ScanResult
 import com.mrcoder20.portx.domain.usecase.ExportReportUseCase
+import com.mrcoder20.portx.presentation.ui.getServiceTitle
+import com.mrcoder20.portx.presentation.ui.getServiceDescription
+import com.mrcoder20.portx.presentation.ui.getPortColor
+import com.mrcoder20.portx.presentation.ui.DisplayPort
+import com.mrcoder20.portx.presentation.ui.theme.DangerNeon
+import com.mrcoder20.portx.presentation.ui.theme.SecondaryNeon
+import com.mrcoder20.portx.presentation.ui.theme.TertiaryNeon
+import androidx.compose.ui.graphics.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -142,5 +150,68 @@ class PresentationAdversarialTest {
         assertTrue(md.contains("- **Target:** `192.168.1.1`"))
         assertTrue(md.contains("- **Security Score:** 95%"))
         assertTrue(md.contains("| `80` | http | nginx/1.24.0, gzip |"))
+    }
+
+    @Test
+    fun testDashboardProtocolRegistryAndColors() {
+        val testAccent = Color(0xFF00D1FF)
+
+        // 1. Critical & Industrial Ports -> DangerNeon
+        val dangerPorts = listOf(21, 23, 102, 135, 139, 445, 502, 1883, 2375, 47808, 5555, 10250, 11211)
+        dangerPorts.forEach { port ->
+            assertEquals(DangerNeon, getPortColor(port, testAccent), "Port $port must be colored DangerNeon")
+        }
+
+        // 2. High-Privilege & Database Ports -> SecondaryNeon
+        val adminPorts = listOf(22, 1433, 1521, 3306, 3389, 4840, 5432, 5900, 6379, 6443, 8200, 8500, 9200, 27017)
+        adminPorts.forEach { port ->
+            assertEquals(SecondaryNeon, getPortColor(port, testAccent), "Port $port must be colored SecondaryNeon")
+        }
+
+        // 3. Web & Proxy Ports -> testAccent
+        val webPorts = listOf(80, 443, 8080, 8443, 8000, 3000, 5000)
+        webPorts.forEach { port ->
+            assertEquals(testAccent, getPortColor(port, testAccent), "Port $port must be colored with accent")
+        }
+
+        // 4. Low risk / standard -> TertiaryNeon
+        assertEquals(TertiaryNeon, getPortColor(53, testAccent))
+        assertEquals(TertiaryNeon, getPortColor(123, testAccent))
+        assertEquals(TertiaryNeon, getPortColor(49152, testAccent))
+
+        // 5. Service Titles
+        assertEquals("Modbus Industrial ICS", getServiceTitle(502))
+        assertEquals("BACnet Building Automation", getServiceTitle(47808))
+        assertEquals("Siemens S7comm PLC", getServiceTitle(102))
+        assertEquals("MQTT IoT Broker", getServiceTitle(1883))
+        assertEquals("Android ADB Debugger", getServiceTitle(5555))
+        assertEquals("PostgreSQL Database", getServiceTitle(5432))
+        assertEquals("MySQL Database", getServiceTitle(3306))
+        assertEquals("Redis In-Memory DB", getServiceTitle(6379))
+        assertEquals("SSH Secure Shell", getServiceTitle(22))
+        assertEquals("HTTP Web Server", getServiceTitle(80))
+        assertEquals("Custom-api Service", getServiceTitle(9999, "custom-api"))
+        assertEquals("Service on Port 8899", getServiceTitle(8899, null))
+
+        // 6. Service Descriptions
+        assertTrue(getServiceDescription(502).contains("Modbus TCP"))
+        assertTrue(getServiceDescription(47808).contains("BACnet/IP"))
+        assertTrue(getServiceDescription(102).contains("Siemens Step7"))
+        assertTrue(getServiceDescription(1883).contains("MQTT"))
+        assertTrue(getServiceDescription(5555).contains("Android Debug Bridge"))
+        assertTrue(getServiceDescription(445).contains("Microsoft SMB"))
+        assertEquals("Active custom-proxy service", getServiceDescription(8099, "custom-proxy"))
+        assertEquals("Active Network Service", getServiceDescription(60000, null))
+
+        // 7. DisplayPort data class contract
+        val dp = DisplayPort(
+            number = 502,
+            title = getServiceTitle(502),
+            description = getServiceDescription(502),
+            color = getPortColor(502, testAccent)
+        )
+        assertEquals(502, dp.number)
+        assertEquals("Modbus Industrial ICS", dp.title)
+        assertEquals(DangerNeon, dp.color)
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -133,7 +134,7 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                         ) {
                             IconButton(
                                 onClick = { viewModel.copyResultsToClipboard() },
-                                modifier = Modifier.size(40.dp).background(if (appSettings.theme == "DARK") Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape)
+                                modifier = Modifier.size(44.dp).background(if (appSettings.theme == "DARK") Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape)
                             ) {
                                 Icon(Icons.Default.ContentCopy, "Copy", tint = if (appSettings.theme == "DARK") Color.White else Color.Black, modifier = Modifier.size(18.dp))
                             }
@@ -196,14 +197,14 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                     transitionSpec = { fadeIn() togetherWith fadeOut() }
                 ) { tool ->
                     when (tool) {
-                        "PING" -> PingResultPanel(state.pingResults, state.isLoading, accent) { viewModel.copyIndividualResult(it) }
-                        "DNS" -> DnsResultPanel(state.dnsResults, state.isLoading, accent) { viewModel.copyIndividualResult(it) }
-                        "WHOIS" -> WhoisResultPanel(state.whoisResult, state.isLoading)
+                        "PING" -> PingResultPanel(state.pingResults, state.isLoading, accent, lang) { viewModel.copyIndividualResult(it) }
+                        "DNS" -> DnsResultPanel(state.dnsResults, state.isLoading, accent, lang) { viewModel.copyIndividualResult(it) }
+                        "WHOIS" -> WhoisResultPanel(state.whoisResult, state.isLoading, lang) { viewModel.copyIndividualResult(it) }
                         else -> LocalInfoPanel(
-                        state.localIp, state.publicIp, state.isLoading, accent, lang,
-                        onCopy = { viewModel.copyIndividualResult(it) },
-                        onRefresh = { viewModel.refreshLocalInfo() }
-                    )
+                            state.localIp, state.publicIp, state.isLoading, accent, lang,
+                            onCopy = { viewModel.copyIndividualResult(it) },
+                            onRefresh = { viewModel.refreshLocalInfo() }
+                        )
                     }
                 }
             }
@@ -245,15 +246,21 @@ fun ToolChip(label: String, icon: ImageVector, isSelected: Boolean, accent: Colo
 }
 
 @Composable
-fun PingResultPanel(results: List<com.mrcoder20.portx.domain.PingResult>, isLoading: Boolean, accent: Color, onCopyItem: (String) -> Unit) {
+fun PingResultPanel(
+    results: List<com.mrcoder20.portx.domain.PingResult>, 
+    isLoading: Boolean, 
+    accent: Color, 
+    lang: String = "en",
+    onCopyItem: (String) -> Unit
+) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     val listState = rememberLazyListState()
     LaunchedEffect(results.size) { if (results.isNotEmpty()) listState.animateScrollToItem(results.size - 1) }
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
         Column {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("TACTICAL ICMP OUTPUT", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
-                if (isLoading) Text("QUERYING...", style = MaterialTheme.typography.labelSmall, color = accent)
+                Text(LocalizedStrings.get("tactical_icmp_output", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                if (isLoading) Text(LocalizedStrings.get("querying", lang), style = MaterialTheme.typography.labelSmall, color = accent)
             }
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
@@ -264,7 +271,7 @@ fun PingResultPanel(results: List<com.mrcoder20.portx.domain.PingResult>, isLoad
                             Text(res.message, color = if (res.isSuccess) (if (isDark) Color.White else Color.Black) else DangerNeon, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                         }
                     }
-                    if (results.isEmpty() && !isLoading) item { Text("Engine ready...", color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
+                    if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("engine_ready", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                 }
             }
         }
@@ -272,11 +279,17 @@ fun PingResultPanel(results: List<com.mrcoder20.portx.domain.PingResult>, isLoad
 }
 
 @Composable
-fun DnsResultPanel(results: List<String>, isLoading: Boolean, accent: Color, onCopyItem: (String) -> Unit) {
+fun DnsResultPanel(
+    results: List<String>, 
+    isLoading: Boolean, 
+    accent: Color, 
+    lang: String = "en",
+    onCopyItem: (String) -> Unit
+) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
         Column {
-            Text("DNS RESOLUTION RECORDS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+            Text(LocalizedStrings.get("dns_resolution_records", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
             Spacer(Modifier.height(12.dp))
             if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
@@ -288,7 +301,7 @@ fun DnsResultPanel(results: List<String>, isLoading: Boolean, accent: Color, onC
                             Text(ip, color = if (isDark) Color.White else Color.Black, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
                         }
                     }
-                    if (results.isEmpty() && !isLoading) item { Text("Awaiting target resolution...", color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
+                    if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("awaiting_dns", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                 }
             }
         }
@@ -296,16 +309,34 @@ fun DnsResultPanel(results: List<String>, isLoading: Boolean, accent: Color, onC
 }
 
 @Composable
-fun WhoisResultPanel(result: String?, isLoading: Boolean) {
+fun WhoisResultPanel(
+    result: String?, 
+    isLoading: Boolean, 
+    lang: String = "en",
+    onCopy: (String) -> Unit = {}
+) {
     val accent = LocalAccentColor.current
     val isDark = LocalAppSettings.current.theme == "DARK"
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
         Column {
-            Text("WHOIS AUTHORITY DATA", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(LocalizedStrings.get("whois_authority_data", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                if (!result.isNullOrBlank()) {
+                    IconButton(onClick = { onCopy(result) }, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = LocalizedStrings.get("copy_whois", lang), tint = accent, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
             if (isLoading && result == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).verticalScroll(rememberScrollState()).padding(12.dp)) {
-                Text(result ?: "Ready to query WHOIS...", color = if (result != null) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight), fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp)
+                SelectionContainer {
+                    Text(result ?: LocalizedStrings.get("ready_whois", lang), color = if (result != null) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight), fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp)
+                }
             }
         }
     }
@@ -324,24 +355,24 @@ fun LocalInfoPanel(
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("DEVICE ENVIRONMENT", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                Text(LocalizedStrings.get("device_environment", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
                 if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = accent, strokeWidth = 2.dp)
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = accent, strokeWidth = 2.dp)
                 } else {
-                    IconButton(onClick = onRefresh, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Refresh, null, tint = accent, modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onRefresh, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Default.Refresh, null, tint = accent, modifier = Modifier.size(20.dp))
                     }
                 }
             }
 
             info?.let {
-                InfoItem("INTERNAL IP", it.ipAddress, Icons.Default.Lan, accent) { onCopy(it.ipAddress) }
-                InfoItem("ADAPTER", it.interfaceName, Icons.Default.SettingsInputComponent, accent) { onCopy(it.interfaceName) }
-                InfoItem("CONNECTION", if (it.isWifi) "WI-FI" else "WIRED", if (it.isWifi) Icons.Default.Wifi else Icons.Default.SettingsEthernet, accent) {}
+                InfoItem(LocalizedStrings.get("internal_ip", lang), it.ipAddress, Icons.Default.Lan, accent) { onCopy(it.ipAddress) }
+                InfoItem(LocalizedStrings.get("interface", lang), it.interfaceName, Icons.Default.SettingsInputComponent, accent) { onCopy(it.interfaceName) }
+                InfoItem(LocalizedStrings.get("connection", lang), if (it.isWifi) LocalizedStrings.get("wifi", lang) else LocalizedStrings.get("wired", lang), if (it.isWifi) Icons.Default.Wifi else Icons.Default.SettingsEthernet, accent) {}
             }
 
             publicIp?.let {
-                InfoItem("PUBLIC IP", it, Icons.Default.Public, accent) { onCopy(it) }
+                InfoItem(LocalizedStrings.get("public_ip", lang), it, Icons.Default.Public, accent) { onCopy(it) }
             }
             
             if (info == null && publicIp == null && !isLoading) {

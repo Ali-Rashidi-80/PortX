@@ -27,15 +27,19 @@ class ScanRepositoryImpl(
     ): ScanResult {
         val summary = scanner.scan(config, onProgress)
         val openResults = summary.results.filter { it.state == "open" || it.state == "open|filtered" }
-        val openPortList = openResults.map { it.port }.distinct()
+        val openPortList = openResults.map { it.port }.distinct().sorted()
+        val bannersMap = openResults.associate { it.port to it.banner }
         val servicesMap = openResults.associate { it.port to it.service }
+        val fingerprint = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()(openPortList, bannersMap)
         val scanResult = ScanResult(
             target = summary.target,
             openPorts = openPortList,
-            portBanners = openResults.associate { it.port to it.banner },
+            portBanners = bannersMap,
             portServices = servicesMap,
             timestamp = Clock.System.now().toEpochMilliseconds(),
-            securityScore = calculateScore(openPortList, servicesMap),
+            securityScore = calculateScore(openPortList, bannersMap, servicesMap),
+            deviceName = fingerprint.deviceName,
+            osFingerprint = fingerprint.osFingerprint,
             scanType = config.scanType,
             bannerGrabbing = config.serviceDetect,
             concurrentScans = config.concurrency,
@@ -46,6 +50,15 @@ class ScanRepositoryImpl(
 
     override fun getAllScans(): Flow<List<ScanResult>> {
         return queries.selectAllScans()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { entities ->
+                entities.map { it.toDomain() }
+            }
+    }
+
+    override fun getScansByTarget(target: String): Flow<List<ScanResult>> {
+        return queries.selectScansByTarget(target)
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { entities ->
@@ -65,7 +78,7 @@ class ScanRepositoryImpl(
             database.transaction {
                 queries.insertScan(
                     target = scan.target,
-                    openPorts = scan.openPorts,
+                    openPorts = scan.openPorts.distinct().sorted(),
                     portBanners = scan.portBanners,
                     portServices = scan.portServices,
                     timestamp = scan.timestamp,
@@ -93,11 +106,11 @@ class ScanRepositoryImpl(
         }
     }
 
-    private fun calculateScore(openPorts: List<Int>, services: Map<Int, String>): Int {
+    private fun calculateScore(openPorts: List<Int>, banners: Map<Int, String>, services: Map<Int, String>): Int {
         val dummy = ScanResult(
             target = "",
             openPorts = openPorts,
-            portBanners = emptyMap(),
+            portBanners = banners,
             portServices = services,
             timestamp = 0L,
             securityScore = 0

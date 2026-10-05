@@ -10,6 +10,7 @@ interface ScanRepository {
         onProgress: (Int) -> Unit = {}
     ): ScanResult
     fun getAllScans(): Flow<List<ScanResult>>
+    fun getScansByTarget(target: String): Flow<List<ScanResult>>
     fun getLatestScan(): Flow<ScanResult?>
     suspend fun saveScan(scan: ScanResult)
     suspend fun deleteScan(id: Long)

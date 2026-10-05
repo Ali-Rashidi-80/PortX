@@ -265,10 +265,23 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             portChannel.close()
         }
 
+        // COORDINATOR: Lifecycle management of decoupled worker channels
+        val pipelineCoordinator = launch {
+            try {
+                workers.joinAll()
+            } finally {
+                bannerChannel.close()
+            }
+            try {
+                bannerWorkers.joinAll()
+            } finally {
+                finalResultsChannel.close()
+            }
+        }
+
         // CONSUMER: Final Result Aggregator
         val consumerJob = launch {
-            repeat(totalOperations) {
-                val res = finalResultsChannel.receive()
+            for (res in finalResultsChannel) {
                 results.add(res)
                 batchLatency += res.rtt
                 
@@ -305,6 +318,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         try {
             consumerJob.join()
         } finally {
+            pipelineCoordinator.cancel()
             workers.forEach { it.cancel() }
             bannerWorkers.forEach { it.cancel() }
             selectorManager.close()
@@ -347,17 +361,48 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         }
     }
 
+    internal fun getUdpProbePayload(port: Int): ByteArray {
+        return when (port) {
+            53 -> byteArrayOf(
+                0x10, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01
+            )
+            123 -> ByteArray(48).apply { this[0] = 0x1B }
+            161 -> byteArrayOf(
+                0x30, 0x26, 0x02, 0x01, 0x00, 0x04, 0x06, 0x70,
+                0x75, 0x62, 0x6c, 0x69, 0x63, 0xa0.toByte(), 0x19, 0x02,
+                0x04, 0x00, 0x00, 0x00, 0x01, 0x02, 0x01, 0x00,
+                0x02, 0x01, 0x00, 0x30, 0x0b, 0x30, 0x09, 0x06,
+                0x05, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x05, 0x00
+            )
+            1900 -> "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n".encodeToByteArray()
+            else -> "PROBE\r\n".encodeToByteArray()
+        }
+    }
+
     private suspend fun scanUdpPort(selector: SelectorManager, target: String, port: Int): ScanPortResult {
         return try {
             val address = InetSocketAddress(target, port)
             val socket = aSocket(selector).udp().bind()
-            try {
-                val packet = buildPacket { writeText("PROBE") }
+            var banner = ""
+            val state = try {
+                val payload = getUdpProbePayload(port)
+                val packet = buildPacket { writeFully(payload) }
                 socket.send(Datagram(packet, address))
+                val response = withTimeoutOrNull(300) {
+                    socket.receive()
+                }
+                if (response != null) {
+                    banner = try {
+                        val text = response.packet.readText()
+                        text.filter { (it.code >= 32 && it.code !in 127..159) || it == '\n' || it == '\r' || it == '\t' }.trim().take(150)
+                    } catch (_: Exception) { "" }
+                    "open"
+                } else "open|filtered"
             } finally {
                 try { socket.close() } catch (_: Exception) {}
             }
-            ScanPortResult(port, "UDP", "open|filtered", guessService(port))
+            ScanPortResult(port, "UDP", state, guessService(port), banner = banner)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -380,7 +425,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 version = grabbed.lines().firstOrNull()?.removePrefix("SSH-") ?: ""
             }
             lowBanner.contains("http") || lowBanner.contains("apache") || lowBanner.contains("nginx") -> {
-                service = "http"
+                service = if (port in setOf(443, 8443)) "https" else "http"
                 val title = extractTitle(grabbed)
                 val server = grabbed.lines().find { it.startsWith("Server:", true) }?.removePrefix("Server:")?.trim() ?: ""
                 httpInfo = HttpInfo(title = title, server = server)
@@ -389,16 +434,29 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 service = "ftp"
                 version = grabbed.lines().firstOrNull() ?: ""
             }
-            lowBanner.contains("mariadb") -> {
+            lowBanner.contains("mariadb") || lowBanner.contains("mysql") || (port == 3306 && grabbed.isNotEmpty()) -> {
                 service = "mysql"
-                version = "MariaDB"
+                version = if (lowBanner.contains("mariadb")) "MariaDB" else "MySQL"
             }
             lowBanner.contains("esmtp") || lowBanner.contains("smtp") || (port in setOf(25, 465, 587) && grabbed.startsWith("220")) -> {
                 service = "smtp"
                 version = grabbed.lines().firstOrNull() ?: ""
             }
-            lowBanner.contains("redis") -> {
+            lowBanner.contains("redis") || lowBanner.contains("+pong") || lowBanner.contains("-noauth") || lowBanner.contains("-err") || port == 6379 -> {
                 service = "redis"
+            }
+            lowBanner.contains("version ") && port == 11211 -> {
+                service = "memcached"
+                version = grabbed.removePrefix("VERSION ").trim()
+            }
+            port == 502 -> {
+                service = "modbus"
+            }
+            port == 102 -> {
+                service = "s7comm"
+            }
+            port == 4840 -> {
+                service = "opcua"
             }
         }
 
@@ -421,14 +479,32 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             val httpPorts = setOf(80, 8080, 443, 8000, 8081, 8088, 8443, 8888, 9090, 3000, 5000)
             if (httpPorts.contains(port)) {
                 val hostHeader = if (target.contains(":") && !target.startsWith("[")) "[$target]" else target
-                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: $hostHeader\r\nUser-Agent: PortX/5.1\r\nConnection: close\r\n\r\n")
+                val hostWithPort = if (port == 80 || port == 443) hostHeader else "$hostHeader:$port"
+                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: $hostWithPort\r\nUser-Agent: PortX/5.1\r\nConnection: close\r\n\r\n")
+            } else if (port == 6379) {
+                sendChannel.writeStringUtf8("PING\r\n")
+            } else if (port == 11211) {
+                sendChannel.writeStringUtf8("version\r\n")
+            } else if (port == 502) {
+                sendChannel.writeFully(byteArrayOf(0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x01, 0x2b, 0x0e, 0x01, 0x00))
             }
 
             val buffer = ByteArray(2048)
-            val read = receiveChannel.readAvailable(buffer)
+            var totalRead = 0
+            val read = receiveChannel.readAvailable(buffer, 0, buffer.size)
             if (read > 0) {
-                val raw = buffer.decodeToString(0, read)
-                val sanitized = raw.filter { it.code in 32..126 || it == '\n' || it == '\r' || it == '\t' }.trim()
+                totalRead += read
+                if (httpPorts.contains(port) && totalRead < buffer.size) {
+                    val currentText = buffer.decodeToString(0, totalRead)
+                    if (!currentText.contains("\r\n\r\n") && !currentText.contains("</title>", ignoreCase = true)) {
+                        withTimeoutOrNull(600) {
+                            val nextRead = receiveChannel.readAvailable(buffer, totalRead, buffer.size - totalRead)
+                            if (nextRead > 0) totalRead += nextRead
+                        }
+                    }
+                }
+                val raw = buffer.decodeToString(0, totalRead)
+                val sanitized = raw.filter { (it.code >= 32 && it.code !in 127..159) || it == '\n' || it == '\r' || it == '\t' }.trim()
                 if (sanitized.isNotEmpty()) sanitized else null
             } else null
         } catch (e: CancellationException) {
@@ -447,12 +523,15 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             .replace("&apos;", "'")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
+            .replace("&nbsp;", " ")
             .replace("|", "/")
+            .replace(Regex("""\s+"""), " ")
             .trim()
             .take(120)
     }
 
-    private fun guessService(port: Int): String {
+
+    internal fun guessService(port: Int): String {
         return when (port) {
             7 -> "echo"
             20 -> "ftp-data"
@@ -464,6 +543,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             67, 68 -> "dhcp"
             69 -> "tftp"
             80 -> "http"
+            102 -> "s7comm"
             110 -> "pop3"
             123 -> "ntp"
             135 -> "epmap"
@@ -474,6 +554,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             443 -> "https"
             445 -> "microsoft-ds"
             465 -> "smtps"
+            502 -> "modbus"
             514 -> "syslog"
             515 -> "lpd"
             548 -> "afp"
@@ -487,11 +568,13 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             1723 -> "pptp"
             1812, 1813 -> "radius"
             1883, 8883 -> "mqtt"
+            1900 -> "ssdp"
             2049 -> "nfs"
             2375, 2376 -> "docker"
             3000 -> "http-alt"
             3306 -> "mysql"
             3389 -> "rdp"
+            4840 -> "opcua"
             5000 -> "http-alt"
             5060, 5061 -> "sip"
             5432 -> "postgres"
@@ -513,6 +596,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             10250 -> "kubelet"
             11211 -> "memcached"
             27017 -> "mongodb"
+            47808 -> "bacnet"
             else -> "unknown"
         }
     }

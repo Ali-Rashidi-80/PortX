@@ -60,10 +60,12 @@ class AndroidNetworkTools : NetworkTools {
 
     private fun executeAndroidPing(ipStr: String, address: InetAddress, timeoutMs: Int): PingAttempt {
         val timeoutSec = maxOf(1, timeoutMs / 1000)
+        val isIpv6 = ipStr.contains(":")
+        val pingBin = if (isIpv6 && java.io.File("/system/bin/ping6").exists()) "/system/bin/ping6" else "/system/bin/ping"
         var process: Process? = null
         try {
             val start = System.currentTimeMillis()
-            val proc = Runtime.getRuntime().exec(arrayOf("/system/bin/ping", "-c", "1", "-W", timeoutSec.toString(), ipStr))
+            val proc = Runtime.getRuntime().exec(arrayOf(pingBin, "-c", "1", "-W", timeoutSec.toString(), ipStr))
             process = proc
             val finished = proc.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
             if (!finished) {
@@ -118,7 +120,12 @@ class AndroidNetworkTools : NetworkTools {
         try {
             val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
             if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
-            val response: HttpResponse = client.get("https://rdap.org/domain/$cleanHost")
+            val rdapUrl = if (isValidIpAddress(cleanHost)) {
+                "https://rdap.org/ip/$cleanHost"
+            } else {
+                "https://rdap.org/domain/$cleanHost"
+            }
+            val response: HttpResponse = client.get(rdapUrl)
             if (response.status.value in 200..299) {
                 response.bodyAsText().take(5000)
             } else {
@@ -148,7 +155,7 @@ class AndroidNetworkTools : NetworkTools {
                     val response: HttpResponse = client.get(url)
                     if (response.status.value in 200..299) {
                         val ip = response.bodyAsText().trim()
-                        if (ip.isNotEmpty()) return@withContext ip
+                        if (isValidIpAddress(ip)) return@withContext ip
                     }
                 } catch (e: CancellationException) {
                     throw e

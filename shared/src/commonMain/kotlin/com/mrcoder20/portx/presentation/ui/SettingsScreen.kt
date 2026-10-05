@@ -150,9 +150,9 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
 
         // 3. COMMUNICATION
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CommunicationGlassButton("About", Icons.Default.Info, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
-            CommunicationGlassButton("Support", Icons.Default.HeadsetMic, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
-            CommunicationGlassButton("Feedback", Icons.Default.Feedback, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
+            CommunicationGlassButton(LocalizedStrings.get("about", state.language), Icons.Default.Info, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
+            CommunicationGlassButton(LocalizedStrings.get("support", state.language), Icons.Default.HeadsetMic, Modifier.weight(1f)) { try { uriHandler.openUri("$githubUrl/issues") } catch (_: Exception) {} }
+            CommunicationGlassButton(LocalizedStrings.get("feedback", state.language), Icons.Default.Feedback, Modifier.weight(1f)) { try { uriHandler.openUri("$githubUrl/discussions") } catch (_: Exception) {} }
         }
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -188,12 +188,18 @@ fun SettingsSectionTitle(title: String) {
 fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(color)
-            .border(if (isSelected) 3.dp else 0.dp, Color.White.copy(alpha = 0.8f), CircleShape)
-            .clickable { onClick() }
-    )
+            .size(44.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(color)
+                .border(if (isSelected) 3.dp else 0.dp, Color.White.copy(alpha = 0.9f), CircleShape)
+        )
+    }
 }
 
 @Composable

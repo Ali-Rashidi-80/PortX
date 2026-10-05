@@ -65,7 +65,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                     }
                     
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Security Trend", style = MaterialTheme.typography.bodySmall, color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight)
+                    Text(LocalizedStrings.get("security_trend", lang), style = MaterialTheme.typography.bodySmall, color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight)
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
@@ -83,7 +83,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                         }
                     } else if (state.scans.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(LocalizedStrings.get("no_services", lang), color = TextMuted, fontSize = 12.sp)
+                            Text(LocalizedStrings.get("no_reports", lang), color = TextMuted, fontSize = 12.sp)
                         }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -91,6 +91,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                                 ReportHistoryItem(
                                     scan = scan,
                                     accent = accent,
+                                    lang = lang,
                                     onDelete = { scan.id?.let { viewModel.deleteScan(it) } },
                                     onExport = { viewModel.shareScan(scan) },
                                     onDownload = { viewModel.downloadScan(scan) }
@@ -104,7 +105,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                "GLOBAL EXPORT FORMAT", 
+                LocalizedStrings.get("global_export_format", lang), 
                 style = MaterialTheme.typography.labelMedium.copy(color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
@@ -142,19 +143,19 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                 containerColor = if (isDark) SurfaceDark else SurfaceLight,
                 titleContentColor = if (isDark) Color.White else Color.Black,
                 textContentColor = if (isDark) TextSecondary else TextSecondaryLight,
-                title = { Text("Clear History?") },
-                text = { Text("Permanently delete all records?") },
+                title = { Text(LocalizedStrings.get("clear_history_title", lang)) },
+                text = { Text(LocalizedStrings.get("clear_history_desc", lang)) },
                 confirmButton = {
                     TextButton(onClick = { 
                         viewModel.clearAll()
                         showDeleteConfirm = false
                     }) {
-                        Text("CLEAR ALL", color = if (isDark) DangerNeon else DangerLight)
+                        Text(LocalizedStrings.get("clear_all", lang), color = if (isDark) DangerNeon else DangerLight)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteConfirm = false }) {
-                        Text("CANCEL", color = if (isDark) Color.White else Color.Black)
+                        Text(LocalizedStrings.get("cancel", lang), color = if (isDark) Color.White else Color.Black)
                     }
                 },
                 modifier = Modifier.padding(24.dp)
@@ -167,8 +168,9 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
 fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifier = Modifier) {
     val scores = scans.sortedBy { it.timestamp }.map { it.securityScore.toFloat() / 100f }.takeLast(10)
     if (scores.size < 2) {
+        val lang = LocalAppSettings.current.language
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("NOT ENOUGH DATA", color = TextMuted, fontSize = 10.sp)
+            Text(LocalizedStrings.get("not_enough_data", lang), color = TextMuted, fontSize = 10.sp)
         }
         return
     }
@@ -177,9 +179,11 @@ fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifi
         val width = size.width
         val height = size.height
         val spacing = width / (scores.size - 1)
+        val vPadding = 10.dp.toPx()
+        val graphHeight = (height - vPadding * 2).coerceAtLeast(1f)
         
         val points = scores.mapIndexed { index, score ->
-            Offset(index * spacing, height * (1 - score))
+            Offset(index * spacing, vPadding + graphHeight * (1 - score))
         }
 
         val path = Path().apply {
@@ -219,6 +223,7 @@ fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifi
 fun ReportHistoryItem(
     scan: ScanResult,
     accent: Color,
+    lang: String = "en",
     onDelete: () -> Unit,
     onExport: () -> Unit,
     onDownload: () -> Unit
@@ -230,16 +235,35 @@ fun ReportHistoryItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(84.dp)
+            .heightIn(min = 84.dp)
             .clip(RoundedCornerShape(20.dp))
             .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
         color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f)
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Target: ${scan.target}", style = MaterialTheme.typography.bodyMedium, color = if (isDark) Color.White else Color.Black, fontWeight = FontWeight.Bold)
+                val title = if (!scan.deviceName.isNullOrBlank()) "${scan.target} (${scan.deviceName})" else "${LocalizedStrings.get("target", lang)}: ${scan.target}"
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isDark) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
                 val formattedTime = "${dateTime.time.hour.toString().padStart(2, '0')}:${dateTime.time.minute.toString().padStart(2, '0')}"
-                Text("${dateTime.date} $formattedTime", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                val subtitle = if (!scan.osFingerprint.isNullOrBlank()) {
+                    "${dateTime.date} $formattedTime • ${scan.osFingerprint}"
+                } else {
+                    "${dateTime.date} $formattedTime"
+                }
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDark) TextMuted else TextMutedLight,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             }
             
             Text(

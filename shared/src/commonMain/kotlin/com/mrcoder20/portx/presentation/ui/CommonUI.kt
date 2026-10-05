@@ -145,7 +145,7 @@ fun PremiumSnackbar(message: String) {
     Surface(
         modifier = Modifier
             .padding(horizontal = 24.dp)
-            .height(56.dp)
+            .heightIn(min = 56.dp)
             .clip(RoundedCornerShape(20.dp))
             .border(
                 1.dp,
@@ -155,7 +155,7 @@ fun PremiumSnackbar(message: String) {
         color = if (isDark) Color(0xCC050505) else Color(0xCCF5F7FA)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -164,7 +164,8 @@ fun PremiumSnackbar(message: String) {
                 message, 
                 color = if (isDark) Color.White else Color.Black,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                maxLines = 1
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

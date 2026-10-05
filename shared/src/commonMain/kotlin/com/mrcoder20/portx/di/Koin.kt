@@ -5,7 +5,6 @@ import com.mrcoder20.portx.data.local.AppDatabase
 import com.mrcoder20.portx.data.local.ScanEntity
 import com.mrcoder20.portx.data.local.listOfIntAdapter
 import com.mrcoder20.portx.data.local.mapIntStringAdapter
-import com.mrcoder20.portx.data.local.booleanAdapter
 import com.mrcoder20.portx.data.network.PortScanner
 import com.mrcoder20.portx.data.network.RemoteApi
 import com.mrcoder20.portx.data.network.RemoteApiImpl
@@ -55,6 +54,7 @@ val commonModule = module {
     factory { SecurityScoreUseCase() }
     factory { FirewallDetectionUseCase() }
     factory { AnomalyDetectionUseCase() }
+    factory { DeviceFingerprintUseCase() }
     factory { ExportReportUseCase() }
     
     single { ScanViewModel(get(), get(), get(), get(), get(), get()) }

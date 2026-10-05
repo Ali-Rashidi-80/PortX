@@ -24,17 +24,21 @@ class SettingsManager(private val database: AppDatabase) {
 
     init {
         scope.launch {
-            val dbSettings = queries.getSettings().executeAsOneOrNull()
-            if (dbSettings != null) {
-                val rawArgb = dbSettings.accentColor.toInt()
-                val restoredColor = if ((rawArgb ushr 24) == 0) Color(0xFF00D1FF) else Color(rawArgb)
-                _settings.update {
-                    it.copy(
-                        language = dbSettings.language,
-                        theme = dbSettings.theme,
-                        accentColor = restoredColor
-                    )
+            try {
+                val dbSettings = queries.getSettings().executeAsOneOrNull()
+                if (dbSettings != null) {
+                    val rawArgb = dbSettings.accentColor.toInt()
+                    val restoredColor = if ((rawArgb ushr 24) == 0) Color(0xFF00D1FF) else Color(rawArgb)
+                    _settings.update {
+                        it.copy(
+                            language = dbSettings.language,
+                            theme = dbSettings.theme,
+                            accentColor = restoredColor
+                        )
+                    }
                 }
+            } catch (_: Throwable) {
+                // Defensive fallback to default AppSettings if database is locked or unreadable
             }
         }
     }
@@ -56,12 +60,16 @@ class SettingsManager(private val database: AppDatabase) {
 
     private fun saveToDb() {
         scope.launch {
-            val current = _settings.value
-            queries.upsertSettings(
-                language = current.language,
-                theme = current.theme,
-                accentColor = current.accentColor.toArgb().toLong()
-            )
+            try {
+                val current = _settings.value
+                queries.upsertSettings(
+                    language = current.language,
+                    theme = current.theme,
+                    accentColor = current.accentColor.toArgb().toLong()
+                )
+            } catch (_: Throwable) {
+                // Defensive catch to prevent unhandled SQLite write errors from crashing the coroutine scope
+            }
         }
     }
 }

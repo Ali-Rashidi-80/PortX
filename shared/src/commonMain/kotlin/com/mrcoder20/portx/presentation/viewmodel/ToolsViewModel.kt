@@ -71,7 +71,7 @@ class ToolsViewModel : ViewModel() {
     }
 
     fun runPing() {
-        val rawHost = _uiState.value.target.trim()
+        val rawHost = sanitizeHost(_uiState.value.target)
         if (rawHost.isEmpty()) {
             _uiState.update { it.copy(error = "Please enter a target IP or Domain") }
             return
@@ -95,7 +95,7 @@ class ToolsViewModel : ViewModel() {
     }
 
     fun runDnsLookup() {
-        val host = _uiState.value.target.trim()
+        val host = sanitizeHost(_uiState.value.target)
         if (host.isEmpty()) {
             _uiState.update { it.copy(error = "Please enter a Domain to resolve") }
             return
@@ -122,7 +122,7 @@ class ToolsViewModel : ViewModel() {
     }
 
     fun runWhois() {
-        val host = _uiState.value.target.trim()
+        val host = sanitizeHost(_uiState.value.target)
         if (host.isEmpty()) {
             _uiState.update { it.copy(error = "Please enter a domain (e.g. google.com)") }
             return

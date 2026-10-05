@@ -165,7 +165,7 @@ fun InfiniteBottomBar(
             .padding(horizontal = 32.dp, vertical = 12.dp)
             .height(64.dp)
             .clip(RoundedCornerShape(32.dp))
-            .background(if (isDark) Color.Transparent else GlassLight)
+            .background(if (isDark) SurfaceDark.copy(alpha = 0.9f) else GlassLight)
             .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.4f), RoundedCornerShape(32.dp)),
         contentAlignment = Alignment.Center
     ) {

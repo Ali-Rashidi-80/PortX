@@ -7,13 +7,13 @@ val listOfIntAdapter = object : ColumnAdapter<List<Int>, String> {
         val cleanValue = databaseValue.trim().removePrefix("[").removeSuffix("]")
         if (cleanValue.isEmpty()) return emptyList()
         return try {
-            cleanValue.split(",").mapNotNull { it.trim().toIntOrNull() }
-        } catch (e: Exception) {
+            cleanValue.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct().sorted()
+        } catch (_: Exception) {
             emptyList()
         }
     }
 
-    override fun encode(value: List<Int>): String = value.joinToString(separator = ",")
+    override fun encode(value: List<Int>): String = value.distinct().sorted().joinToString(separator = ",")
 }
 
 val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
@@ -30,13 +30,13 @@ val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
                     port to unescapedVal
                 } else null
             }.toMap()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyMap()
         }
     }
 
     override fun encode(value: Map<Int, String>): String =
-        value.entries.joinToString(separator = "|") { (port, text) ->
+        value.toSortedMap().entries.joinToString(separator = "|") { (port, text) ->
             val escapedText = text.replace("|", "&#124;")
             "$port:$escapedText"
         }

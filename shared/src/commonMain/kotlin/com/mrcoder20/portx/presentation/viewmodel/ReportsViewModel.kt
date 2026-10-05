@@ -92,8 +92,15 @@ class ReportsViewModel(
         loadScansJob?.cancel()
         loadScansJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            scanRepository.getAllScans().collect { scans ->
-                _uiState.update { it.copy(scans = scans, isLoading = false) }
+            try {
+                scanRepository.getAllScans().collect { scans ->
+                    _uiState.update { it.copy(scans = scans, isLoading = false) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+                showSnackbar("Failed to load records: ${e.message}")
             }
         }
     }
@@ -102,6 +109,8 @@ class ReportsViewModel(
         viewModelScope.launch {
             try {
                 scanRepository.deleteScan(id)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 showSnackbar("Failed to delete record: ${e.message}")
             }
@@ -112,6 +121,8 @@ class ReportsViewModel(
         viewModelScope.launch {
             try {
                 scanRepository.deleteAllScans()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 showSnackbar("Failed to clear history: ${e.message}")
             }

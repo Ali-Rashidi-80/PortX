@@ -14,18 +14,25 @@ class SecurityScoreUseCase {
         val criticalDeductions = mapOf(
             21 to 10,  // FTP cleartext
             23 to 15,  // Telnet unencrypted
+            102 to 15, // Siemens S7comm industrial control vector
             135 to 10, // RPC endpoint mapper
             139 to 10, // NetBIOS
+            161 to 10, // SNMP unauthenticated community string
             445 to 20, // SMB / EternalBlue
+            502 to 20, // Modbus/TCP unauthenticated ICS/SCADA vector
+            1883 to 10,// MQTT unencrypted IoT broker
+            1900 to 10,// SSDP / UPnP amplification
             2375 to 20,// Docker daemon unauthenticated API
             3389 to 15,// RDP exposed
+            4840 to 10,// OPC UA industrial server exposure
             5555 to 15,// ADB remote debugging
             5900 to 10,// VNC remote access
             6379 to 15,// Redis unauthenticated
             9200 to 15,// Elasticsearch unauthenticated cluster API
             10250 to 20,// Kubernetes Kubelet unauthenticated API
             11211 to 15,// Memcached unauthenticated cache & DDoS amplification
-            27017 to 15// MongoDB unauthenticated
+            27017 to 15,// MongoDB unauthenticated
+            47808 to 15// BACnet building automation system vector
         )
 
         criticalDeductions.forEach { (port, deduction) ->
