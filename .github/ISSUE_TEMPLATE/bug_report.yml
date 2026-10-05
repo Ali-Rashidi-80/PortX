@@ -1,0 +1,53 @@
+name: Bug Report
+description: Create a report to help us improve PortX
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue! Please provide as much context as possible.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating System / Platform
+      description: Which platform did this issue occur on?
+      options:
+        - Windows 10/11 (.msi)
+        - Linux (Ubuntu/Debian .deb)
+        - macOS (.dmg)
+        - Android (APK)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PortX Version
+      description: What version of PortX are you using? (e.g., v5.0.0)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this behavior?
+      placeholder: |
+        1. Open PortX
+        2. Set Target to '192.168.1.1'
+        3. Set Concurrency to 1000
+        4. Click Start Scan
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal / Log Output
+      description: Paste any error messages or stacktraces.
+      render: shell

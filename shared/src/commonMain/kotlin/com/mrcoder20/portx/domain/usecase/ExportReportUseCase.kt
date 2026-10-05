@@ -27,11 +27,12 @@ class ExportReportUseCase {
             "MD" -> {
                 val dateTime = kotlin.time.Instant.fromEpochMilliseconds(scanResult.timestamp)
                     .toLocalDateTime(TimeZone.currentSystemDefault())
+                val formattedTime = "${dateTime.time.hour.toString().padStart(2, '0')}:${dateTime.time.minute.toString().padStart(2, '0')}"
                 val sb = StringBuilder()
                 sb.append("# PortX Scan Report\n\n")
                 sb.append("## Summary\n")
                 sb.append("- **Target:** `${scanResult.target}`\n")
-                sb.append("- **Date:** ${dateTime.date} ${dateTime.time.hour}:${dateTime.time.minute}\n")
+                sb.append("- **Date:** ${dateTime.date} $formattedTime\n")
                 sb.append("- **Security Score:** ${scanResult.securityScore}%\n")
                 sb.append("- **Open Ports:** ${scanResult.openPorts.size}\n\n")
                 

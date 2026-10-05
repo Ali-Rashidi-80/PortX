@@ -11,6 +11,11 @@ import com.mrcoder20.portx.shared.ic1
 import com.mrcoder20.portx.di.initKoin
 
 fun main() {
+    // High-performance desktop networking optimizations
+    System.setProperty("java.net.preferIPv4Stack", "true")
+    System.setProperty("sun.net.useExclusiveBind", "false")
+    System.setProperty("file.encoding", "UTF-8")
+
     initKoin()
     application {
         val windowState = rememberWindowState(placement = WindowPlacement.Maximized)

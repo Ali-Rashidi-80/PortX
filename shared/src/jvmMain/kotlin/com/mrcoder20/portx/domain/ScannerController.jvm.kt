@@ -21,6 +21,8 @@ class JvmScannerController : ScannerController, KoinComponent {
                 }
                 
                 ScanManager.setResult(result)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ScanManager.setError(e.message ?: "Scan failed")
             } finally {

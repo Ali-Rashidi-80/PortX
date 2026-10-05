@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mrcoder20.portx.domain.model.ScanResult
 import com.mrcoder20.portx.domain.repository.ScanRepository
 import com.mrcoder20.portx.domain.getFileSharer
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,8 +48,12 @@ class ReportsViewModel(
         }
     }
 
+    private var snackbarJob: Job? = null
+    private var loadScansJob: Job? = null
+
     private fun showSnackbar(message: String) {
-        viewModelScope.launch {
+        snackbarJob?.cancel()
+        snackbarJob = viewModelScope.launch {
             _uiState.update { it.copy(snackbarMessage = message) }
             kotlinx.coroutines.delay(3000)
             _uiState.update { it.copy(snackbarMessage = null) }
@@ -59,7 +64,8 @@ class ReportsViewModel(
         val format = _uiState.value.exportFormat
         val content = exportReportUseCase(scan, format)
         val extension = if (format == "MD") "md" else format.lowercase()
-        val fileName = "PortX_Report_${scan.target}_${scan.timestamp}.$extension"
+        val sanitizedTarget = scan.target.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val fileName = "PortX_Report_${sanitizedTarget}_${scan.timestamp}.$extension"
         val mimeType = when (format) {
             "CSV" -> "text/csv"
             "MD" -> "text/markdown"
@@ -75,7 +81,8 @@ class ReportsViewModel(
     }
 
     fun loadScans() {
-        viewModelScope.launch {
+        loadScansJob?.cancel()
+        loadScansJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             scanRepository.getAllScans().collect { scans ->
                 _uiState.update { it.copy(scans = scans, isLoading = false) }

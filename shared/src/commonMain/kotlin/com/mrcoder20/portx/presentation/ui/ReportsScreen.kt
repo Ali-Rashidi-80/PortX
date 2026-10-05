@@ -238,7 +238,8 @@ fun ReportHistoryItem(
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Target: ${scan.target}", style = MaterialTheme.typography.bodyMedium, color = if (isDark) Color.White else Color.Black, fontWeight = FontWeight.Bold)
-                Text("${dateTime.date} ${dateTime.time.hour}:${dateTime.time.minute}", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                val formattedTime = "${dateTime.time.hour.toString().padStart(2, '0')}:${dateTime.time.minute.toString().padStart(2, '0')}"
+                Text("${dateTime.date} $formattedTime", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
             }
             
             Text(

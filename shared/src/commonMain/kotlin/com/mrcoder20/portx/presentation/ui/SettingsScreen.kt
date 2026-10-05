@@ -163,7 +163,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("PortX Professional Suite v1.0.0", color = if (isDark) TextSecondary else Color.Black.copy(alpha = 0.6f), fontSize = 12.sp)
+                Text("PortX Professional Suite v5.1.0", color = if (isDark) TextSecondary else Color.Black.copy(alpha = 0.6f), fontSize = 12.sp)
                 Icon(Icons.Default.Code, null, tint = TextMuted, modifier = Modifier.size(16.dp))
             }
         }

@@ -5,6 +5,7 @@ import io.ktor.network.sockets.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.Serializable
 import kotlin.math.max
@@ -15,8 +16,8 @@ import kotlin.time.TimeSource
 // VERSION & CONSTANTS
 // ============================================================
 
-const val VERSION = "5.0.0-ULTRA"
-const val APP_NAME = "PortX Turbo Engine"
+const val VERSION = "5.1.0"
+const val APP_NAME = "PortX Engine"
 const val MAX_PACKET_SIZE = 65535
 const val RING_BUFFER_SIZE = 1048576
 const val UDP_SCAN_LIMIT = 1000
@@ -210,6 +211,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                         val latency = start.elapsedNow().inWholeMilliseconds
                         batchLatency += latency
                         result.copy(rtt = latency)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         ScanPortResult(port, proto, "closed", reason = e.message ?: "error")
                     }
@@ -238,6 +241,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                             try { socket.close() } catch (_: Exception) {}
                             probe.copy(rtt = res.rtt)
                         } else res
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) { res }
                     finalResultsChannel.send(enriched)
                 }
@@ -321,6 +326,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             } else {
                 ScanPortResult(port, "TCP", "filtered", reason = "timeout")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ScanPortResult(port, "TCP", "closed", reason = e.message ?: "refused")
         }
@@ -334,6 +341,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             socket.send(Datagram(packet, address))
             socket.close()
             ScanPortResult(port, "UDP", "open|filtered", guessService(port))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ScanPortResult(port, "UDP", "closed")
         }
@@ -388,6 +397,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             val buffer = ByteArray(2048)
             val read = receiveChannel.readAvailable(buffer)
             if (read > 0) buffer.decodeToString(0, read) else null
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             null
         }
