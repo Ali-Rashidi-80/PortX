@@ -253,6 +253,15 @@ fun DashboardIpInput(
                     cursorColor = accent
                 ),
                 singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Go,
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onGo = {
+                        if (state.isLoading) onStopScan() else onStartScan()
+                    }
+                ),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
             )
             

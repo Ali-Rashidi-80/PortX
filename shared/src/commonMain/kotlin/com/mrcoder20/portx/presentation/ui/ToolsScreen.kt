@@ -106,6 +106,23 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                                 cursorColor = accent
                             ),
                             singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Go,
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onGo = {
+                                    if (state.isLoading) {
+                                        viewModel.stopActiveTool()
+                                    } else {
+                                        when(state.activeTool) {
+                                            "PING" -> viewModel.runPing()
+                                            "DNS" -> viewModel.runDnsLookup()
+                                            "WHOIS" -> viewModel.runWhois()
+                                        }
+                                    }
+                                }
+                            ),
                             textStyle = MaterialTheme.typography.bodyLarge
                         )
 

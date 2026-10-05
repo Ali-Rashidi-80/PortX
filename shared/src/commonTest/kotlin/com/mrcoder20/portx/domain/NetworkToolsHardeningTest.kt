@@ -370,4 +370,54 @@ class NetworkToolsHardeningTest {
         assertNotNull(com.mrcoder20.portx.presentation.ui.theme.LocalAccentColor)
         assertNotNull(com.mrcoder20.portx.presentation.ui.theme.LocalAppSettings)
     }
+
+    @Test
+    fun testIsTargetLocalOrPrivateRFCCompliance() {
+        // Loopback RFC 1122
+        assertTrue(isTargetLocalOrPrivate("localhost"))
+        assertTrue(isTargetLocalOrPrivate("127.0.0.1"))
+        assertTrue(isTargetLocalOrPrivate("127.0.0.2"))
+        assertTrue(isTargetLocalOrPrivate("127.255.255.254"))
+        assertTrue(isTargetLocalOrPrivate("::1"))
+        assertTrue(isTargetLocalOrPrivate("[::1]"))
+
+        // RFC 1918 Private IPv4
+        assertTrue(isTargetLocalOrPrivate("10.0.0.1"))
+        assertTrue(isTargetLocalOrPrivate("10.255.255.254"))
+        assertTrue(isTargetLocalOrPrivate("192.168.0.1"))
+        assertTrue(isTargetLocalOrPrivate("192.168.100.254"))
+        assertTrue(isTargetLocalOrPrivate("172.16.0.1"))
+        assertTrue(isTargetLocalOrPrivate("172.24.10.5"))
+        assertTrue(isTargetLocalOrPrivate("172.31.255.255"))
+        assertFalse(isTargetLocalOrPrivate("172.15.255.255"))
+        assertFalse(isTargetLocalOrPrivate("172.32.0.1"))
+        assertFalse(isTargetLocalOrPrivate("172.217.16.14")) // Google Public IP
+
+        // RFC 3927 Link-Local IPv4
+        assertTrue(isTargetLocalOrPrivate("169.254.1.1"))
+
+        // RFC 6598 CGNAT
+        assertTrue(isTargetLocalOrPrivate("100.64.0.1"))
+        assertTrue(isTargetLocalOrPrivate("100.127.255.255"))
+        assertFalse(isTargetLocalOrPrivate("100.63.255.255"))
+        assertFalse(isTargetLocalOrPrivate("100.128.0.1"))
+
+        // RFC 4291 / RFC 4193 IPv6
+        assertTrue(isTargetLocalOrPrivate("fe80::1"))
+        assertTrue(isTargetLocalOrPrivate("[fe80::1]"))
+        assertTrue(isTargetLocalOrPrivate("fc00::1"))
+        assertTrue(isTargetLocalOrPrivate("fd12:3456:789a::1"))
+
+        // Public WAN targets
+        assertFalse(isTargetLocalOrPrivate("8.8.8.8"))
+        assertFalse(isTargetLocalOrPrivate("1.1.1.1"))
+        assertFalse(isTargetLocalOrPrivate("google.com"))
+        assertFalse(isTargetLocalOrPrivate("2606:4700:4700::1111"))
+
+        // Local Domains RFC 6762 / 8375 / 6761
+        assertTrue(isTargetLocalOrPrivate("router.local"))
+        assertTrue(isTargetLocalOrPrivate("nas.lan"))
+        assertTrue(isTargetLocalOrPrivate("cluster.internal"))
+        assertTrue(isTargetLocalOrPrivate("gateway.home.arpa"))
+    }
 }

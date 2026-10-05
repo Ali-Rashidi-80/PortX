@@ -166,7 +166,7 @@ class ScanViewModel(
             target.contains(":") -> ipv6Regex.matches(target) && target.count { it == ':' } >= 2
             else -> hostnameRegex.matches(target)
         }
-        val isLocal = target.lowercase() == "localhost" || target == "127.0.0.1" || target == "::1" || target.startsWith("192.168.") || target.startsWith("10.") || target.startsWith("172.")
+        val isLocal = com.mrcoder20.portx.domain.isTargetLocalOrPrivate(target)
         
         if (!isValid) {
             _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8, router, or example.com)") }

@@ -83,3 +83,48 @@ fun parseTtlFromPingOutput(output: String): Int? {
     val match = regex.find(output) ?: return null
     return match.groupValues[1].toIntOrNull()
 }
+
+/**
+ * Determines whether a target IP/hostname is a loopback, link-local, or private RFC 1918 / RFC 4193 / RFC 6598 address.
+ */
+fun isTargetLocalOrPrivate(target: String): Boolean {
+    val clean = target.trim().lowercase().removePrefix("[").removeSuffix("]")
+    if (clean == "localhost" || clean == "::1" || clean == "0.0.0.0" || clean == "::") return true
+    
+    // RFC 1122: Loopback 127.0.0.0/8
+    if (clean.startsWith("127.")) return true
+    
+    // RFC 1918: 10.0.0.0/8 & 192.168.0.0/16
+    if (clean.startsWith("10.") || clean.startsWith("192.168.")) return true
+    
+    // RFC 3927: IPv4 Link-Local 169.254.0.0/16
+    if (clean.startsWith("169.254.")) return true
+    
+    // RFC 1918: 172.16.0.0 - 172.31.255.255
+    if (clean.startsWith("172.")) {
+        val secondOctet = clean.substringAfter("172.").substringBefore(".").toIntOrNull()
+        if (secondOctet != null && secondOctet in 16..31) return true
+    }
+
+    // RFC 6598: Carrier-Grade NAT (CGNAT) 100.64.0.0/10 (100.64.0.0 - 100.127.255.255)
+    if (clean.startsWith("100.")) {
+        val secondOctet = clean.substringAfter("100.").substringBefore(".").toIntOrNull()
+        if (secondOctet != null && secondOctet in 64..127) return true
+    }
+
+    // IPv6 checks (ensure presence of ':')
+    if (clean.contains(":")) {
+        // RFC 4291: Link-Local fe80::/10 (fe80 - febf)
+        if (clean.startsWith("fe8") || clean.startsWith("fe9") || clean.startsWith("fea") || clean.startsWith("feb")) return true
+        // RFC 4193: Unique Local Address (ULA) fc00::/7 (fc00 - fdff)
+        if (clean.startsWith("fc") || clean.startsWith("fd")) return true
+    }
+
+    // Standard local/private domain name suffixes (RFC 6762, RFC 8375, RFC 6761)
+    if (clean.endsWith(".local") || clean.endsWith(".lan") || clean.endsWith(".internal") || clean.endsWith(".home.arpa") || clean.endsWith(".localhost")) {
+        return true
+    }
+
+    return false
+}
+
