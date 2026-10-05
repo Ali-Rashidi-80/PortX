@@ -16,7 +16,7 @@ data class AppSettings(
 )
 
 class SettingsManager(private val database: AppDatabase) {
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val queries = database.appDatabaseQueries
 
     private val _settings = MutableStateFlow(AppSettings())

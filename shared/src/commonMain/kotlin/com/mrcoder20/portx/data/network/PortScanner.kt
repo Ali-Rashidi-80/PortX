@@ -149,10 +149,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         val startTime = timeSource.markNow()
         val selectorManager = SelectorManager(dispatcher)
         
-        // DNS CACHING: Resolve once
-        val resolvedTarget = try {
-            config.target 
-        } catch (_: Exception) { config.target }
+        // DNS CACHING & Host Sanitization
+        val resolvedTarget = com.mrcoder20.portx.domain.sanitizeHost(config.target)
 
         val results = mutableListOf<ScanPortResult>()
         val concurrency = (if (config.concurrency > 0) config.concurrency else 1000).coerceIn(10, 2500)
@@ -163,6 +161,19 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         val totalPorts = ports.size
         val scanPasses = if (config.scanType == "TCP/UDP") listOf("TCP", "UDP") else listOf(config.scanType)
         val totalOperations = totalPorts * scanPasses.size
+
+        if (totalOperations <= 0) {
+            selectorManager.close()
+            return@withContext ScanSummary(
+                target = resolvedTarget,
+                totalPorts = 0,
+                openPorts = 0,
+                closedPorts = 0,
+                filtered = 0,
+                durationMs = 0L,
+                results = emptyList()
+            )
+        }
         
         var scannedCount = 0
         var openCount = 0
@@ -277,7 +288,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 // Adaptive Feedback
                 if (scannedCount % 50 == 0) {
                     val successRate = (successBatch.toDouble() / 50.0) * 100.0
-                    timing.adapt(successRate, batchLatency / 50)
+                    val avgBatchLatency = if (scannedCount > 0) batchLatency / 50 else 0L
+                    timing.adapt(successRate, avgBatchLatency)
                     successBatch = 0
                     batchLatency = 0
                 }
@@ -288,13 +300,14 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             }
         }
 
-        consumerJob.join()
-        
-        // Clean up
-        rateLimitJob.cancel()
-        workers.forEach { it.cancel() }
-        bannerWorkers.forEach { it.cancel() }
-        selectorManager.close()
+        try {
+            consumerJob.join()
+        } finally {
+            rateLimitJob.cancel()
+            workers.forEach { it.cancel() }
+            bannerWorkers.forEach { it.cancel() }
+            selectorManager.close()
+        }
 
         ScanSummary(
             target = resolvedTarget,

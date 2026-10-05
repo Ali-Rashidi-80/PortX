@@ -1,9 +1,13 @@
 package com.mrcoder20.portx.domain
 
+import com.mrcoder20.portx.data.network.PortScanner
+import com.mrcoder20.portx.data.network.ScanConfig
+import com.mrcoder20.portx.domain.model.ScanResult
+import com.mrcoder20.portx.domain.usecase.ExportReportUseCase
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NetworkToolsHardeningTest {
@@ -40,9 +44,50 @@ class NetworkToolsHardeningTest {
     @Test
     fun testSanitizedDnsResolution() = runTest {
         val tools = getNetworkTools()
-        // Host with protocol should be cleanly resolved without throwing UnknownHostException
         val ips = tools.dnsLookup("https://google.com/path")
         assertTrue(ips.isNotEmpty(), "Sanitized host should resolve to valid IP addresses")
         assertTrue(ips.all { it.isNotBlank() }, "Resolved IP list should not contain blank entries")
+    }
+
+    @Test
+    fun testExportReportSanitization() {
+        val useCase = ExportReportUseCase()
+        val scanResult = ScanResult(
+            target = "192.168.1.1",
+            openPorts = listOf(80, 443),
+            portBanners = mapOf(
+                80 to "Apache\nServer|v2.4,test",
+                443 to "nginx|1.18\r\nsecure"
+            ),
+            portServices = mapOf(
+                80 to "http",
+                443 to "https"
+            ),
+            timestamp = 1700000000000L,
+            securityScore = 90,
+            scanType = "UDP"
+        )
+
+        val csv = useCase(scanResult, "CSV")
+        assertTrue(csv.contains("80,UDP,http,Apache Server\\|v2.4;test,open") || csv.contains("80,UDP,http,Apache Server"), "CSV should contain protocol and sanitized banner")
+        assertFalse(csv.contains("Apache\nServer"), "CSV should not contain raw unescaped newlines in banner")
+
+        val md = useCase(scanResult, "MD")
+        assertTrue(md.contains("\\|"), "Markdown table should escape pipe characters in banner")
+        assertFalse(md.contains("Apache\nServer"), "Markdown table rows should not break on newlines in banner")
+    }
+
+    @Test
+    fun testPortScannerZeroOperationsGuard() = runTest {
+        val scanner = PortScanner()
+        val config = ScanConfig(
+            target = "127.0.0.1",
+            startPort = 500,
+            endPort = 100 // Invalid inverted range resulting in 0 operations
+        )
+        val summary = scanner.scan(config)
+        assertEquals(0, summary.totalPorts)
+        assertEquals(0, summary.openPorts)
+        assertTrue(summary.results.isEmpty())
     }
 }

@@ -132,20 +132,26 @@ class ScanViewModel(
         val state = _uiState.value
         if (state.isLoading) return
         
-        // 1. STRICT Target Validation
-        val target = state.ip.trim()
-        if (target.isBlank()) {
+        // 1. STRICT Target Validation & Sanitization
+        val rawInput = state.ip.trim()
+        if (rawInput.isBlank()) {
             _uiState.update { it.copy(error = "Please enter an IP or Hostname") }
             return
         }
+        val target = com.mrcoder20.portx.domain.sanitizeHost(rawInput)
 
-        // Support IPv4, Domain names, and Local hostnames (e.g. localhost, router, server-01)
+        // Support IPv4, IPv6, Domain names, and Local hostnames (e.g. localhost, router, server-01)
         val ipRegex = Regex("""^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$""")
+        val ipv6Regex = Regex("""^[0-9a-fA-F:]+$""")
         val hostnameRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$""")
         
         val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
-        val isValid = if (isAllNumericDotted) ipRegex.matches(target) else hostnameRegex.matches(target)
-        val isLocal = target.lowercase() == "localhost" || target == "127.0.0.1" || target.startsWith("192.168.") || target.startsWith("10.") || target.startsWith("172.")
+        val isValid = when {
+            isAllNumericDotted -> ipRegex.matches(target)
+            target.contains(":") -> ipv6Regex.matches(target) && target.count { it == ':' } >= 2
+            else -> hostnameRegex.matches(target)
+        }
+        val isLocal = target.lowercase() == "localhost" || target == "127.0.0.1" || target == "::1" || target.startsWith("192.168.") || target.startsWith("10.") || target.startsWith("172.")
         
         if (!isValid) {
             _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8, router, or example.com)") }
