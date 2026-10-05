@@ -77,6 +77,7 @@ data class ScanSummary(
 // ============================================================
 
 class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
+    @kotlin.concurrent.Volatile
     private var currentRate = maxRate / 2
     private var state = "optimized"
     private var epsilon = 0.15
@@ -84,6 +85,7 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
     private val qTable = mutableMapOf<String, Double>()
     
     // Moving average for RTT-based adaptive timeouts
+    @kotlin.concurrent.Volatile
     private var avgRtt = 200L
     
     fun getRate() = currentRate
@@ -220,7 +222,6 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                             res
                         }
                         val latency = start.elapsedNow().inWholeMilliseconds
-                        batchLatency += latency
                         result.copy(rtt = latency)
                     } catch (e: CancellationException) {
                         throw e
@@ -275,6 +276,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             repeat(totalOperations) {
                 val res = finalResultsChannel.receive()
                 results.add(res)
+                batchLatency += res.rtt
                 
                 if (res.state == "open") {
                     openCount++
@@ -350,9 +352,12 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         return try {
             val address = InetSocketAddress(target, port)
             val socket = aSocket(selector).udp().bind()
-            val packet = buildPacket { writeText("PROBE") }
-            socket.send(Datagram(packet, address))
-            socket.close()
+            try {
+                val packet = buildPacket { writeText("PROBE") }
+                socket.send(Datagram(packet, address))
+            } finally {
+                try { socket.close() } catch (_: Exception) {}
+            }
             ScanPortResult(port, "UDP", "open|filtered", guessService(port))
         } catch (e: CancellationException) {
             throw e
@@ -461,12 +466,13 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             3389 -> "rdp"
             5060, 5061 -> "sip"
             5432 -> "postgres"
+            5555 -> "adb"
             5900 -> "vnc"
             6379 -> "redis"
             8000 -> "http-alt"
             8080 -> "http-proxy"
             8443 -> "https-alt"
-            9000 -> "adb"
+            9000 -> "sonarqube"
             9092 -> "kafka"
             27017 -> "mongodb"
             else -> "unknown"

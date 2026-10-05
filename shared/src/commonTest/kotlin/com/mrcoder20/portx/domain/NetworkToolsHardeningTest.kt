@@ -90,4 +90,101 @@ class NetworkToolsHardeningTest {
         assertEquals(0, summary.openPorts)
         assertTrue(summary.results.isEmpty())
     }
+
+    @Test
+    fun testDatabaseAdaptersPipeEscapingAndResilience() {
+        val originalMap = mapOf(
+            80 to "Apache/2.4.41 | OpenSSL/1.1.1f",
+            443 to "nginx/1.18.0 | custom:proxy",
+            8080 to "plain-banner"
+        )
+        val encoded = com.mrcoder20.portx.data.local.mapIntStringAdapter.encode(originalMap)
+        val decoded = com.mrcoder20.portx.data.local.mapIntStringAdapter.decode(encoded)
+
+        assertEquals(originalMap.size, decoded.size)
+        assertEquals("Apache/2.4.41 | OpenSSL/1.1.1f", decoded[80])
+        assertEquals("nginx/1.18.0 | custom:proxy", decoded[443])
+        assertEquals("plain-banner", decoded[8080])
+
+        // Resilient decode with malformed entry
+        val malformedString = "80:valid|corrupted_entry|443:also:valid"
+        val decodedMalformed = com.mrcoder20.portx.data.local.mapIntStringAdapter.decode(malformedString)
+        assertEquals("valid", decodedMalformed[80])
+        assertEquals("also:valid", decodedMalformed[443])
+
+        // List of Int adapter resilience
+        val validList = listOf(80, 443, 8080)
+        val encodedList = com.mrcoder20.portx.data.local.listOfIntAdapter.encode(validList)
+        val decodedList = com.mrcoder20.portx.data.local.listOfIntAdapter.decode(encodedList)
+        assertEquals(validList, decodedList)
+
+        val malformedList = "80, invalid, 443, , 8080"
+        val recoveredList = com.mrcoder20.portx.data.local.listOfIntAdapter.decode(malformedList)
+        assertEquals(listOf(80, 443, 8080), recoveredList)
+    }
+
+    @Test
+    fun testAnomalyDetectionHighRiskVectors() {
+        val useCase = com.mrcoder20.portx.domain.usecase.AnomalyDetectionUseCase()
+        val dangerousScan = ScanResult(
+            target = "10.0.0.1",
+            openPorts = listOf(23, 445, 5555, 6379, 27017),
+            portBanners = emptyMap(),
+            portServices = emptyMap(),
+            timestamp = 1700000000000L,
+            securityScore = 20
+        )
+        val anomalies = useCase(dangerousScan)
+        assertTrue(anomalies.any { it.contains("Port 23") && it.contains("Telnet") })
+        assertTrue(anomalies.any { it.contains("Port 445") && it.contains("SMB") })
+        assertTrue(anomalies.any { it.contains("Port 5555") && it.contains("ADB") })
+        assertTrue(anomalies.any { it.contains("Port 6379") && it.contains("Redis") })
+        assertTrue(anomalies.any { it.contains("Port 27017") && it.contains("MongoDB") })
+
+        val standardWebScan = ScanResult(
+            target = "10.0.0.2",
+            openPorts = listOf(80, 443, 8080, 8443),
+            portBanners = emptyMap(),
+            portServices = emptyMap(),
+            timestamp = 1700000000000L,
+            securityScore = 95
+        )
+        val webAnomalies = useCase(standardWebScan)
+        assertTrue(webAnomalies.isEmpty(), "Standard web ports should not trigger threat anomalies")
+    }
+
+    @Test
+    fun testSecurityScoreUseCaseCalculation() {
+        val useCase = com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase()
+        
+        val cleanScan = ScanResult(
+            target = "127.0.0.1",
+            openPorts = emptyList(),
+            portBanners = emptyMap(),
+            portServices = emptyMap(),
+            timestamp = 1700000000000L,
+            securityScore = 0
+        )
+        assertEquals(100, useCase(cleanScan), "Zero open ports should yield perfect score of 100")
+
+        val smbScan = ScanResult(
+            target = "192.168.1.50",
+            openPorts = listOf(445), // Port 445: 3 base + 20 critical deduction = -23
+            portBanners = emptyMap(),
+            portServices = emptyMap(),
+            timestamp = 1700000000000L,
+            securityScore = 0
+        )
+        assertEquals(77, useCase(smbScan), "Port 445 should result in heavy security penalty")
+
+        val massiveCompromise = ScanResult(
+            target = "192.168.1.100",
+            openPorts = (1..100).toList(), // 100 open ports with multiple critical ones
+            portBanners = emptyMap(),
+            portServices = emptyMap(),
+            timestamp = 1700000000000L,
+            securityScore = 0
+        )
+        assertEquals(0, useCase(massiveCompromise), "Severe compromise must clamp to 0")
+    }
 }

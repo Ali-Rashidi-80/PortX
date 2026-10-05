@@ -7,7 +7,7 @@ val listOfIntAdapter = object : ColumnAdapter<List<Int>, String> {
         val cleanValue = databaseValue.trim().removePrefix("[").removeSuffix("]")
         if (cleanValue.isEmpty()) return emptyList()
         return try {
-            cleanValue.split(",").map { it.trim().toInt() }
+            cleanValue.split(",").mapNotNull { it.trim().toIntOrNull() }
         } catch (e: Exception) {
             emptyList()
         }
@@ -21,22 +21,25 @@ val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
         val cleanValue = databaseValue.trim().removePrefix("{").removeSuffix("}")
         if (cleanValue.isEmpty()) return emptyMap()
         return try {
-            cleanValue.split("|").associate { entry ->
+            cleanValue.split("|").mapNotNull { entry ->
                 val parts = entry.split(":")
-                if (parts.size >= 2) {
-                    parts[0].trim().toInt() to parts.subList(1, parts.size).joinToString(":")
-                } else {
-                    // Fallback for malformed entry
-                    0 to "unknown"
-                }
-            }.filter { it.key != 0 }
+                val port = parts.firstOrNull()?.trim()?.toIntOrNull()
+                if (port != null && parts.size >= 2) {
+                    val rawVal = parts.subList(1, parts.size).joinToString(":")
+                    val unescapedVal = rawVal.replace("&#124;", "|")
+                    port to unescapedVal
+                } else null
+            }.toMap()
         } catch (e: Exception) {
             emptyMap()
         }
     }
 
     override fun encode(value: Map<Int, String>): String =
-        value.entries.joinToString(separator = "|") { "${it.key}:${it.value}" }
+        value.entries.joinToString(separator = "|") { (port, text) ->
+            val escapedText = text.replace("|", "&#124;")
+            "$port:$escapedText"
+        }
 }
 
 val booleanAdapter = object : ColumnAdapter<Boolean, Long> {

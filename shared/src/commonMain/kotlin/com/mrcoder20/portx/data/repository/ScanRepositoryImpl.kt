@@ -27,13 +27,14 @@ class ScanRepositoryImpl(
     ): ScanResult {
         val summary = scanner.scan(config, onProgress)
         val openResults = summary.results.filter { it.state == "open" }
+        val openPortList = openResults.map { it.port }.distinct()
         val scanResult = ScanResult(
             target = summary.target,
-            openPorts = openResults.map { it.port }.distinct(),
+            openPorts = openPortList,
             portBanners = openResults.associate { it.port to it.banner },
             portServices = openResults.associate { it.port to it.service },
             timestamp = Clock.System.now().toEpochMilliseconds(),
-            securityScore = calculateScore(openResults.size),
+            securityScore = calculateScore(openPortList),
             scanType = config.scanType,
             bannerGrabbing = config.serviceDetect,
             concurrentScans = config.concurrency,
@@ -91,13 +92,16 @@ class ScanRepositoryImpl(
         }
     }
 
-    private fun calculateScore(openPortsCount: Int): Int {
-        return when {
-            openPortsCount == 0 -> 100
-            openPortsCount < 5 -> 80
-            openPortsCount < 20 -> 50
-            else -> 20
-        }
+    private fun calculateScore(openPorts: List<Int>): Int {
+        val dummy = ScanResult(
+            target = "",
+            openPorts = openPorts,
+            portBanners = emptyMap(),
+            portServices = emptyMap(),
+            timestamp = 0L,
+            securityScore = 0
+        )
+        return com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase()(dummy)
     }
 
     private fun ScanEntity.toDomain(): ScanResult {

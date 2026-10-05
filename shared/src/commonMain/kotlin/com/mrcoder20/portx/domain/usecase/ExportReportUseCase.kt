@@ -19,7 +19,10 @@ class ExportReportUseCase {
                 sb.append("Port,Protocol,Service,Banner,State\n")
                 val proto = scanResult.scanType ?: "TCP"
                 scanResult.openPorts.forEach { port ->
-                    val service = scanResult.portServices[port] ?: "unknown"
+                    val service = (scanResult.portServices[port] ?: "unknown")
+                        .replace(",", ";")
+                        .replace("\n", " ")
+                        .replace("\r", "")
                     val banner = (scanResult.portBanners[port] ?: "")
                         .replace(",", ";")
                         .replace("\n", " ")
@@ -44,7 +47,10 @@ class ExportReportUseCase {
                 sb.append("| Port | Service | Banner |\n")
                 sb.append("| --- | --- | --- |\n")
                 scanResult.openPorts.sorted().forEach { port ->
-                    val service = scanResult.portServices[port] ?: "unknown"
+                    val service = (scanResult.portServices[port] ?: "unknown")
+                        .replace("|", "\\|")
+                        .replace("\n", " ")
+                        .replace("\r", "")
                     val banner = (scanResult.portBanners[port] ?: "-")
                         .replace("|", "\\|")
                         .replace("\n", " ")

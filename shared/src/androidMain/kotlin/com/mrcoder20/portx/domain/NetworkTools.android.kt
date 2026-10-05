@@ -110,9 +110,9 @@ class AndroidNetworkTools : NetworkTools {
     }
 
     override suspend fun whois(host: String): String = withContext(Dispatchers.IO) {
+        val client = SecurityHarden.createSecureClient()
         try {
             val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
-            val client = SecurityHarden.createSecureClient()
             val response: HttpResponse = client.get("https://rdap.org/domain/$cleanHost")
             if (response.status.value in 200..299) {
                 response.bodyAsText().take(5000)
@@ -123,6 +123,8 @@ class AndroidNetworkTools : NetworkTools {
             throw e
         } catch (e: Exception) {
             "WHOIS Resolution Error (Mobile): ${e.message}. Domain might be invalid or RDAP is blocked."
+        } finally {
+            try { client.close() } catch (_: Exception) {}
         }
     }
 
@@ -135,18 +137,22 @@ class AndroidNetworkTools : NetworkTools {
         )
         
         val client = SecurityHarden.createSecureClient()
-        providers.forEach { url ->
-            try {
-                val response: HttpResponse = client.get(url)
-                if (response.status.value in 200..299) {
-                    val ip = response.bodyAsText().trim()
-                    if (ip.isNotEmpty()) return@withContext ip
+        try {
+            providers.forEach { url ->
+                try {
+                    val response: HttpResponse = client.get(url)
+                    if (response.status.value in 200..299) {
+                        val ip = response.bodyAsText().trim()
+                        if (ip.isNotEmpty()) return@withContext ip
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Try next provider
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Try next
             }
+        } finally {
+            try { client.close() } catch (_: Exception) {}
         }
         null
     }
@@ -158,25 +164,73 @@ class AndroidNetworkTools : NetworkTools {
             val caps = cm?.getNetworkCapabilities(activeNetwork)
             val isWifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
 
-            var ip = "0.0.0.0"
-            var name = "unknown"
-            
+            // Authoritative route lookup via Android LinkProperties
+            val linkProps = activeNetwork?.let { cm.getLinkProperties(it) }
+            val activeIpv4 = linkProps?.linkAddresses
+                ?.mapNotNull { it.address }
+                ?.firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress && !it.isLinkLocalAddress }
+                ?.hostAddress
+
+            if (activeIpv4 != null) {
+                val ifName = linkProps.interfaceName ?: (if (isWifi) "Wi-Fi" else "Cellular")
+                return LocalIpInfo(activeIpv4, ifName, isWifi)
+            }
+
+            // Fallback: Prioritized interface enumeration
+            data class InterfaceCandidate(
+                val ip: String,
+                val name: String,
+                val isWifi: Boolean,
+                val priority: Int
+            )
+            val candidates = mutableListOf<InterfaceCandidate>()
+
             val interfaces = NetworkInterface.getNetworkInterfaces()
             if (interfaces != null) {
                 while (interfaces.hasMoreElements()) {
                     val iface = interfaces.nextElement()
                     if (iface.isLoopback || !iface.isUp) continue
+
+                    val nameLower = iface.name.lowercase()
+                    val dispLower = iface.displayName.lowercase()
+                    val combined = "$nameLower $dispLower"
+
+                    val isCandidateWifi = combined.contains("wlan") || combined.contains("wi-fi")
+                    val isCandidateCellular = combined.contains("rmnet") || combined.contains("ccmni") || combined.contains("pdp")
+                    val isCandidateVirtual = combined.contains("dummy") || combined.contains("tun") || combined.contains("tap") || combined.contains("veth")
+
+                    val priority = when {
+                        isCandidateVirtual -> 5
+                        isCandidateWifi -> 40
+                        isCandidateCellular -> 30
+                        else -> 15
+                    }
+
                     val addresses = iface.inetAddresses
                     while (addresses.hasMoreElements()) {
                         val addr = addresses.nextElement()
-                        val hostAddr = addr.hostAddress
-                        if (hostAddr == null || hostAddr.contains(":")) continue 
-                        ip = hostAddr
-                        name = iface.displayName
+                        if (addr.isLoopbackAddress || addr.isLinkLocalAddress) continue
+                        val hostAddr = addr.hostAddress ?: continue
+                        if (hostAddr.contains(":") || hostAddr.startsWith("169.254.") || hostAddr == "0.0.0.0") continue
+
+                        candidates.add(
+                            InterfaceCandidate(
+                                ip = hostAddr,
+                                name = iface.displayName,
+                                isWifi = isCandidateWifi || isWifi,
+                                priority = priority
+                            )
+                        )
                     }
                 }
             }
-            LocalIpInfo(ip, name, isWifi)
+
+            val best = candidates.maxByOrNull { it.priority }
+            if (best != null) {
+                LocalIpInfo(best.ip, best.name, best.isWifi)
+            } else {
+                LocalIpInfo("127.0.0.1", "Loopback", false)
+            }
         } catch (e: Exception) {
             LocalIpInfo("0.0.0.0", "Error", false)
         }

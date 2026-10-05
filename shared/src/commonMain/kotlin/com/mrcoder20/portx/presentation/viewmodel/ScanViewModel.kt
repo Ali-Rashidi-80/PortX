@@ -53,7 +53,14 @@ class ScanViewModel(
     init {
         viewModelScope.launch {
             scanRepository.getLatestScan().collect { latest ->
-                _uiState.update { it.copy(result = latest, ip = latest?.target ?: it.ip) }
+                _uiState.update { 
+                    it.copy(
+                        result = latest, 
+                        ip = latest?.target ?: it.ip,
+                        firewallStatus = latest?.let { res -> firewallDetectionUseCase(res) },
+                        anomalies = latest?.let { res -> anomalyDetectionUseCase(res) } ?: emptyList()
+                    ) 
+                }
             }
         }
 
@@ -72,7 +79,15 @@ class ScanViewModel(
         viewModelScope.launch {
             ScanManager.currentResult.collect { result ->
                 if (result != null) {
-                    _uiState.update { it.copy(result = result) }
+                    val fw = firewallDetectionUseCase(result)
+                    val anom = anomalyDetectionUseCase(result)
+                    _uiState.update { 
+                        it.copy(
+                            result = result,
+                            firewallStatus = fw,
+                            anomalies = anom
+                        ) 
+                    }
                 }
             }
         }
@@ -207,16 +222,18 @@ class ScanViewModel(
                 if (!isLocal) {
                     try {
                         val selector = SelectorManager(Dispatchers.Default)
-                        withTimeout(2500) {
-                            try {
+                        try {
+                            withTimeout(2500) {
                                 val socket = aSocket(selector).tcp().connect(InetSocketAddress("1.1.1.1", 53)) {
                                     socketTimeout = 2000
                                 }
-                                socket.close()
+                                try {
+                                    socket.close()
+                                } catch (_: Exception) {}
                                 addLog("External connectivity confirmed.")
-                            } finally {
-                                selector.close()
                             }
+                        } finally {
+                            selector.close()
                         }
                     } catch (e: CancellationException) {
                         throw e

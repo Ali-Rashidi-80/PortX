@@ -180,27 +180,36 @@ class JvmNetworkTools : NetworkTools {
         )
         
         val client = SecurityHarden.createSecureClient()
-        providers.forEach { url ->
-            try {
-                val response = client.get(url)
-                if (response.status.value in 200..299) {
-                    val ip = response.bodyAsText().trim()
-                    if (ip.isNotEmpty()) return@withContext ip
+        try {
+            providers.forEach { url ->
+                try {
+                    val response = client.get(url)
+                    if (response.status.value in 200..299) {
+                        val ip = response.bodyAsText().trim()
+                        if (ip.isNotEmpty()) return@withContext ip
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Try next provider
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Try next
             }
+        } finally {
+            try { client.close() } catch (_: Exception) {}
         }
         null
     }
 
     override fun getLocalIpInfo(): LocalIpInfo {
-        var ip = "127.0.0.1"
-        var name = "unknown"
-        var isWifi = false
-        
+        data class InterfaceCandidate(
+            val ip: String,
+            val name: String,
+            val isWifi: Boolean,
+            val priority: Int
+        )
+
+        val candidates = mutableListOf<InterfaceCandidate>()
+
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
             if (interfaces != null) {
@@ -209,26 +218,68 @@ class JvmNetworkTools : NetworkTools {
                     if (iface.isLoopback || !iface.isUp) continue
                     
                     val dispName = iface.displayName.lowercase()
-                    if (dispName.contains("wi-fi") || dispName.contains("wlan") || iface.name.lowercase().contains("wlan")) {
-                        isWifi = true
+                    val ifName = iface.name.lowercase()
+                    val combinedName = "$dispName $ifName"
+
+                    val isVirtual = combinedName.contains("veth") ||
+                            combinedName.contains("wsl") ||
+                            combinedName.contains("docker") ||
+                            combinedName.contains("vmware") ||
+                            combinedName.contains("virtualbox") ||
+                            combinedName.contains("vbox") ||
+                            combinedName.contains("hyper-v") ||
+                            combinedName.contains("vethernet") ||
+                            combinedName.contains("tap") ||
+                            combinedName.contains("tun") ||
+                            combinedName.contains("tailscale") ||
+                            combinedName.contains("wireguard")
+
+                    val isWifi = combinedName.contains("wi-fi") ||
+                            combinedName.contains("wlan") ||
+                            combinedName.contains("wireless") ||
+                            combinedName.contains("802.11")
+
+                    val isEthernet = combinedName.contains("ethernet") ||
+                            combinedName.contains("eth") ||
+                            combinedName.contains("en") ||
+                            combinedName.contains("lan") ||
+                            combinedName.contains("gigabit")
+
+                    val basePriority = when {
+                        isVirtual -> 5
+                        isWifi -> 40
+                        isEthernet -> 30
+                        else -> 15
                     }
 
                     val addresses = iface.inetAddresses
                     while (addresses.hasMoreElements()) {
                         val addr = addresses.nextElement()
-                        val hostAddr = addr.hostAddress
-                        if (hostAddr == null || hostAddr.contains(":")) continue
-                        ip = hostAddr
-                        name = iface.displayName
+                        if (addr.isLoopbackAddress || addr.isLinkLocalAddress) continue
+                        val hostAddr = addr.hostAddress ?: continue
+                        if (hostAddr.contains(":") || hostAddr.startsWith("169.254.") || hostAddr == "0.0.0.0") continue
+
+                        candidates.add(
+                            InterfaceCandidate(
+                                ip = hostAddr,
+                                name = iface.displayName,
+                                isWifi = isWifi,
+                                priority = basePriority
+                            )
+                        )
                     }
                 }
             }
         } catch (e: Exception) {
-            // Non-fatal interface resolution fallback
             println("NetworkTools.jvm: Interface resolution warning: ${e.message}")
         }
 
-        return LocalIpInfo(ip, name, isWifi)
+        val best = candidates.maxByOrNull { it.priority }
+        return if (best != null) {
+            LocalIpInfo(best.ip, best.name, best.isWifi)
+        } else {
+            LocalIpInfo("127.0.0.1", "Loopback", false)
+        }
     }
 }
 
