@@ -26,15 +26,16 @@ class ScanRepositoryImpl(
         onProgress: (Int) -> Unit
     ): ScanResult {
         val summary = scanner.scan(config, onProgress)
-        val openResults = summary.results.filter { it.state == "open" }
+        val openResults = summary.results.filter { it.state == "open" || it.state == "open|filtered" }
         val openPortList = openResults.map { it.port }.distinct()
+        val servicesMap = openResults.associate { it.port to it.service }
         val scanResult = ScanResult(
             target = summary.target,
             openPorts = openPortList,
             portBanners = openResults.associate { it.port to it.banner },
-            portServices = openResults.associate { it.port to it.service },
+            portServices = servicesMap,
             timestamp = Clock.System.now().toEpochMilliseconds(),
-            securityScore = calculateScore(openPortList),
+            securityScore = calculateScore(openPortList, servicesMap),
             scanType = config.scanType,
             bannerGrabbing = config.serviceDetect,
             concurrentScans = config.concurrency,
@@ -92,12 +93,12 @@ class ScanRepositoryImpl(
         }
     }
 
-    private fun calculateScore(openPorts: List<Int>): Int {
+    private fun calculateScore(openPorts: List<Int>, services: Map<Int, String>): Int {
         val dummy = ScanResult(
             target = "",
             openPorts = openPorts,
             portBanners = emptyMap(),
-            portServices = emptyMap(),
+            portServices = services,
             timestamp = 0L,
             securityScore = 0
         )

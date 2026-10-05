@@ -191,9 +191,61 @@ class NetworkToolsHardeningTest {
 
     @Test
     fun testHtmlTitleRegexExtraction() {
-        val multilineHtml = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><head><title>\n   PortX Administration Portal   \n</title></head></html>"
-        val regex = Regex("<title>(.*?)</title>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-        val title = regex.find(multilineHtml)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: ""
-        assertEquals("PortX Administration Portal", title)
+        val multilineHtml = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><head><title dir=\"ltr\" data-rh=\"true\">\n   PortX &amp; Security &quot;Console&quot; &#39;Pro&#39;   \n</title></head></html>"
+        val regex = Regex("""<title\b[^>]*>(.*?)</title>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val raw = regex.find(multilineHtml)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: ""
+        val title = raw.replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .trim()
+        assertEquals("PortX & Security \"Console\" 'Pro'", title)
+    }
+
+    @Test
+    fun testDatabaseAdapterEmptyValuesPreservation() {
+        val mapWithEmpty = mapOf(
+            80 to "",
+            443 to "nginx/1.24",
+            8080 to ""
+        )
+        val encoded = com.mrcoder20.portx.data.local.mapIntStringAdapter.encode(mapWithEmpty)
+        val decoded = com.mrcoder20.portx.data.local.mapIntStringAdapter.decode(encoded)
+
+        assertEquals(3, decoded.size, "Empty string values must not be dropped during decoding")
+        assertEquals("", decoded[80])
+        assertEquals("nginx/1.24", decoded[443])
+        assertEquals("", decoded[8080])
+    }
+
+    @Test
+    fun testMultilingualPingOutputParsing() {
+        val germanOutput = "Antwort von 8.8.8.8: Bytes=32 Zeit=15ms TTL=117"
+        assertEquals(15L, parseTimeFromPingOutput(germanOutput))
+
+        val frenchOutput = "Réponse de 8.8.8.8 : octets=32 temps=22ms TTL=57"
+        assertEquals(22L, parseTimeFromPingOutput(frenchOutput))
+
+        val russianOutput = "Ответ от 8.8.8.8: число байт=32 время=45мс TTL=58"
+        assertEquals(45L, parseTimeFromPingOutput(russianOutput))
+    }
+
+    @Test
+    fun testFirewallDetectionUseCaseScenarios() {
+        val useCase = com.mrcoder20.portx.domain.usecase.FirewallDetectionUseCase()
+
+        val emptyScan = ScanResult(target = "10.0.0.1", openPorts = emptyList(), timestamp = 0L, securityScore = 100)
+        assertTrue(useCase(emptyScan).contains("High Probability of Firewall"))
+
+        val minimalScan = ScanResult(target = "10.0.0.2", openPorts = listOf(443), timestamp = 0L, securityScore = 90)
+        assertTrue(useCase(minimalScan).contains("Hardened Perimeter"))
+
+        val standardScan = ScanResult(target = "10.0.0.3", openPorts = listOf(80, 443, 22, 53), timestamp = 0L, securityScore = 80)
+        assertTrue(useCase(standardScan).contains("Standard Network Profile"))
+
+        val openPerimeterScan = ScanResult(target = "10.0.0.4", openPorts = (1..15).toList(), timestamp = 0L, securityScore = 30)
+        assertTrue(useCase(openPerimeterScan).contains("Open Perimeter"))
     }
 }

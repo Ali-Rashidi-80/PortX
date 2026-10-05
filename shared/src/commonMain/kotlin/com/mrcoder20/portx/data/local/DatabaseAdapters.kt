@@ -22,10 +22,10 @@ val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
         if (cleanValue.isEmpty()) return emptyMap()
         return try {
             cleanValue.split("|").mapNotNull { entry ->
-                val parts = entry.split(":")
-                val port = parts.firstOrNull()?.trim()?.toIntOrNull()
-                if (port != null && parts.size >= 2) {
-                    val rawVal = parts.subList(1, parts.size).joinToString(":")
+                if (!entry.contains(":")) return@mapNotNull null
+                val port = entry.substringBefore(":").trim().toIntOrNull()
+                if (port != null) {
+                    val rawVal = entry.substringAfter(":")
                     val unescapedVal = rawVal.replace("&#124;", "|")
                     port to unescapedVal
                 } else null

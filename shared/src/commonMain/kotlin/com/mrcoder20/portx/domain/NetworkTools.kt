@@ -69,7 +69,7 @@ fun sanitizeHost(input: String): String {
  * Extracts round-trip time in milliseconds from native ping output (Windows, Linux, macOS, Android).
  */
 fun parseTimeFromPingOutput(output: String): Long? {
-    val regex = Regex("""time[=<]?\s*([\d.]+)\s*ms""", RegexOption.IGNORE_CASE)
+    val regex = Regex("""(?:time|zeit|temps|время)[=<]?\s*([\d.]+)\s*(?:ms|мс)""", RegexOption.IGNORE_CASE)
     val match = regex.find(output) ?: return null
     val raw = match.groupValues[1]
     return raw.toDoubleOrNull()?.toLong()?.coerceAtLeast(1L)

@@ -128,17 +128,19 @@ class JvmNetworkTools : NetworkTools {
             val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
             if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
 
-            val socket = Socket("whois.iana.org", 43)
+            val socket = java.net.Socket()
             val result = try {
+                socket.connect(java.net.InetSocketAddress("whois.iana.org", 43), 7000)
                 socket.soTimeout = 7000
                 val out = socket.getOutputStream()
-                out.write((cleanHost + "\r\n").toByteArray())
+                out.write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
                 out.flush()
                 
-                val scanner = Scanner(socket.getInputStream())
+                val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
                 val sb = StringBuilder()
-                while (scanner.hasNextLine()) {
-                    sb.append(scanner.nextLine()).append("\n")
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    sb.append(line).append("\n")
                 }
                 sb.toString()
             } finally {
@@ -153,19 +155,23 @@ class JvmNetworkTools : NetworkTools {
                 if (nextServer.isBlank()) return@withContext result
 
                 try {
-                    val socket2 = Socket(nextServer, 43)
-                    try {
+                    val socket2 = java.net.Socket()
+                    val redirectedResult = try {
+                        socket2.connect(java.net.InetSocketAddress(nextServer, 43), 7000)
                         socket2.soTimeout = 7000
-                        socket2.getOutputStream().write((cleanHost + "\r\n").toByteArray())
-                        val scanner2 = Scanner(socket2.getInputStream())
+                        socket2.getOutputStream().write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
+                        socket2.getOutputStream().flush()
+                        val reader2 = socket2.getInputStream().bufferedReader(Charsets.UTF_8)
                         val sb2 = StringBuilder()
-                        while (scanner2.hasNextLine()) {
-                            sb2.append(scanner2.nextLine()).append("\n")
+                        var line2: String?
+                        while (reader2.readLine().also { line2 = it } != null) {
+                            sb2.append(line2).append("\n")
                         }
                         sb2.toString()
                     } finally {
                         try { socket2.close() } catch (_: Exception) {}
                     }
+                    redirectedResult
                 } catch (e: Exception) {
                     result + "\n\n[Authority Redirect to $nextServer failed: ${e.message}]"
                 }

@@ -93,7 +93,7 @@ class ScannerService : Service() {
                 ScanManager.setError(e.message ?: "Scan failed")
             } finally {
                 ScanManager.setScanning(false)
-                withContext(Dispatchers.Main) {
+                withContext(NonCancellable + Dispatchers.Main) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }

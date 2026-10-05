@@ -267,6 +267,7 @@ class ScanViewModel(
     fun stopScan() {
         scanLauncherJob?.cancel()
         scannerController.stopScan()
+        _uiState.update { it.copy(isLoading = false) }
     }
 
     fun exportReport(): String? {

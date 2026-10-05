@@ -184,6 +184,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         var scannedCount = 0
         var openCount = 0
         var closedCount = 0
+        var filteredCount = 0
         var successBatch = 0
         var batchLatency = 0L
 
@@ -253,7 +254,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                             }
                         }
                         if (socket != null) {
-                            val probe = probeOpenTcpPort(socket, res.port)
+                            val probe = probeOpenTcpPort(socket, resolvedTarget, res.port)
                             try { socket.close() } catch (_: Exception) {}
                             probe.copy(rtt = res.rtt)
                         } else res
@@ -282,11 +283,17 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 results.add(res)
                 batchLatency += res.rtt
                 
-                if (res.state == "open") {
-                    openCount++
-                    successBatch++
-                } else {
-                    closedCount++
+                when (res.state) {
+                    "open" -> {
+                        openCount++
+                        successBatch++
+                    }
+                    "filtered", "open|filtered" -> {
+                        filteredCount++
+                    }
+                    else -> {
+                        closedCount++
+                    }
                 }
                 
                 scannedCount++
@@ -320,7 +327,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             totalPorts = totalOperations,
             openPorts = openCount,
             closedPorts = closedCount,
-            filtered = totalOperations - openCount - closedCount,
+            filtered = filteredCount,
             durationMs = startTime.elapsedNow().inWholeMilliseconds,
             results = results.sortedBy { it.port }
         )
@@ -370,19 +377,19 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         }
     }
 
-    private suspend fun probeOpenTcpPort(socket: Socket, port: Int): ScanPortResult {
+    private suspend fun probeOpenTcpPort(socket: Socket, target: String, port: Int): ScanPortResult {
         var service = guessService(port)
         var version = ""
         var httpInfo: HttpInfo? = null
 
-        val grabbed = tryGrabBanner(socket, port) ?: ""
+        val grabbed = tryGrabBanner(socket, target, port) ?: ""
         val banner = grabbed
         
         val lowBanner = grabbed.lowercase()
         when {
             lowBanner.contains("ssh") -> {
                 service = "ssh"
-                version = grabbed.split("-").getOrNull(1) ?: ""
+                version = grabbed.lines().firstOrNull()?.removePrefix("SSH-") ?: ""
             }
             lowBanner.contains("http") || lowBanner.contains("apache") || lowBanner.contains("nginx") -> {
                 service = "http"
@@ -393,6 +400,17 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             lowBanner.contains("ftp") -> {
                 service = "ftp"
                 version = grabbed.lines().firstOrNull() ?: ""
+            }
+            lowBanner.contains("mariadb") -> {
+                service = "mysql"
+                version = "MariaDB"
+            }
+            lowBanner.contains("esmtp") || lowBanner.contains("smtp") || (port in setOf(25, 465, 587) && grabbed.startsWith("220")) -> {
+                service = "smtp"
+                version = grabbed.lines().firstOrNull() ?: ""
+            }
+            lowBanner.contains("redis") -> {
+                service = "redis"
             }
         }
 
@@ -407,14 +425,14 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         )
     }
 
-    private suspend fun tryGrabBanner(socket: Socket, port: Int): String? = withTimeoutOrNull(2500) {
+    private suspend fun tryGrabBanner(socket: Socket, target: String, port: Int): String? = withTimeoutOrNull(2500) {
         try {
             val receiveChannel = socket.openReadChannel()
             val sendChannel = socket.openWriteChannel(autoFlush = true)
 
-            val httpPorts = setOf(80, 8080, 443, 8000, 8443, 8888, 9090, 3000, 5000)
+            val httpPorts = setOf(80, 8080, 443, 8000, 8081, 8088, 8443, 8888, 9090, 3000, 5000)
             if (httpPorts.contains(port)) {
-                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: $target\r\nUser-Agent: PortX/5.1\r\nConnection: close\r\n\r\n")
             }
 
             val buffer = ByteArray(2048)
@@ -432,8 +450,15 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
     }
 
     private fun extractTitle(banner: String): String {
-        val regex = Regex("<title>(.*?)</title>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-        return regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: ""
+        val regex = Regex("""<title\b[^>]*>(.*?)</title>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val raw = regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: return ""
+        return raw.replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .trim()
     }
 
     private fun guessService(port: Int): String {
@@ -470,19 +495,32 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             1521 -> "oracle"
             1723 -> "pptp"
             1812, 1813 -> "radius"
+            1883, 8883 -> "mqtt"
             2049 -> "nfs"
+            2375, 2376 -> "docker"
+            3000 -> "http-alt"
             3306 -> "mysql"
             3389 -> "rdp"
+            5000 -> "http-alt"
             5060, 5061 -> "sip"
             5432 -> "postgres"
             5555 -> "adb"
+            5672 -> "rabbitmq"
             5900 -> "vnc"
             6379 -> "redis"
+            6443 -> "kubernetes-api"
             8000 -> "http-alt"
             8080 -> "http-proxy"
+            8081, 8088 -> "http-alt"
+            8200 -> "vault"
             8443 -> "https-alt"
+            8500 -> "consul"
+            8888, 9090 -> "http-alt"
             9000 -> "sonarqube"
             9092 -> "kafka"
+            9200, 9300 -> "elasticsearch"
+            10250 -> "kubelet"
+            11211 -> "memcached"
             27017 -> "mongodb"
             else -> "unknown"
         }
