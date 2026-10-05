@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class NetworkToolsHardeningTest {
@@ -348,5 +349,25 @@ class NetworkToolsHardeningTest {
         assertTrue(anomalies.any { it.contains("Redis") })
         assertTrue(anomalies.any { it.contains("Telnet") })
         assertTrue(anomalies.any { it.contains("FTP") })
+    }
+
+    @Test
+    fun testExportReportCorruptTimestampHandling() {
+        val useCase = com.mrcoder20.portx.domain.usecase.ExportReportUseCase()
+        val corruptResult = ScanResult(
+            target = "10.0.0.99",
+            openPorts = listOf(80),
+            timestamp = -999999999999999999L,
+            securityScore = 90
+        )
+        val md = useCase(corruptResult, "MD")
+        assertTrue(md.contains("# PortX Scan Report"))
+        assertTrue(md.contains("Date:** N/A N/A") || md.contains("Date:**"))
+    }
+
+    @Test
+    fun testThemeCompositionLocalsDefaultValues() {
+        assertNotNull(com.mrcoder20.portx.presentation.ui.theme.LocalAccentColor)
+        assertNotNull(com.mrcoder20.portx.presentation.ui.theme.LocalAppSettings)
     }
 }

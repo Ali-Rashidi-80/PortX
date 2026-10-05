@@ -150,9 +150,9 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
 
         // 3. COMMUNICATION
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CommunicationGlassButton("About", Icons.Default.Info, Modifier.weight(1f)) { uriHandler.openUri(githubUrl) }
-            CommunicationGlassButton("Support", Icons.Default.HeadsetMic, Modifier.weight(1f)) { uriHandler.openUri(githubUrl) }
-            CommunicationGlassButton("Feedback", Icons.Default.Feedback, Modifier.weight(1f)) { uriHandler.openUri(githubUrl) }
+            CommunicationGlassButton("About", Icons.Default.Info, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
+            CommunicationGlassButton("Support", Icons.Default.HeadsetMic, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
+            CommunicationGlassButton("Feedback", Icons.Default.Feedback, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
         }
         
         Spacer(modifier = Modifier.height(24.dp))

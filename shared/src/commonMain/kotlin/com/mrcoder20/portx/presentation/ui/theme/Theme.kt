@@ -53,6 +53,6 @@ fun PortXTheme(
     }
 }
 
-val LocalAccentColor = staticCompositionLocalOf { Color(0xFF00D1FF) }
-val LocalAppSettings = staticCompositionLocalOf { com.mrcoder20.portx.domain.AppSettings() }
+val LocalAccentColor = compositionLocalOf { Color(0xFF00D1FF) }
+val LocalAppSettings = compositionLocalOf { com.mrcoder20.portx.domain.AppSettings() }
 
