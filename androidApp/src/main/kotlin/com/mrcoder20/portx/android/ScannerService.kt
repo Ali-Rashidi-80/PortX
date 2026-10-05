@@ -36,7 +36,15 @@ class ScannerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Critical: call startForeground immediately to avoid "Service.startForeground() not called" exception
-        startForeground(NOTIFICATION_ID, createInitialNotification())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID,
+                createInitialNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, createInitialNotification())
+        }
         
         when (intent?.action) {
             "START_SCAN" -> {
@@ -78,6 +86,8 @@ class ScannerService : Service() {
                 
                 ScanManager.setResult(result)
                 showFinishNotification(result)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("ScannerService", "Scan error", e)
                 ScanManager.setError(e.message ?: "Scan failed")

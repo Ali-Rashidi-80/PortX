@@ -3,6 +3,7 @@ package com.mrcoder20.portx.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mrcoder20.portx.domain.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,6 +60,8 @@ class ToolsViewModel : ViewModel() {
                 
                 val pubIp = networkTools.getPublicIp()
                 _uiState.update { it.copy(publicIp = pubIp) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Keep existing info if refresh fails
             } finally {
@@ -81,6 +84,8 @@ class ToolsViewModel : ViewModel() {
                 networkTools.ping(rawHost).collect { res ->
                     _uiState.update { it.copy(pingResults = it.pingResults + res) }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Engine failure: ${e.message}") }
             } finally {
@@ -106,6 +111,8 @@ class ToolsViewModel : ViewModel() {
                 } else {
                     _uiState.update { it.copy(dnsResults = results) }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Resolver error: ${e.message}") }
             } finally {
@@ -127,6 +134,8 @@ class ToolsViewModel : ViewModel() {
             try {
                 val result = networkTools.whois(host)
                 _uiState.update { it.copy(whoisResult = result) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "WHOIS service unreachable.") }
             } finally {
@@ -158,6 +167,8 @@ class ToolsViewModel : ViewModel() {
         if (text.isNotBlank()) {
             clipboardManager.copyToClipboard(text)
             showSnackbar("Report copied to clipboard.")
+        } else {
+            showSnackbar("No output to copy.")
         }
     }
 
@@ -166,8 +177,11 @@ class ToolsViewModel : ViewModel() {
         showSnackbar("Copied: $text")
     }
 
+    private var snackbarJob: Job? = null
+
     private fun showSnackbar(message: String) {
-        viewModelScope.launch {
+        snackbarJob?.cancel()
+        snackbarJob = viewModelScope.launch {
             _uiState.update { it.copy(snackbarMessage = message) }
             kotlinx.coroutines.delay(2500)
             _uiState.update { it.copy(snackbarMessage = null) }

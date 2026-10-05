@@ -86,16 +86,22 @@ class ScanViewModel(
         }
     }
 
+    private var scanLauncherJob: Job? = null
+
     fun onIpChange(newIp: String) {
-        _uiState.update { it.copy(ip = newIp) }
+        _uiState.update { it.copy(ip = newIp, error = null) }
     }
 
     fun onStartPortChange(newPort: String) {
-        _uiState.update { it.copy(startPort = newPort) }
+        _uiState.update { it.copy(startPort = newPort, error = null) }
     }
 
     fun onEndPortChange(newPort: String) {
-        _uiState.update { it.copy(endPort = newPort) }
+        _uiState.update { it.copy(endPort = newPort, error = null) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 
     fun onScanTypeChange(type: String) {
@@ -124,6 +130,7 @@ class ScanViewModel(
 
     fun startScan() {
         val state = _uiState.value
+        if (state.isLoading) return
         
         // 1. STRICT Target Validation
         val target = state.ip.trim()
@@ -132,16 +139,16 @@ class ScanViewModel(
             return
         }
 
-        // Professional Standard Regex
+        // Support IPv4, Domain names, and Local hostnames (e.g. localhost, router, server-01)
         val ipRegex = Regex("""^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$""")
-        // Robust Domain Regex: must have at least one dot and characters on both sides
-        val domainRegex = Regex("""^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$""")
+        val hostnameRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$""")
         
-        val isLocal = target.lowercase() == "localhost" || target == "127.0.0.1"
-        val isValid = ipRegex.matches(target) || (target.contains(".") && domainRegex.matches(target)) || isLocal
+        val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
+        val isValid = if (isAllNumericDotted) ipRegex.matches(target) else hostnameRegex.matches(target)
+        val isLocal = target.lowercase() == "localhost" || target == "127.0.0.1" || target.startsWith("192.168.") || target.startsWith("10.") || target.startsWith("172.")
         
         if (!isValid) {
-            _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8 or example.com)") }
+            _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8, router, or example.com)") }
             return
         }
 
@@ -186,35 +193,41 @@ class ScanViewModel(
             randomizePorts = true
         )
 
-        viewModelScope.launch {
-            // REAL Internet/Network Check
+        scanLauncherJob?.cancel()
+        scanLauncherJob = viewModelScope.launch {
+            // Network interface check (resilient to offline / air-gapped / firewalled LANs)
             try {
                 addLog("Probing network interface...")
                 if (!isLocal) {
-                    val selector = SelectorManager(Dispatchers.Default)
-                    withTimeout(5000) {
-                        try {
-                            // Try to open a socket to a common reliable IP to check internet
-                            val socket = aSocket(selector).tcp().connect(InetSocketAddress("1.1.1.1", 53)) {
-                                socketTimeout = 3000
+                    try {
+                        val selector = SelectorManager(Dispatchers.Default)
+                        withTimeout(2500) {
+                            try {
+                                val socket = aSocket(selector).tcp().connect(InetSocketAddress("1.1.1.1", 53)) {
+                                    socketTimeout = 2000
+                                }
+                                socket.close()
+                                addLog("External connectivity confirmed.")
+                            } finally {
+                                selector.close()
                             }
-                            socket.close()
-                        } catch (e: Exception) {
-                            throw Exception("No network")
-                        } finally {
-                            selector.close()
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // Non-fatal: in isolated LANs or firewalled environments, external probe may fail.
+                        addLog("Proceeding with direct target route...")
                     }
-                    addLog("Connectivity confirmed.")
                 } else {
                     addLog("Local interface active.")
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Connection Blocked: Check your internet") }
-                return@launch
+                // Ignore unexpected probe exceptions
             }
 
-            addLog("Engine v4.0.0 initializing...")
+            addLog("Engine v5.1.0 initializing...")
             delay(400)
             
             if (state.allPorts) addLog("Full port scan mode [1-65535] active")
@@ -229,6 +242,7 @@ class ScanViewModel(
     }
 
     fun stopScan() {
+        scanLauncherJob?.cancel()
         scannerController.stopScan()
     }
 

@@ -152,7 +152,10 @@ class JvmNetworkTools : NetworkTools {
                     }
                 }
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            // Non-fatal interface resolution fallback
+            println("NetworkTools.jvm: Interface resolution warning: ${e.message}")
+        }
 
         return LocalIpInfo(ip, name, isWifi)
     }

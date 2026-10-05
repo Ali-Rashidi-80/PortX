@@ -36,3 +36,22 @@ Thumbs.db
 *.apk
 *.dmg
 *.deb
+
+# Internal Planning, Marketing Kits & Operational Docs
+docs/
+/docs/
+master-blueprints/
+/master-blueprints/
+*DISTRIBUTION*
+*distribution*
+*MARKETING*
+*marketing*
+*BLUEPRINT*
+*blueprint*
+*.draft.md
+*.personal.md
+*.plan.md
+notes/
+/notes/
+scratch/
+/scratch/
