@@ -248,7 +248,7 @@ class ScanViewModel(
                 // Ignore unexpected probe exceptions
             }
 
-            addLog("Engine v5.1.0 initializing...")
+            addLog("Engine v5.2.0 initializing...")
             delay(400)
             
             if (state.allPorts) addLog("Full port scan mode [1-65535] active")

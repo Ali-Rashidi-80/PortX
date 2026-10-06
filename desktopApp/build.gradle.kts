@@ -28,7 +28,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "PortX"
-            packageVersion = "5.1.0"
+            packageVersion = "5.2.0"
             description = "Ultra-Fast Network Port Scanner"
             vendor = "mr-coder20"
             copyright = "© 2026 mr-coder20"

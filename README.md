@@ -6,7 +6,7 @@
 
 # 🛡️ PortX
 
-**Ultra-Fast, Non-Blocking Multiplatform Network Port Scanner Powered by Kotlin Multiplatform (KMP) & Compose — 50,000+ Ports/sec, Zero-Root Required, Adaptive RTT Timing, Bounded Channels.**
+**Ultra-Fast, Non-Blocking Multiplatform Network Port Scanner Powered by Kotlin Multiplatform (KMP) & Compose — 10,000+ Ports/sec (Empirical) / Up to 50,000 (Theoretical Peak), Zero-Root Required, Adaptive RTT Timing, Bounded Channels.**
 
 [![CI](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/mr-coder20/PortX?color=blue&logo=github)](https://github.com/mr-coder20/PortX/releases)
@@ -53,14 +53,14 @@
 
 > [!TIP]
 > **TL;DR (The 30-Second Summary):**  
-> Most graphical network scanners rely on resource-heavy Electron wrappers or single-threaded subprocess shells around Nmap, causing interface freezing and massive RAM bloat during large sweeps. Conversely, high-performance CLI engines like Masscan require administrative/root privileges and lack intuitive visual telemetry. **PortX** solves this trade-off: built with Kotlin Multiplatform (KMP) and Compose, it delivers **50,000+ ports per second** without root privileges, backed by an adaptive RTT engine, bounded worker channels, and a 120 FPS cyberpunk user interface.
+> Most graphical network scanners rely on resource-heavy Electron wrappers or single-threaded subprocess shells around Nmap, causing interface freezing and massive RAM bloat during large sweeps. Conversely, high-performance CLI engines like Masscan require administrative/root privileges and lack intuitive visual telemetry. **PortX** solves this trade-off: built with Kotlin Multiplatform (KMP) and Compose, it delivers **10,000+ ports per second empirically** (scalable up to 50,000 theoretical peak) without root privileges, backed by an adaptive RTT engine, bounded worker channels, and a 120 FPS cyberpunk user interface.
 
 **PortX** is an asynchronous, high-concurrency multiplatform network recon scanner engineered for security researchers, network administrators, and penetration testers. It decouples high-speed port discovery from secondary banner extraction, ensuring that slow service probing never stalls the primary scanning sweep.
 
 | Field | Detail |
 | :--- | :--- |
-| **Version** | `5.1.0` · [CHANGELOG](CHANGELOG.md) · Production readiness verified |
-| **Engine** | Ultra Engine v5 (`PortScanner.kt`, `AdaptiveTiming.kt`, `ScanPortUseCase.kt`) |
+| **Version** | `5.2.0` · [CHANGELOG](CHANGELOG.md) · Production readiness verified |
+| **Engine** | Ultra Engine v5 (`PortScanner.kt`, `ScanPortUseCase.kt`, `ScannerController.kt`) |
 | **Invariants** | Pure non-blocking Ktor sockets, bounded Coroutine channels (10–2500), Android 14+ FGS compliant |
 | **Target Platforms** | Windows 10/11 (`.msi`), macOS Apple Silicon/Intel (`.dmg`), Linux Debian/Ubuntu (`.deb`, AUR), Android (`.apk`) |
 | **Android Support** | Android 7.0 Nougat (API 24) through Android 17 (API 37) |
@@ -83,7 +83,7 @@
 
 | Architectural Axis | Traditional GUI Scanners (Zenmap / Electron) | Standard Nmap (`-T4 -sT`) | Masscan (`--rate 10k`) | **PortX (Ultra Engine v5)** |
 | :--- | :---: | :---: | :---: | :---: |
-| **Throughput (PPS)** | < 800 PPS | ~1,200 PPS (TCP Connect) | 100,000+ PPS (Raw SYN) | **Up to 50,000+ PPS** |
+| **Throughput (PPS)** | < 800 PPS | ~1,200 PPS (TCP Connect) | 100,000+ PPS (Raw SYN) | **8,000 – 10,200+ PPS (Measured)** |
 | **Root / Admin Required** | Varies | Required for SYN (`-sS`) | Required for Raw Sockets | **No Root Required** |
 | **UI Responsiveness** | Sluggish / Freezes during bursts | CLI Only | CLI Only | **120 FPS Compose Multiplatform** |
 | **Memory Footprint** | 250 MB – 500 MB+ | ~25 MB | ~30 MB | **~48 MB (Strictly Bounded)** |
@@ -164,9 +164,9 @@ flowchart TD
 
 ---
 
-## Performance Benchmarks & Architecture Constraints
+## Performance Benchmarks
 
-*Empirical Measurements on Local Loopback & Gigabit LAN (AMD Ryzen / Apple Silicon, Ktor Non-Blocking IO):*
+*Empirical Measurements on Local Loopback & Gigabit LAN (AMD Ryzen / Apple Silicon / Intel Core, Ktor Non-Blocking IO):*
 
 | Metric | Measured Baseline | Operational Architecture Constraint |
 | :--- | :--- | :--- |
@@ -195,7 +195,7 @@ flowchart TD
 <details open>
 <summary><strong>🪟 1. Windows (10 / 11)</strong></summary>
 
-- **Official Installer:** Download `PortX-5.1.0.msi` from [Releases](https://github.com/mr-coder20/PortX/releases/latest).
+- **Official Installer:** Download `PortX-5.2.0.msi` from [Releases](https://github.com/mr-coder20/PortX/releases/latest).
 - **Windows Package Manager (Winget):**
   ```powershell
   winget install mr-coder20.PortX
@@ -207,7 +207,7 @@ flowchart TD
 
 - **Debian / Ubuntu (.deb):**
   ```bash
-  sudo dpkg -i PortX-5.1.0.deb
+  sudo dpkg -i PortX-5.2.0.deb
   sudo apt-get install -f
   ```
 - **Arch Linux (AUR):**
@@ -219,7 +219,7 @@ flowchart TD
 <details>
 <summary><strong>🍎 3. macOS (Apple Silicon & Intel)</strong></summary>
 
-- Download `PortX-5.1.0.dmg` and mount the disk image, or install via Homebrew:
+- Download `PortX-5.2.0.dmg` and mount the disk image, or install via Homebrew:
   ```bash
   brew install --cask portx
   ```
