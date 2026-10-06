@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mrcoder20.portx.domain.DateFormatter
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
@@ -867,13 +868,15 @@ fun WhoisResultPanel(
     val accent = LocalAccentColor.current
     val isDark = LocalAppSettings.current.theme == "DARK"
 
-    val whoisSummary = remember(result) {
+    val whoisSummary = remember(result, lang) {
         if (result == null) null
         else {
             val registrarMatch = "(?i)Registrar:\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
-            val createdMatch = "(?i)(?:Creation Date|created):\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
-            val expiryMatch = "(?i)(?:Registry Expiry Date|paid-till|Expiration Date):\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
-            Triple(registrarMatch, createdMatch, expiryMatch)
+            val rawCreated = "(?i)(?:Creation Date|created):\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
+            val rawExpiry = "(?i)(?:Registry Expiry Date|paid-till|Expiration Date):\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
+            val createdFormatted = DateFormatter.formatWhoisDate(rawCreated, lang)
+            val expiryFormatted = DateFormatter.formatWhoisDate(rawExpiry, lang)
+            Triple(registrarMatch, createdFormatted, expiryFormatted)
         }
     }
 
@@ -951,7 +954,7 @@ fun WhoisResultPanel(
                                 }
                             }
                             whoisSummary.second?.let { crt ->
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1.3f)) {
                                     Text(
                                         LocalizedStrings.get("created_date", lang),
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
@@ -961,13 +964,13 @@ fun WhoisResultPanel(
                                         crt,
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
                                         color = if (isDark) Color.White else Color.Black,
-                                        maxLines = 1,
+                                        maxLines = 2,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
                             }
                             whoisSummary.third?.let { exp ->
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1.3f)) {
                                     Text(
                                         LocalizedStrings.get("expiry_date", lang),
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
@@ -977,7 +980,7 @@ fun WhoisResultPanel(
                                         exp,
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
                                         color = WarningNeon,
-                                        maxLines = 1,
+                                        maxLines = 2,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
