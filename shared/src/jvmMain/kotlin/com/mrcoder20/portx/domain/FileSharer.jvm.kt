@@ -28,6 +28,7 @@ class JvmFileSharer : FileSharer {
                     if (ext.isNotEmpty() && !file.name.endsWith(".$ext", ignoreCase = true)) {
                         file = File(file.parentFile ?: fsv.homeDirectory, "${file.name}.$ext")
                     }
+                    file.parentFile?.mkdirs()
                     file.writeText(content, Charsets.UTF_8)
                 }
             } catch (e: Exception) {
@@ -43,6 +44,7 @@ class JvmFileSharer : FileSharer {
             if (!downloadsDir.exists()) downloadsDir.mkdirs()
             
             val file = File(downloadsDir, fileName)
+            file.parentFile?.mkdirs()
             file.writeText(content, Charsets.UTF_8)
             file.absolutePath
         } catch (e: Exception) {

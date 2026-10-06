@@ -928,4 +928,19 @@ class NetworkToolsHardeningTest {
         assertEquals(1, filteredByDevice.size)
         assertEquals("10.0.0.50", filteredByDevice.first().target)
     }
+
+    @Test
+    fun testSelectorManagerCancellationResilience() = kotlinx.coroutines.test.runTest {
+        val scanner = com.mrcoder20.portx.data.network.PortScanner()
+        val config = com.mrcoder20.portx.data.network.ScanConfig(
+            target = "127.0.0.1",
+            startPort = 1,
+            endPort = 10,
+            timeoutMs = 100,
+            concurrency = 10
+        )
+        val summary = scanner.scan(config) {}
+        assertEquals("127.0.0.1", summary.target)
+        assertEquals(10, summary.totalPorts)
+    }
 }

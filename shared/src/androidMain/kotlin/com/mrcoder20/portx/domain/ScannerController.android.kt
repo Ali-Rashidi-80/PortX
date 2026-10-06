@@ -26,19 +26,25 @@ class AndroidScannerController : ScannerController {
             putExtra("config", Json.encodeToString(config))
         }
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-             appContext.startForegroundService(intent)
-        } else {
-             appContext.startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(intent)
+            } else {
+                appContext.startService(intent)
+            }
+        } catch (e: Exception) {
+            ScanManager.setError("Could not start background scanner service: ${e.message}")
         }
     }
 
     override fun stopScan() {
-        val intent = Intent().apply {
-            setClassName(appContext.packageName, "com.mrcoder20.portx.android.ScannerService")
-            action = "STOP_SCAN"
-        }
-        appContext.startService(intent)
+        try {
+            val intent = Intent().apply {
+                setClassName(appContext.packageName, "com.mrcoder20.portx.android.ScannerService")
+                action = "STOP_SCAN"
+            }
+            appContext.startService(intent)
+        } catch (_: Exception) {}
     }
 }
 

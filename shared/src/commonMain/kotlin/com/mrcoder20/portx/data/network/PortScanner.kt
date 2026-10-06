@@ -321,7 +321,9 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             pipelineCoordinator.cancel()
             workers.forEach { it.cancel() }
             bannerWorkers.forEach { it.cancel() }
-            selectorManager.close()
+            try {
+                selectorManager.close()
+            } catch (_: Exception) {}
         }
 
         ScanSummary(
