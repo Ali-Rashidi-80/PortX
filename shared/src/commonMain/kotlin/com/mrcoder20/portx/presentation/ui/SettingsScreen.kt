@@ -72,7 +72,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                         .background(if (isDark) SurfaceDark.copy(alpha = 0.95f) else Color.White)
                         .border(1.dp, GlassBorder, RoundedCornerShape(8.dp))
                 ) {
-                    val targetLanguages = listOf(Language.EN, Language.FA, Language.RU, Language.ZH)
+                    val targetLanguages = Language.entries
                     targetLanguages.forEach { lang ->
                         DropdownMenuItem(
                             text = { 

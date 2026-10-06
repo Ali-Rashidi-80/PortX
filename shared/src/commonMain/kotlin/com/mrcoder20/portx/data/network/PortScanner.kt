@@ -439,9 +439,9 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 version = grabbed.lines().firstOrNull() ?: ""
             }
             lowBanner.contains("mariadb") || lowBanner.contains("mysql") || (port == 3306 && grabbed.isNotEmpty()) -> {
-                service = "mysql"
+                service = "mariadb"
                 val verMatch = Regex("""(\d+\.\d+\.\d+[\w.-]*)""").find(grabbed)
-                version = verMatch?.value ?: (if (lowBanner.contains("mariadb")) "MariaDB" else "MySQL")
+                version = verMatch?.value ?: (if (lowBanner.contains("mariadb")) "MariaDB" else "MariaDB Compatible")
             }
             lowBanner.contains("esmtp") || lowBanner.contains("smtp") || (port in setOf(25, 465, 587) && grabbed.startsWith("220")) -> {
                 service = "smtp"
@@ -625,7 +625,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             2375, 2376 -> "docker"
             2379, 2380 -> "etcd"
             3000 -> "http-alt"
-            3306 -> "mysql"
+            3306 -> "mariadb"
             3389 -> "rdp"
             4222 -> "nats"
             4840 -> "opcua"

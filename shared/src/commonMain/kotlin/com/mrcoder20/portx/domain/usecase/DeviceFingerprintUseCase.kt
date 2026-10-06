@@ -130,7 +130,7 @@ class DeviceFingerprintUseCase {
         if (ports.contains(3306) || ports.contains(5432) || ports.contains(27017) || ports.contains(6379) || ports.contains(1433) || ports.contains(1521) || ports.contains(9042) || ports.contains(8123)) {
             val dbType = when {
                 ports.contains(5432) -> "PostgreSQL Database Server"
-                ports.contains(3306) -> "MySQL / MariaDB Server"
+                ports.contains(3306) -> "MariaDB / Relational SQL Server"
                 ports.contains(1433) -> "Microsoft SQL Server"
                 ports.contains(1521) -> "Oracle Database Server"
                 ports.contains(27017) -> "MongoDB NoSQL Server"

@@ -568,7 +568,7 @@ class NetworkToolsHardeningTest {
         assertEquals("ssdp", scanner.guessService(1900))
         assertEquals("redis", scanner.guessService(6379))
         assertEquals("memcached", scanner.guessService(11211))
-        assertEquals("mysql", scanner.guessService(3306))
+        assertEquals("mariadb", scanner.guessService(3306))
         assertEquals("postgres", scanner.guessService(5432))
         assertEquals("unknown", scanner.guessService(49999))
     }
@@ -1117,5 +1117,29 @@ class NetworkToolsHardeningTest {
         assertEquals("ESCANEAR", LocalizedStrings.get("scan", "es"))
         assertEquals("SCANNER", LocalizedStrings.get("scan", "fr"))
         assertEquals("SCANNEN", LocalizedStrings.get("scan", "de"))
+
+        // not_enough_data coverage across languages
+        assertEquals("بيانات غير كافية", LocalizedStrings.get("not_enough_data", "ar"))
+        assertEquals("DATOS INSUFICIENTES", LocalizedStrings.get("not_enough_data", "es"))
+        assertEquals("DONNÉES INSUFFISANTES", LocalizedStrings.get("not_enough_data", "fr"))
+        assertEquals("NICHT GENÜGEND DATEN", LocalizedStrings.get("not_enough_data", "de"))
+        assertEquals("НЕДОСТАТОЧНО ДАННЫХ", LocalizedStrings.get("not_enough_data", "ru"))
+        assertEquals("数据不足", LocalizedStrings.get("not_enough_data", "zh"))
+    }
+
+    @Test
+    fun testMariaDbAndVpnDeviceFingerprint() {
+        val useCase = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()
+
+        // MariaDB Database Server
+        val mariaResult = useCase(listOf(3306), emptyMap())
+        assertEquals("Database Server", mariaResult.deviceName)
+        assertEquals("MariaDB / Relational SQL Server", mariaResult.osFingerprint)
+        assertFalse(mariaResult.osFingerprint?.contains("MySQL", ignoreCase = true) == true)
+
+        // OpenVPN Server
+        val vpnResult = useCase(listOf(1194), emptyMap())
+        assertEquals("Network Gateway", vpnResult.deviceName)
+        assertEquals("OpenVPN Server", vpnResult.osFingerprint)
     }
 }

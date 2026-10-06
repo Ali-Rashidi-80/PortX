@@ -212,7 +212,8 @@ object LocalizedStrings {
             "banner_grabbing" to "التقاط اللافتات",
             "full_port_scan" to "فحص كامل للمنافذ",
             "multi_protocol" to "متعدد البروتوكولات",
-            "stealth_mode" to "الوضع الخفي"
+            "stealth_mode" to "الوضع الخفي",
+            "not_enough_data" to "بيانات غير كافية"
         ),
         "es" to mapOf(
             "dashboard" to "Panel",
@@ -261,7 +262,8 @@ object LocalizedStrings {
             "banner_grabbing" to "Captura de Banners",
             "full_port_scan" to "Escaneo Completo de Puertos",
             "multi_protocol" to "Multi-Protocolo",
-            "stealth_mode" to "Modo Sigiloso"
+            "stealth_mode" to "Modo Sigiloso",
+            "not_enough_data" to "DATOS INSUFICIENTES"
         ),
         "fr" to mapOf(
             "dashboard" to "Tableau de Bord",
@@ -310,7 +312,8 @@ object LocalizedStrings {
             "banner_grabbing" to "Capture de Bannières",
             "full_port_scan" to "Scan Complet des Ports",
             "multi_protocol" to "Multi-Protocole",
-            "stealth_mode" to "Mode Discret"
+            "stealth_mode" to "Mode Discret",
+            "not_enough_data" to "DONNÉES INSUFFISANTES"
         ),
         "de" to mapOf(
             "dashboard" to "Übersicht",
@@ -359,7 +362,8 @@ object LocalizedStrings {
             "banner_grabbing" to "Banner-Erfassung",
             "full_port_scan" to "Vollständiger Portscan",
             "multi_protocol" to "Multiprotokoll",
-            "stealth_mode" to "Stealth-Modus"
+            "stealth_mode" to "Stealth-Modus",
+            "not_enough_data" to "NICHT GENÜGEND DATEN"
         ),
         "ru" to mapOf(
             "dashboard" to "Панель",
@@ -408,7 +412,8 @@ object LocalizedStrings {
             "banner_grabbing" to "Захват баннеров",
             "full_port_scan" to "Полное сканирование портов",
             "multi_protocol" to "Мультипротокол",
-            "stealth_mode" to "Скрытный режим"
+            "stealth_mode" to "Скрытный режим",
+            "not_enough_data" to "НЕДОСТАТОЧНО ДАННЫХ"
         ),
         "zh" to mapOf(
             "dashboard" to "仪表板",
@@ -457,7 +462,8 @@ object LocalizedStrings {
             "banner_grabbing" to "横幅抓取",
             "full_port_scan" to "全端口扫描",
             "multi_protocol" to "多协议",
-            "stealth_mode" to "隐身模式"
+            "stealth_mode" to "隐身模式",
+            "not_enough_data" to "数据不足"
         ),
         "ja" to mapOf("dashboard" to "ダッシュボード", "tools" to "ツール", "reports" to "レポート", "settings" to "設定"),
         "hi" to mapOf("dashboard" to "डैशबोर्ड", "tools" to "उपकरण", "reports" to "रिपोर्ट", "settings" to "सेटिंग्स")
