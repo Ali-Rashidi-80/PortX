@@ -62,7 +62,11 @@ fun sanitizeHost(input: String): String {
             host = host.substring(0, host.indexOf(':'))
         }
     }
-    return host.trim()
+    host = host.trim()
+    if (host.endsWith(".") && host.length > 1 && !host.endsWith("..")) {
+        host = host.dropLast(1)
+    }
+    return host
 }
 
 /**

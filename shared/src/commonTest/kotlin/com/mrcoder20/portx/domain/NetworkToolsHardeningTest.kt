@@ -964,4 +964,21 @@ class NetworkToolsHardeningTest {
         val unbracketed = "2001:db8::1"
         assertEquals("2001:db8::1", unbracketed.removePrefix("[").removeSuffix("]"))
     }
+
+    @Test
+    fun testSanitizeHostTrailingFqdnDot() {
+        assertEquals("google.com", sanitizeHost("google.com."))
+        assertEquals("192.168.1.1", sanitizeHost("192.168.1.1."))
+        assertEquals("api.server.internal", sanitizeHost("api.server.internal."))
+    }
+
+    @Test
+    fun testRussianAndChineseTranslations() {
+        assertEquals("Диапазон портов", LocalizedStrings.get("port_range", "ru"))
+        assertEquals("端口范围", LocalizedStrings.get("port_range", "zh"))
+        assertEquals("Топ 100", LocalizedStrings.get("top_100", "ru"))
+        assertEquals("前 100 端口", LocalizedStrings.get("top_100", "zh"))
+        assertEquals("Фильтр по цели или устройству...", LocalizedStrings.get("search_reports", "ru"))
+        assertEquals("按目标或设备过滤...", LocalizedStrings.get("search_reports", "zh"))
+    }
 }
