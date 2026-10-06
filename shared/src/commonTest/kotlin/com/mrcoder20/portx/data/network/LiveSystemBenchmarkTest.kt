@@ -1,6 +1,8 @@
 package com.mrcoder20.portx.data.network
 
 import kotlinx.coroutines.test.runTest
+import java.net.ServerSocket
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -14,11 +16,11 @@ class LiveSystemBenchmarkTest {
     @Test
     fun benchmark01_concurrencyScalingSweep(): Unit = runTest {
         val scanner = PortScanner()
-        val concurrencyLevels = listOf(50, 100, 250, 500, 1000)
+        val concurrencyLevels = listOf(25, 50, 100, 250, 500, 1000, 1500, 2000, 2500)
         val portCount = 500
 
         println("\n=======================================================")
-        println(" PORTX BENCHMARK 1: CONCURRENCY SCALING (500 Ports/step)")
+        println(" PORTX BENCHMARK 1: CONCURRENCY SATURATION SWEEP (500 Ports/step)")
         println("=======================================================")
         println("Concurrency | Elapsed (ms) | Throughput (Ports/sec)")
         println("-------------------------------------------------------")
@@ -59,15 +61,16 @@ class LiveSystemBenchmarkTest {
     @Test
     fun benchmark02_sustainedLargeSweepWithMemoryTelemetry(): Unit = runTest {
         val scanner = PortScanner()
-        val totalPorts = 3000
-        val concurrency = 500
+        val totalPorts = 10000
+        val concurrency = 1000
 
         System.gc()
         Thread.sleep(100)
         val memBefore = getUsedMemoryMb()
+        val activeThreadsBefore = Thread.activeCount()
 
         println("\n=======================================================")
-        println(" PORTX BENCHMARK 2: SUSTAINED SWEEP ($totalPorts Ports)")
+        println(" PORTX BENCHMARK 2: SUSTAINED HIGH-VOLUME SWEEP ($totalPorts Ports)")
         println("=======================================================")
         println("Configuration: Concurrency=$concurrency, Target=127.0.0.1, Range=20000..${20000 + totalPorts - 1}")
 
@@ -86,6 +89,7 @@ class LiveSystemBenchmarkTest {
         val elapsed = maxOf(1L, System.currentTimeMillis() - start)
         val memAfter = getUsedMemoryMb()
         val memDelta = memAfter - memBefore
+        val activeThreadsAfter = Thread.activeCount()
         val rate = (result.totalPorts * 1000L) / elapsed
 
         println("-------------------------------------------------------")
@@ -94,7 +98,8 @@ class LiveSystemBenchmarkTest {
         println("Throughput Rate    : $rate ports/sec")
         println("Initial Heap Memory: $memBefore MB")
         println("Final Heap Memory  : $memAfter MB (Delta: $memDelta MB)")
-        println("Closed/Filtered    : ${result.closedPorts} closed, ${result.filtered} filtered")
+        println("Active Threads     : Start=$activeThreadsBefore, End=$activeThreadsAfter")
+        println("Port Accounting    : ${result.closedPorts} closed, ${result.filtered} filtered, ${result.openPorts} open")
         println("=======================================================\n")
 
         assertTrue(result.totalPorts == totalPorts)
@@ -134,5 +139,125 @@ class LiveSystemBenchmarkTest {
 
         assertTrue(backoffRate < highPerformanceRate, "Engine must throttle rate under congestion")
         assertTrue(backoffTimeout >= highPerfTimeout, "Engine must expand timeout under latency")
+    }
+
+    @Test
+    fun benchmark04_ipv4VsIpv6StackComparison(): Unit = runTest {
+        val scanner = PortScanner()
+        val count = 500
+
+        println("\n=======================================================")
+        println(" PORTX BENCHMARK 4: IPV4 VS IPV6 STACK COMPARISON ($count Ports)")
+        println("=======================================================")
+
+        // IPv4 Loopback
+        val v4Config = ScanConfig(
+            target = "127.0.0.1",
+            startPort = 35000,
+            endPort = 35000 + count - 1,
+            concurrency = 250,
+            timeoutMs = 120,
+            serviceDetect = false,
+            randomizePorts = false
+        )
+        val v4Start = System.currentTimeMillis()
+        val v4Result = scanner.scan(v4Config)
+        val v4Elapsed = maxOf(1L, System.currentTimeMillis() - v4Start)
+        val v4Rate = (v4Result.totalPorts * 1000L) / v4Elapsed
+
+        // IPv6 Loopback
+        val v6Config = ScanConfig(
+            target = "::1",
+            startPort = 35000,
+            endPort = 35000 + count - 1,
+            concurrency = 250,
+            timeoutMs = 120,
+            serviceDetect = false,
+            randomizePorts = false
+        )
+        val v6Start = System.currentTimeMillis()
+        val v6Result = scanner.scan(v6Config)
+        val v6Elapsed = maxOf(1L, System.currentTimeMillis() - v6Start)
+        val v6Rate = (v6Result.totalPorts * 1000L) / v6Elapsed
+
+        println("IPv4 (127.0.0.1) : $v4Elapsed ms -> $v4Rate ports/sec")
+        println("IPv6 (::1)       : $v6Elapsed ms -> $v6Rate ports/sec")
+        println("Stack Ratio      : IPv6/IPv4 Efficiency = ${"%.2f".format(v6Rate.toDouble() / v4Rate.toDouble())}x")
+        println("=======================================================\n")
+
+        assertTrue(v4Result.totalPorts == count)
+        assertTrue(v6Result.totalPorts == count)
+    }
+
+    @Test
+    fun benchmark05_serviceDetectionAndBannerGrabbingOverhead(): Unit = runTest {
+        println("\n=======================================================")
+        println(" PORTX BENCHMARK 5: BANNER GRABBING & SERVICE DETECTION OVERHEAD")
+        println("=======================================================")
+
+        // Spin up a lightweight local mock server on an ephemeral port
+        val server = ServerSocket(0)
+        val openPort = server.localPort
+        val stopFlag = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        val serverThread = thread(isDaemon = true) {
+            while (!stopFlag.get()) {
+                try {
+                    val client = server.accept()
+                    client.getOutputStream().write("HTTP/1.1 200 OK\r\nServer: PortX-Mock/1.0\r\n\r\n<html><head><title>Telemetry Node</title></head></html>\r\n".toByteArray(Charsets.UTF_8))
+                    client.getOutputStream().flush()
+                    client.close()
+                } catch (_: Exception) { break }
+            }
+        }
+
+        try {
+            val scanner = PortScanner()
+
+            // 1. Raw Port Connect Scan (No service detect)
+            val rawConfig = ScanConfig(
+                target = "127.0.0.1",
+                startPort = openPort,
+                endPort = openPort,
+                concurrency = 1,
+                timeoutMs = 300,
+                serviceDetect = false
+            )
+            val rawStart = System.nanoTime()
+            val rawResult = scanner.scan(rawConfig)
+            val rawDurationUs = (System.nanoTime() - rawStart) / 1000
+
+            // 2. Deep Banner Grabbing Scan (Service detect enabled)
+            val deepConfig = ScanConfig(
+                target = "127.0.0.1",
+                startPort = openPort,
+                endPort = openPort,
+                concurrency = 1,
+                timeoutMs = 300,
+                serviceDetect = true
+            )
+            val deepStart = System.nanoTime()
+            val deepResult = scanner.scan(deepConfig)
+            val deepDurationUs = (System.nanoTime() - deepStart) / 1000
+
+            val detectedService = deepResult.results.firstOrNull { it.port == openPort }
+
+            println("Open Port Scanned    : $openPort")
+            println("Raw Connect Latency  : $rawDurationUs microseconds (${rawDurationUs / 1000.0} ms)")
+            println("Deep Banner Latency  : $deepDurationUs microseconds (${deepDurationUs / 1000.0} ms)")
+            println("Detected Service     : ${detectedService?.service}")
+            println("Extracted HTTP Title : ${detectedService?.httpInfo?.title}")
+            println("Server Signature     : ${detectedService?.httpInfo?.server}")
+            println("Overhead Ratio       : Deep/Raw = ${"%.2f".format(deepDurationUs.toDouble() / maxOf(1L, rawDurationUs).toDouble())}x")
+            println("=======================================================\n")
+
+            assertTrue(rawResult.openPorts == 1)
+            assertTrue(deepResult.openPorts == 1)
+            assertTrue(detectedService?.httpInfo?.title == "Telemetry Node")
+        } finally {
+            stopFlag.set(true)
+            try { server.close() } catch (_: Exception) {}
+            serverThread.interrupt()
+        }
     }
 }

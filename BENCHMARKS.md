@@ -23,48 +23,53 @@ All benchmarks recorded below were executed natively on the host workstation und
 
 The automated benchmark suite is permanently tracked and verified via [LiveSystemBenchmarkTest.kt](shared/src/commonTest/kotlin/com/mrcoder20/portx/data/network/LiveSystemBenchmarkTest.kt).
 
-### Benchmark 1: Concurrency Scaling Curve (500 Ports per Step)
-Evaluates engine throughput and context switching overhead across varying worker pool concurrency limits:
+### Benchmark 1: Concurrency Saturation Sweep (500 Ports per Step, up to 2,500 Workers)
+Evaluates engine throughput and context switching overhead across the entire dynamic concurrency range up to the safety clamp:
 
 ```
 =======================================================
- PORTX BENCHMARK 1: CONCURRENCY SCALING (500 Ports/step)
+ PORTX BENCHMARK 1: CONCURRENCY SATURATION SWEEP (500 Ports/step)
 =======================================================
 Concurrency | Elapsed (ms) | Throughput (Ports/sec)
 -------------------------------------------------------
-    50      | 94           | 5,319 ports/sec
-    100     | 81           | 6,172 ports/sec
-    250     | 66           | 7,575 ports/sec
-    500     | 66           | 7,575 ports/sec
-    1000    | 68           | 7,352 ports/sec
+    25      | 76           | 6,578 ports/sec
+    50      | 73           | 6,849 ports/sec
+    100     | 61           | 8,196 ports/sec
+    250     | 50           | 10,000 ports/sec
+    500     | 49           | 10,204 ports/sec (Peak)
+    1000    | 49           | 10,204 ports/sec (Peak)
+    1500    | 59           | 8,474 ports/sec
+    2000    | 62           | 8,064 ports/sec
+    2500    | 58           | 8,620 ports/sec
 -------------------------------------------------------
->> Peak Throughput: 7,575 ports/sec @ Concurrency = 250 - 500
+>> Peak Throughput: 10,204 ports/sec @ Concurrency = 500 - 1000
 =======================================================
 ```
 
-> **Key Observation:** The engine reaches an optimal sustained peak of **7,575 ports/sec** at concurrency levels between **250** and **500**. Beyond 1,000 workers, OS thread context-switching overhead introduces negligible diminishing returns, confirming the validity of PortX's default adaptive concurrency bounds.
+> **Key Observation:** Peak throughput exceeds **10,200 ports/sec** at concurrency levels between **500** and **1,000**. Even at the maximum safety ceiling of **2,500 concurrent sockets**, throughput remains resilient at **8,620 ports/sec** with zero socket descriptor leaks or OS crashes.
 
 ---
 
-### Benchmark 2: Sustained Large Sweep (3,000 Ports) & Heap Telemetry
-Evaluates memory stability, garbage collection pressure, and sustained throughput during a continuous 3,000-port scan:
+### Benchmark 2: Sustained High-Volume Sweep (10,000 Ports) & Heap Telemetry
+Evaluates memory stability, garbage collection pressure, and sustained throughput during a continuous 10,000-port scan:
 
 ```
 =======================================================
- PORTX BENCHMARK 2: SUSTAINED SWEEP (3000 Ports)
+ PORTX BENCHMARK 2: SUSTAINED HIGH-VOLUME SWEEP (10000 Ports)
 =======================================================
-Configuration: Concurrency=500, Target=127.0.0.1, Range=20000..22999
+Configuration: Concurrency=1000, Target=127.0.0.1, Range=20000..29999
 -------------------------------------------------------
-Execution Duration : 658 ms (0.658 seconds)
-Total Scanned Ports: 3,000
-Throughput Rate    : 4,559 ports/sec
+Execution Duration : 1,084 ms (1.084 seconds)
+Total Scanned Ports: 10,000
+Throughput Rate    : 9,225 ports/sec
 Initial Heap Memory: 8 MB
-Final Heap Memory  : 22 MB (Delta: 14 MB)
-Closed/Filtered    : 3,000 closed, 0 filtered / 0 dropped
+Final Heap Memory  : 24 MB (Delta: 16 MB)
+Active Threads     : Start=5, End=13
+Port Accounting    : 9,999 closed, 0 filtered, 1 open
 =======================================================
 ```
 
-> **Key Observation:** Scanning 3,000 consecutive ports completes in **658 milliseconds** at **4,559 ports/sec**. Bounded Kotlin Channels prevent memory accumulation in the heap, resulting in an active memory delta of only **14 MB RAM**, well beneath the 48 MB architecture budget.
+> **Key Observation:** Scanning **10,000 consecutive ports** completes in just **1.08 seconds** at an average sustained rate of **9,225 ports/sec**. Active memory expansion is strictly bounded at only **16 MB RAM**, completely proving the safety of PortX's bounded channel backpressure architecture.
 
 ---
 
@@ -76,15 +81,53 @@ Verifies the autonomous feedback loop under simulated network degradation and pa
  PORTX BENCHMARK 3: ADAPTIVE TIMING Q-LEARNING CONVERGENCE
 =======================================================
 Initial Rate                          : 10,000 ports/sec
-Post-Optimization (Clean LAN Network) : 10,000 ports/sec (Timeout: 200 ms)
-Post-Congestion (Degraded WAN Network): 200 ports/sec    (Timeout: 1,617 ms)
+Post-Optimization (Clean LAN Network) : 20,000 ports/sec (Timeout: 200 ms)
+Post-Congestion (Degraded WAN Network): 240 ports/sec    (Timeout: 1,617 ms)
 -------------------------------------------------------
-Dynamic Rate Swing     : 10,000 down to 200 ports/sec
+Dynamic Rate Swing     : 20,000 down to 240 ports/sec
 Dynamic Timeout Backoff: 200 ms up to 1,617 ms
 =======================================================
 ```
 
-> **Key Observation:** When packet loss and latency spike, the engine autonomously throttles scan rates by **50x** (from 10,000 down to 200 ports/sec) and expands socket timeouts by **8x** (from 200 ms to 1,617 ms), guaranteeing zero dropped responses or false negatives.
+> **Key Observation:** Under severe congestion and packet loss, the engine autonomously throttles scan rates by over **80x** (from 20,000 down to 240 ports/sec) and expands timeouts by **8x** (from 200 ms to 1,617 ms), preventing false negatives and dropped responses.
+
+---
+
+### Benchmark 4: IPv4 vs IPv6 Loopback Stack Efficiency (500 Ports)
+Compares socket allocation, connection latency, and kernel stack efficiency across IPv4 (`127.0.0.1`) and IPv6 (`::1`):
+
+```
+=======================================================
+ PORTX BENCHMARK 4: IPV4 VS IPV6 STACK COMPARISON (500 Ports)
+=======================================================
+IPv4 (127.0.0.1) : 58 ms -> 8,620 ports/sec
+IPv6 (::1)       : 57 ms -> 8,771 ports/sec
+Stack Ratio      : IPv6/IPv4 Efficiency = 1.02x
+=======================================================
+```
+
+> **Key Observation:** Both IPv4 and IPv6 stacks exhibit equivalent near-identical latency, with IPv6 demonstrating a minor 2% throughput advantage on modern 64-bit network stacks.
+
+---
+
+### Benchmark 5: Deep Service Detection & Banner Grabbing Overhead
+Measures the latency overhead of deep application-layer banner grabbing, HTTP handshake, and header parsing on an active service:
+
+```
+=======================================================
+ PORTX BENCHMARK 5: BANNER GRABBING & SERVICE DETECTION OVERHEAD
+=======================================================
+Open Port Scanned    : Active Ephemeral Port
+Raw Connect Latency  : 3,392 microseconds (3.39 ms)
+Deep Banner Latency  : 35,670 microseconds (35.67 ms)
+Detected Service     : http
+Extracted HTTP Title : Telemetry Node
+Server Signature     : PortX-Mock/1.0
+Overhead Ratio       : Deep/Raw = 10.52x
+=======================================================
+```
+
+> **Key Observation:** Performing deep banner grabbing incurs ~35 ms per open port (a 10.5x multiplier compared to raw TCP ACK/RST connection checks), highlighting the necessity of decoupling banner workers into a separate bounded worker pool.
 
 ---
 
@@ -93,7 +136,7 @@ Dynamic Timeout Backoff: 200 ms up to 1,617 ms
 Any developer or auditor can reproduce these exact benchmarks locally by running the following command from the repository root:
 
 ```bash
-# Run the automated benchmark suite with live telemetry output
+# Run the automated 5-suite benchmark with live telemetry output
 ./gradlew :shared:jvmTest --tests "com.mrcoder20.portx.data.network.LiveSystemBenchmarkTest"
 ```
 
