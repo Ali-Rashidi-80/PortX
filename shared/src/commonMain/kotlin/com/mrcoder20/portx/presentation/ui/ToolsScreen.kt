@@ -19,8 +19,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.LocalizedStrings
@@ -124,7 +128,7 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                                     }
                                 }
                             ),
-                            textStyle = MaterialTheme.typography.bodyLarge
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr)
                         )
 
                         Row(
@@ -258,20 +262,47 @@ fun PingResultPanel(
     LaunchedEffect(results.size) { if (results.isNotEmpty()) listState.animateScrollToItem(results.size - 1) }
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
         Column {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(LocalizedStrings.get("tactical_icmp_output", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(LocalizedStrings.get("tactical_icmp_output", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                    Surface(
+                        color = accent.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            "ICMP",
+                            color = accent,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 if (isLoading) Text(LocalizedStrings.get("querying", lang), style = MaterialTheme.typography.labelSmall, color = accent)
             }
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
-                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    itemsIndexed(results, key = { index, res -> "${index}_${res.sequence}" }) { _, res ->
-                        Row(modifier = Modifier.clickable { onCopyItem(res.message) }) {
-                            Text("> ", color = accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                            Text(res.message, color = if (res.isSuccess) (if (isDark) Color.White else Color.Black) else DangerNeon, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        itemsIndexed(results, key = { index, res -> "${index}_${res.sequence}" }) { _, res ->
+                            Row(modifier = Modifier.fillMaxWidth().clickable { onCopyItem(res.message) }, verticalAlignment = Alignment.CenterVertically) {
+                                Text("> ", color = accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(res.message, color = if (res.isSuccess) (if (isDark) Color.White else Color.Black) else DangerNeon, fontFamily = FontFamily.Monospace, fontSize = 12.sp, textAlign = TextAlign.Start)
+                            }
                         }
+                        if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("engine_ready", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                     }
-                    if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("engine_ready", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                 }
             }
         }
@@ -289,19 +320,48 @@ fun DnsResultPanel(
     val isDark = LocalAppSettings.current.theme == "DARK"
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
         Column {
-            Text(LocalizedStrings.get("dns_resolution_records", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(LocalizedStrings.get("dns_resolution_records", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                    Surface(
+                        color = accent.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            "DNS",
+                            color = accent,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
             if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    itemsIndexed(results, key = { index, ip -> "${index}_$ip" }) { _, ip ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onCopyItem(ip) }.padding(vertical = 4.dp)) {
-                            Icon(Icons.Default.Adjust, null, tint = accent, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Text(ip, color = if (isDark) Color.White else Color.Black, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        itemsIndexed(results, key = { index, ip -> "${index}_$ip" }) { _, ip ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onCopyItem(ip) }.padding(vertical = 4.dp)) {
+                                Icon(Icons.Default.Adjust, null, tint = accent, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text(ip, color = if (isDark) Color.White else Color.Black, fontFamily = FontFamily.Monospace, fontSize = 14.sp, textAlign = TextAlign.Start)
+                            }
                         }
+                        if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("awaiting_dns", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                     }
-                    if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("awaiting_dns", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                 }
             }
         }
@@ -324,7 +384,28 @@ fun WhoisResultPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(LocalizedStrings.get("whois_authority_data", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(LocalizedStrings.get("whois_authority_data", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                    Surface(
+                        color = accent.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            "WHOIS",
+                            color = accent,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 if (!result.isNullOrBlank()) {
                     IconButton(onClick = { onCopy(result) }, modifier = Modifier.size(44.dp)) {
                         Icon(Icons.Default.ContentCopy, contentDescription = LocalizedStrings.get("copy_whois", lang), tint = accent, modifier = Modifier.size(18.dp))
@@ -334,8 +415,18 @@ fun WhoisResultPanel(
             Spacer(Modifier.height(12.dp))
             if (isLoading && result == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).verticalScroll(rememberScrollState()).padding(12.dp)) {
-                SelectionContainer {
-                    Text(result ?: LocalizedStrings.get("ready_whois", lang), color = if (result != null) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight), fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp)
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    SelectionContainer {
+                        Text(
+                            result ?: LocalizedStrings.get("ready_whois", lang),
+                            color = if (result != null) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -404,7 +495,7 @@ fun InfoItem(label: String, value: String, icon: ImageVector, color: Color, onCl
         Spacer(Modifier.width(16.dp))
         Column {
             Text(label, style = MaterialTheme.typography.labelSmall, color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 1.sp)
-            Text(value, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace), color = if (isDark) Color.White else Color.Black)
+            Text(value, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr), color = if (isDark) Color.White else Color.Black)
         }
     }
 }

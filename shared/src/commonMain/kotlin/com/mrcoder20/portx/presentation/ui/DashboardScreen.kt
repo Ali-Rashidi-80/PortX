@@ -23,9 +23,13 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.LocalizedStrings
@@ -489,7 +493,10 @@ fun DashboardIpInput(
                         if (state.isLoading) onStopScan() else onStartScan()
                     }
                 ),
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium,
+                    textDirection = TextDirection.Ltr
+                )
             )
             
             val infiniteTransition = rememberInfiniteTransition()
@@ -570,7 +577,10 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
                             focusedTextColor = if (isDark) Color.White else Color.Black,
                             unfocusedTextColor = if (isDark) Color.White else Color.Black
                         ),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            textDirection = TextDirection.Ltr
+                        )
                     )
                     OutlinedTextField(
                         value = state.endPort,
@@ -587,7 +597,10 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
                             focusedTextColor = if (isDark) Color.White else Color.Black,
                             unfocusedTextColor = if (isDark) Color.White else Color.Black
                         ),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            textDirection = TextDirection.Ltr
+                        )
                     )
                 }
             }
@@ -740,14 +753,16 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
             }
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).border(1.dp, GlassBorder.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
-                LazyColumn(state = logListState, modifier = Modifier.fillMaxSize()) {
-                    itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
-                        Row(modifier = Modifier.padding(vertical = 2.dp)) {
-                            Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
-                            Text(log, color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    LazyColumn(state = logListState, modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
+                                Text(log, color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), textAlign = TextAlign.Start)
+                            }
                         }
+                        if (state.logs.isEmpty()) item { Text(LocalizedStrings.get("waiting_engine_activity", lang), color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)) }
                     }
-                    if (state.logs.isEmpty()) item { Text(LocalizedStrings.get("waiting_engine_activity", lang), color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)) }
                 }
             }
         }
@@ -1045,8 +1060,8 @@ fun PortDetailDialog(
                             color = if (isDark) Color.White else Color.Black
                         )
                         Text(
-                            "${target}:${port.number} • TCP Active",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            "\u2066${target}:${port.number}\u2069 • TCP Active",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr),
                             color = if (isDark) TextMuted else TextMutedLight
                         )
                     }
@@ -1093,11 +1108,15 @@ fun PortDetailDialog(
                             color = accent
                         )
                         val bannerText = if (!rawBanner.isNullOrBlank()) rawBanner.trim() else port.description
-                        Text(
-                            text = bannerText,
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.9f)
-                        )
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            Text(
+                                text = bannerText,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.9f),
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
 
@@ -1146,12 +1165,12 @@ fun PortDetailDialog(
             ) {
                 Icon(if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(if (isCopied) "Copied!" else "Copy Details", fontWeight = FontWeight.Bold)
+                Text(if (isCopied) LocalizedStrings.get("copied", lang) else LocalizedStrings.get("copy_details", lang), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", color = if (isDark) Color.White else Color.Black)
+                Text(LocalizedStrings.get("close", lang), color = if (isDark) Color.White else Color.Black)
             }
         },
         modifier = Modifier.padding(16.dp).widthIn(max = 520.dp)

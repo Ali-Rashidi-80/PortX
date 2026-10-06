@@ -51,34 +51,36 @@ fun NavigationWrapper(
         if (isExpanded) {
             // Desktop UI
             Column(modifier = Modifier.fillMaxSize().background(if(settings.theme == "DARK") BackgroundDark else Color.White)) {
-                // --- CUSTOM TOP TITLE BAR ---
-                windowDraggableArea {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        color = if(settings.theme == "DARK") SurfaceDark else SurfaceLight,
-                        border = BorderStroke(0.5.dp, (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.2f))
-                    ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "PortX Professional",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (settings.theme == "DARK") Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f)
+                // --- CUSTOM TOP TITLE BAR (Always LTR for native Windows layout consistency) ---
+                CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                    windowDraggableArea {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            color = if(settings.theme == "DARK") SurfaceDark else SurfaceLight,
+                            border = BorderStroke(0.5.dp, (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.2f))
+                        ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "PortX Professional",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (settings.theme == "DARK") Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f)
+                                    )
                                 )
-                            )
-                        }
-                        
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            WindowControlBtn(Icons.Default.Remove, if(settings.theme == "DARK") TextMuted else TextMutedLight, onMinimize)
-                            WindowControlBtn(Icons.Default.AspectRatio, if(settings.theme == "DARK") TextMuted else TextMutedLight, onMaximize)
-                            WindowControlBtn(Icons.Default.Close, DangerNeon, onClose)
+                            }
+                            
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                WindowControlBtn(Icons.Default.Remove, if(settings.theme == "DARK") TextMuted else TextMutedLight, onMinimize)
+                                WindowControlBtn(Icons.Default.AspectRatio, if(settings.theme == "DARK") TextMuted else TextMutedLight, onMaximize)
+                                WindowControlBtn(Icons.Default.Close, DangerNeon, onClose)
+                            }
                         }
                     }
                 }

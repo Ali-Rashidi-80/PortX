@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.LocalizedStrings
@@ -111,7 +112,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                                 focusedTextColor = if (appSettings.theme == "DARK") Color.White else Color.Black,
                                 unfocusedTextColor = if (appSettings.theme == "DARK") Color.White else Color.Black
                             ),
-                            textStyle = MaterialTheme.typography.bodySmall
+                            textStyle = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.ContentOrLtr)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
@@ -292,7 +293,8 @@ fun ReportHistoryItem(
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                val title = if (!scan.deviceName.isNullOrBlank()) "${scan.target} (${scan.deviceName})" else "${LocalizedStrings.get("target", lang)}: ${scan.target}"
+                val isolatedTarget = "\u2066${scan.target}\u2069"
+                val title = if (!scan.deviceName.isNullOrBlank()) "$isolatedTarget (${scan.deviceName})" else "${LocalizedStrings.get("target", lang)}: $isolatedTarget"
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium,
@@ -301,10 +303,11 @@ fun ReportHistoryItem(
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
+                val isolatedDateTime = "\u2066$formattedDate $formattedTime\u2069"
                 val subtitle = if (!scan.osFingerprint.isNullOrBlank()) {
-                    "$formattedDate $formattedTime • ${scan.osFingerprint}"
+                    "$isolatedDateTime • ${scan.osFingerprint}"
                 } else {
-                    "$formattedDate $formattedTime"
+                    isolatedDateTime
                 }
                 Text(
                     text = subtitle,
