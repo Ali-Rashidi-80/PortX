@@ -75,9 +75,9 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = GlassBackground,
+                    color = if (appSettings.theme == "DARK") GlassBackground else GlassLight,
                     shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, GlassBorder)
+                    border = BorderStroke(1.dp, if (appSettings.theme == "DARK") GlassBorder else GlassBorderLight)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().height(64.dp).padding(4.dp),
@@ -230,8 +230,8 @@ fun ToolChip(label: String, icon: ImageVector, isSelected: Boolean, accent: Colo
         onClick = onClick,
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) accent.copy(alpha = 0.15f) else GlassBackground,
-        border = BorderStroke(1.dp, if (isSelected) accent else GlassBorder)
+        color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) GlassBackground else GlassLight),
+        border = BorderStroke(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp),

@@ -7,7 +7,7 @@ val listOfIntAdapter = object : ColumnAdapter<List<Int>, String> {
         val cleanValue = databaseValue.trim().removePrefix("[").removeSuffix("]")
         if (cleanValue.isEmpty()) return emptyList()
         return try {
-            cleanValue.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct().sorted()
+            cleanValue.split(Regex("""[,;\s]+""")).mapNotNull { it.trim().toIntOrNull() }.distinct().sorted()
         } catch (_: Exception) {
             emptyList()
         }
@@ -21,8 +21,13 @@ val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
         val cleanValue = databaseValue.trim().removePrefix("{").removeSuffix("}")
         if (cleanValue.isEmpty()) return emptyMap()
         return try {
-            val delimiter = if (cleanValue.contains("|")) "|" else if (cleanValue.contains(",")) "," else "|"
-            cleanValue.split(delimiter).mapNotNull { entry ->
+            val entries = when {
+                cleanValue.contains("|") -> cleanValue.split("|")
+                // Only split on comma if followed by a subsequent port entry (e.g. legacy '80:http, 443:https' or '\"80\":\"http\", \"443\":...')
+                Regex(""",\s*"?\d+"?\s*:""").containsMatchIn(cleanValue) -> cleanValue.split(Regex(""",\s*(?="?\d+"?\s*:)"""))
+                else -> listOf(cleanValue)
+            }
+            entries.mapNotNull { entry ->
                 if (!entry.contains(":")) return@mapNotNull null
                 val rawPort = entry.substringBefore(":").trim().removeSurrounding("\"")
                 val port = rawPort.toIntOrNull()

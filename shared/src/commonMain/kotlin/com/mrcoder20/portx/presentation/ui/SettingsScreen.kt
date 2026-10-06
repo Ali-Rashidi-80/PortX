@@ -51,8 +51,8 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                 Surface(
                     onClick = { showLanguageMenu = true },
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.05f),
-                    border = BorderStroke(1.dp, GlassBorder),
+                    color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f),
+                    border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -70,7 +70,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                     onDismissRequest = { showLanguageMenu = false },
                     modifier = Modifier
                         .background(if (isDark) SurfaceDark.copy(alpha = 0.95f) else Color.White)
-                        .border(1.dp, GlassBorder, RoundedCornerShape(8.dp))
+                        .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(8.dp))
                 ) {
                     val targetLanguages = Language.entries
                     targetLanguages.forEach { lang ->
@@ -119,7 +119,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                     )
                 }
                 
-                HorizontalDivider(color = GlassBorder, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(color = if (isDark) GlassBorder else GlassBorderLight, modifier = Modifier.padding(vertical = 12.dp))
                 
                 Text(
                     LocalizedStrings.get("accent", state.language),
@@ -186,6 +186,7 @@ fun SettingsSectionTitle(title: String) {
 
 @Composable
 fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
     Box(
         modifier = Modifier
             .size(44.dp)
@@ -197,7 +198,7 @@ fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
                 .size(34.dp)
                 .clip(CircleShape)
                 .background(color)
-                .border(if (isSelected) 3.dp else 0.dp, Color.White.copy(alpha = 0.9f), CircleShape)
+                .border(if (isSelected) 3.dp else 0.dp, if (isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.8f), CircleShape)
         )
     }
 }

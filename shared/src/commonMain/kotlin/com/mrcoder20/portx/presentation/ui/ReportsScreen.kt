@@ -280,7 +280,7 @@ fun ReportHistoryItem(
             .fillMaxWidth()
             .heightIn(min = 84.dp)
             .clip(RoundedCornerShape(20.dp))
-            .border(1.dp, GlassBorder, RoundedCornerShape(20.dp)),
+            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(20.dp)),
         color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f)
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -354,8 +354,8 @@ fun GlassExportButton(
         modifier = modifier
             .height(48.dp)
             .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, if (isSelected) accent else GlassBorder, RoundedCornerShape(12.dp)),
-        color = if (isSelected) accent.copy(alpha = 0.15f) else GlassBackground
+            .border(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight), RoundedCornerShape(12.dp)),
+        color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) GlassBackground else GlassLight)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(

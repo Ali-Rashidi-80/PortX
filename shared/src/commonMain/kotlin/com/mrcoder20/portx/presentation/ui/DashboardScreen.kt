@@ -380,11 +380,12 @@ fun DashboardIpInput(
     showSettingsToggle: Boolean = false,
     onSettingsToggle: () -> Unit = {}
 ) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = GlassBackground,
+        color = if (isDark) GlassBackground else GlassLight,
         shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, GlassBorder)
+        border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().height(64.dp).padding(4.dp),
@@ -669,7 +670,7 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     if (result != null && result.openPorts.isNotEmpty()) {
                         Text("${result.openPorts.size} ${LocalizedStrings.get("found", lang)}", style = MaterialTheme.typography.labelSmall, color = accent, modifier = Modifier.background(accent.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
                     }
-                    Row(modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape).border(1.dp, GlassBorder, CircleShape)) {
+                    Row(modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape).border(1.dp, if (isDark) GlassBorder else GlassBorderLight, CircleShape)) {
                         IconButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
                         IconButton(onClick = { scope.launch { val count = state.result?.openPorts?.distinct()?.size ?: 0; if (count > 0) listState.animateScrollToItem(count - 1) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
                     }
@@ -753,7 +754,7 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
 @Composable
 fun ScanChip(label: String, checked: Boolean, accent: Color, onCheckedChange: (Boolean) -> Unit) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    Surface(onClick = { onCheckedChange(!checked) }, shape = RoundedCornerShape(12.dp), color = if (checked) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)), border = BorderStroke(1.dp, if (checked) accent else GlassBorder)) {
+    Surface(onClick = { onCheckedChange(!checked) }, shape = RoundedCornerShape(12.dp), color = if (checked) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)), border = BorderStroke(1.dp, if (checked) accent else (if (isDark) GlassBorder else GlassBorderLight))) {
         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (checked) accent else (if (isDark) TextMuted else TextMutedLight)))
             Text(label, style = MaterialTheme.typography.labelMedium, color = if (checked) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight))

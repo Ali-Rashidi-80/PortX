@@ -20,6 +20,10 @@ actual fun createDatabaseDriver(passphrase: String?): SqlDriver {
     val databaseFile = File(appDir, "portx.db")
     val driver: SqlDriver = JdbcSqliteDriver("jdbc:sqlite:${databaseFile.absolutePath}")
     try {
+        driver.execute(null, "PRAGMA journal_mode = WAL;", 0)
+        driver.execute(null, "PRAGMA busy_timeout = 5000;", 0)
+        driver.execute(null, "PRAGMA synchronous = NORMAL;", 0)
+
         val currentVersion = driver.executeQuery(null, "PRAGMA user_version;", { cursor ->
             app.cash.sqldelight.db.QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
         }, 0).value

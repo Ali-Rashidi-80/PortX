@@ -1168,4 +1168,57 @@ class NetworkToolsHardeningTest {
         // Double quotes converted to single quotes to preserve unquoted CSV syntax
         assertTrue(csv.contains("nginx '1.24.0'; gzip"))
     }
+
+    @Test
+    fun testDatabaseAdaptersSinglePortBannerWithCommas() {
+        val adapter = com.mrcoder20.portx.data.local.mapIntStringAdapter
+        val original = mapOf(80 to "Apache/2.4.52 (Ubuntu), OpenSSL/3.0.2, mod_wsgi/4.9.0")
+        val encoded = adapter.encode(original)
+        val decoded = adapter.decode(encoded)
+
+        // Verifies the entire banner is preserved without being truncated at the commas
+        assertEquals("Apache/2.4.52 (Ubuntu), OpenSSL/3.0.2, mod_wsgi/4.9.0", decoded[80])
+        assertEquals(1, decoded.size)
+    }
+
+    @Test
+    fun testDatabaseAdaptersMultiPortWithPipesAndEscaping() {
+        val adapter = com.mrcoder20.portx.data.local.mapIntStringAdapter
+        val original = mapOf(
+            80 to "nginx | ingress",
+            443 to "Envoy/1.28.0, TLS 1.3"
+        )
+        val encoded = adapter.encode(original)
+        val decoded = adapter.decode(encoded)
+
+        assertEquals("nginx | ingress", decoded[80])
+        assertEquals("Envoy/1.28.0, TLS 1.3", decoded[443])
+        assertEquals(2, decoded.size)
+    }
+
+    @Test
+    fun testDatabaseAdaptersLegacyCommaSeparatedEntries() {
+        val adapter = com.mrcoder20.portx.data.local.mapIntStringAdapter
+        val legacyValue = "80:http, 443:https, 8080:alt-http"
+        val decoded = adapter.decode(legacyValue)
+
+        assertEquals("http", decoded[80])
+        assertEquals("https", decoded[443])
+        assertEquals("alt-http", decoded[8080])
+        assertEquals(3, decoded.size)
+    }
+
+    @Test
+    fun testDatabaseAdaptersListOfIntDelimiters() {
+        val adapter = com.mrcoder20.portx.data.local.listOfIntAdapter
+        val list1 = adapter.decode("[80, 443, 8080]")
+        assertEquals(listOf(80, 443, 8080), list1)
+
+        val list2 = adapter.decode("22; 80; 443")
+        assertEquals(listOf(22, 80, 443), list2)
+
+        val encoded = adapter.encode(listOf(8080, 80, 443, 80))
+        assertEquals("80,443,8080", encoded)
+    }
 }
+

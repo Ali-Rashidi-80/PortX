@@ -56,7 +56,7 @@ fun NavigationWrapper(
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         color = if(settings.theme == "DARK") SurfaceDark else SurfaceLight,
-                        border = BorderStroke(0.5.dp, GlassBorder.copy(alpha = 0.1f))
+                        border = BorderStroke(0.5.dp, (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.2f))
                     ) {
                     Row(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
@@ -93,8 +93,8 @@ fun NavigationWrapper(
                                 .fillMaxHeight()
                                 .padding(20.dp)
                                 .clip(RoundedCornerShape(28.dp))
-                                .border(1.dp, GlassBorder, RoundedCornerShape(28.dp)),
-                            color = GlassBackground
+                                .border(1.dp, if (settings.theme == "DARK") GlassBorder else GlassBorderLight, RoundedCornerShape(28.dp)),
+                            color = if (settings.theme == "DARK") GlassBackground else GlassLight
                         ) {
                             Column(
                                 modifier = Modifier.padding(24.dp),
