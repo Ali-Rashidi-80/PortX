@@ -39,7 +39,7 @@ data class DisplayPort(val number: Int, val title: String, val description: Stri
 fun getPortColor(port: Int, accent: Color): Color {
     return when (port) {
         // High-risk, unencrypted, industrial or dangerous vectors
-        21, 23, 102, 135, 137, 138, 139, 445, 502, 1883, 2049, 2375, 2379, 5683, 47808, 5555, 10250, 11211 -> DangerNeon
+        21, 23, 102, 135, 137, 138, 139, 445, 502, 1883, 2049, 2181, 2375, 2379, 5683, 47808, 5555, 10250, 11211 -> DangerNeon
         // High-privilege / Admin / Database / Remote access / VPN
         22, 1194, 1433, 1521, 3306, 3389, 4840, 51820, 5432, 5900, 6379, 6443, 8123, 8200, 8500, 9042, 9200, 9300, 27017 -> SecondaryNeon
         // Standard Web / HTTPS / Proxy
@@ -90,6 +90,7 @@ fun getServiceTitle(port: Int, rawService: String? = null): String {
         1884 -> "MQTT-SN Gateway"
         1900 -> "SSDP UPnP Discovery"
         2049 -> "NFS Network Share"
+        2181 -> "ZooKeeper Cluster Node"
         2375, 2376 -> "Docker Daemon API"
         2379, 2380 -> "etcd Datastore"
         3000 -> "Grafana / React Web App"
@@ -177,6 +178,7 @@ fun getServiceDescription(port: Int, rawService: String? = null): String {
         1884 -> "MQTT for Sensor Networks bridge listener"
         1900 -> "Simple Service Discovery Protocol"
         2049 -> "Network File System Unix sharing"
+        2181 -> "Apache ZooKeeper distributed coordination service"
         2375, 2376 -> "Docker container engine control API"
         2379, 2380 -> "etcd distributed consensus key-value datastore"
         3000 -> "Grafana metrics dashboard or web application frontend"
@@ -766,7 +768,26 @@ fun ScanChip(label: String, checked: Boolean, accent: Color, onCheckedChange: (B
 fun AdvancedLiquidGauge(progress: Float, isLoading: Boolean, color: Color, gaugeSize: androidx.compose.ui.unit.Dp = 220.dp) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     val infiniteTransition = rememberInfiniteTransition()
-    val rotation by infiniteTransition.animateFloat(initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(tween(if (isLoading) 2500 else 8000, easing = LinearEasing)))
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f, 
+        targetValue = 360f, 
+        animationSpec = infiniteRepeatable(tween(if (isLoading) 2500 else 8000, easing = LinearEasing))
+    )
+    val dotRotation0 by infiniteTransition.animateFloat(
+        initialValue = 0f, 
+        targetValue = 360f, 
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing), repeatMode = RepeatMode.Restart)
+    )
+    val dotRotation1 by infiniteTransition.animateFloat(
+        initialValue = 0f, 
+        targetValue = 360f, 
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), repeatMode = RepeatMode.Restart)
+    )
+    val dotRotation2 by infiniteTransition.animateFloat(
+        initialValue = 0f, 
+        targetValue = 360f, 
+        animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing), repeatMode = RepeatMode.Restart)
+    )
     val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = spring(stiffness = Spring.StiffnessLow))
     Box(modifier = Modifier.size(gaugeSize), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.size(gaugeSize * 0.85f)) {
@@ -776,14 +797,15 @@ fun AdvancedLiquidGauge(progress: Float, isLoading: Boolean, color: Color, gauge
         }
         Box(modifier = Modifier.size(gaugeSize * 0.68f).clip(CircleShape).background(Brush.verticalGradient(listOf((if (isDark) Color.White else Color.Black).copy(alpha = 0.08f), Color.Transparent))).border(1.dp, color.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
             if (isLoading) {
-                repeat(3) { index ->
-                    val dotRotation by infiniteTransition.animateFloat(initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(tween(2000 + index * 400, easing = LinearEasing), repeatMode = RepeatMode.Restart))
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val angleRad = (dotRotation * (3.14159 / 180)).toFloat()
-                        val radius = size.width * 0.42f
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val radius = size.width * 0.42f
+                    val dotRadius = gaugeSize.toPx() * 0.012f
+                    val dotRotations = listOf(dotRotation0, dotRotation1, dotRotation2)
+                    dotRotations.forEachIndexed { index, rot ->
+                        val angleRad = (rot * (kotlin.math.PI / 180.0)).toFloat()
                         val x = center.x + radius * kotlin.math.cos(angleRad)
                         val y = center.y + radius * kotlin.math.sin(angleRad)
-                        drawCircle(color = color, radius = (gaugeSize.toPx() * 0.012f), center = Offset(x, y), alpha = 0.8f - (index * 0.2f))
+                        drawCircle(color = color, radius = dotRadius, center = Offset(x, y), alpha = 0.8f - (index * 0.2f))
                     }
                 }
             }

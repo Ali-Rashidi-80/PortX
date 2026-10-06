@@ -272,8 +272,15 @@ fun ReportHistoryItem(
     onDownload: () -> Unit
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    val dateTime = kotlin.time.Instant.fromEpochMilliseconds(scan.timestamp)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
+    val (formattedDate, formattedTime) = try {
+        val dt = kotlin.time.Instant.fromEpochMilliseconds(scan.timestamp)
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+        val d = dt.date.toString()
+        val t = "${dt.time.hour.toString().padStart(2, '0')}:${dt.time.minute.toString().padStart(2, '0')}"
+        d to t
+    } catch (_: Exception) {
+        "N/A" to "N/A"
+    }
     
     Surface(
         modifier = Modifier
@@ -294,11 +301,10 @@ fun ReportHistoryItem(
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
-                val formattedTime = "${dateTime.time.hour.toString().padStart(2, '0')}:${dateTime.time.minute.toString().padStart(2, '0')}"
                 val subtitle = if (!scan.osFingerprint.isNullOrBlank()) {
-                    "${dateTime.date} $formattedTime • ${scan.osFingerprint}"
+                    "$formattedDate $formattedTime • ${scan.osFingerprint}"
                 } else {
-                    "${dateTime.date} $formattedTime"
+                    "$formattedDate $formattedTime"
                 }
                 Text(
                     text = subtitle,

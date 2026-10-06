@@ -602,6 +602,14 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             port == 9092 || lowBanner.contains("kafka") -> {
                 service = "kafka"
             }
+            port == 5672 || lowBanner.contains("amqp") || lowBanner.contains("rabbitmq") -> {
+                service = "rabbitmq"
+                version = if (lowBanner.contains("rabbitmq")) "RabbitMQ Broker" else "AMQP 0-9-1"
+            }
+            port == 2181 || lowBanner.contains("imok") || lowBanner.contains("zookeeper") -> {
+                service = "zookeeper"
+                version = "Apache ZooKeeper Node"
+            }
         }
 
         return ScanPortResult(
@@ -639,6 +647,18 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             } else if (port == 5432) {
                 // PostgreSQL SSLRequest packet (8 bytes: Length=8, Code=80877103)
                 sendChannel.writeFully(byteArrayOf(0x00, 0x00, 0x00, 0x08, 0x04, 0xd2.toByte(), 0x16, 0x2f))
+            } else if (port == 2181) {
+                // Apache ZooKeeper 4-letter word command
+                sendChannel.writeStringUtf8("ruok\r\n")
+            } else if (port == 5672) {
+                // AMQP 0-9-1 Protocol Header (RFC AMQP)
+                sendChannel.writeFully(byteArrayOf(0x41, 0x4d, 0x51, 0x50, 0x00, 0x00, 0x09, 0x01))
+            } else if (port == 53) {
+                // DNS over TCP: 2-byte length prefix (0x00, 0x11 = 17 bytes) + DNS query payload
+                sendChannel.writeFully(byteArrayOf(
+                    0x00, 0x11, 0x10, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01
+                ))
             }
 
             val buffer = ByteArray(2048)
@@ -654,6 +674,18 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                             if (nextRead > 0) totalRead += nextRead
                         }
                     }
+                }
+                if (port == 53 && totalRead >= 14) {
+                    val dnsParsed = parseUdpResponseBanner(53, buffer.copyOfRange(2, totalRead))
+                    if (dnsParsed.isNotEmpty()) return@withTimeoutOrNull "TCP $dnsParsed"
+                }
+                if (port == 2181) {
+                    val text = buffer.decodeToString(0, totalRead).trim()
+                    if (text.contains("imok")) return@withTimeoutOrNull "ZooKeeper Node (imok)"
+                    if (text.isNotBlank()) return@withTimeoutOrNull "ZooKeeper: $text"
+                }
+                if (port == 5672 && totalRead >= 4 && buffer[0] == 0x41.toByte() && buffer[1] == 0x4d.toByte()) {
+                    return@withTimeoutOrNull "AMQP 0-9-1 Connection Handshake"
                 }
                 if (port == 1883 && totalRead >= 4 && buffer[0] == 0x20.toByte() && buffer[1] == 0x02.toByte()) {
                     val returnCode = buffer[3].toInt() and 0xFF
@@ -767,6 +799,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             1884 -> "mqtt-sn"
             1900 -> "ssdp"
             2049 -> "nfs"
+            2181 -> "zookeeper"
             2375, 2376 -> "docker"
             2379, 2380 -> "etcd"
             3000 -> "http-alt"

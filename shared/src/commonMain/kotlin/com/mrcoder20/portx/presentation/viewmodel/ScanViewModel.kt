@@ -81,11 +81,13 @@ class ScanViewModel(
                 if (result != null) {
                     val fw = firewallDetectionUseCase(result)
                     val anom = anomalyDetectionUseCase(result)
+                    val completionLog = "Scan completed: ${result.openPorts.size} open ports found on ${result.target} (Score: ${result.securityScore}%)"
                     _uiState.update { 
                         it.copy(
                             result = result,
                             firewallStatus = fw,
-                            anomalies = anom
+                            anomalies = anom,
+                            logs = (it.logs + completionLog).takeLast(50)
                         ) 
                     }
                 }
@@ -95,7 +97,13 @@ class ScanViewModel(
         viewModelScope.launch {
             ScanManager.error.collect { error ->
                 if (error != null) {
-                    _uiState.update { it.copy(error = error) }
+                    val errorLog = "Engine error: $error"
+                    _uiState.update { 
+                        it.copy(
+                            error = error,
+                            logs = (it.logs + errorLog).takeLast(50)
+                        ) 
+                    }
                 }
             }
         }

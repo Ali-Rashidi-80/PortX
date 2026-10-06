@@ -83,12 +83,15 @@ class DeviceFingerprintUseCase {
 
         // 6. Cloud & Container Infrastructure
         if (ports.contains(2375) || ports.contains(2376) || ports.contains(6443) || ports.contains(10250) ||
-            ports.contains(2379) || ports.contains(2380) || ports.contains(9092) || ports.contains(8200) || ports.contains(8500)
+            ports.contains(2379) || ports.contains(2380) || ports.contains(9092) || ports.contains(8200) || ports.contains(8500) ||
+            ports.contains(2181) || ports.contains(5672) || allBannersLower.contains("rabbitmq") || allBannersLower.contains("zookeeper")
         ) {
             val (name, os) = when {
                 ports.contains(6443) || ports.contains(10250) -> "Kubernetes Node" to "Kubernetes Cluster Node"
                 ports.contains(2375) || ports.contains(2376) -> "Container Host" to "Docker Engine Daemon"
                 ports.contains(2379) || ports.contains(2380) -> "Key-Value Store" to "etcd Distributed Datastore"
+                ports.contains(2181) || allBannersLower.contains("zookeeper") -> "Coordination Service" to "Apache ZooKeeper Cluster Node"
+                ports.contains(5672) || allBannersLower.contains("rabbitmq") -> "Message Broker" to "RabbitMQ Message Broker"
                 ports.contains(9092) -> "Message Streaming" to "Apache Kafka Broker"
                 ports.contains(8200) -> "Secrets Vault" to "HashiCorp Vault Server"
                 ports.contains(8500) -> "Service Mesh" to "HashiCorp Consul Node"

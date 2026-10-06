@@ -60,7 +60,9 @@ class AndroidFileSharer : FileSharer {
                 }
             } else {
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
                 val file = File(downloadsDir, fileName)
+                file.parentFile?.mkdirs()
                 FileOutputStream(file).use { it.write(content.toByteArray(Charsets.UTF_8)) }
                 "Downloads/$fileName"
             }

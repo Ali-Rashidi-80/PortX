@@ -21,6 +21,7 @@ class AnomalyDetectionUseCase {
             1883 to "MQTT (Unencrypted IoT broker / telemetry command exposure)",
             1900 to "SSDP / UPnP (Unauthenticated discovery & reflection amplification risk)",
             2049 to "NFS (Network File System unauthenticated share exposure risk)",
+            2181 to "ZooKeeper (Unauthenticated coordination cluster & metadata exposure risk)",
             2375 to "Docker Daemon (Unauthenticated remote container escape risk)",
             2379 to "etcd (Unauthenticated distributed datastore / cluster state exposure)",
             3389 to "RDP (Remote Desktop exposed)",

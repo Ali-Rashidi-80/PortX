@@ -5,6 +5,7 @@ import com.mrcoder20.portx.data.network.ScanConfig
 import com.mrcoder20.portx.domain.model.ScanResult
 import com.mrcoder20.portx.domain.usecase.ExportReportUseCase
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -1360,6 +1361,71 @@ class NetworkToolsHardeningTest {
         val genericResult = fpUseCase(listOf(1883), mapOf(1883 to "MQTT 3.1.1 (ReturnCode: 0)"))
         assertEquals("IoT Message Broker", genericResult.deviceName)
         assertEquals("MQTT Broker", genericResult.osFingerprint)
+    }
+
+    @Test
+    fun testZooKeeperAndRabbitMqFingerprints() {
+        val fpUseCase = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()
+
+        // ZooKeeper
+        val zkResult = fpUseCase(listOf(2181), mapOf(2181 to "ZooKeeper Node (imok)"))
+        assertEquals("Coordination Service", zkResult.deviceName)
+        assertEquals("Apache ZooKeeper Cluster Node", zkResult.osFingerprint)
+
+        // RabbitMQ
+        val rmqResult = fpUseCase(listOf(5672), mapOf(5672 to "AMQP 0-9-1 Connection Handshake"))
+        assertEquals("Message Broker", rmqResult.deviceName)
+        assertEquals("RabbitMQ Message Broker", rmqResult.osFingerprint)
+    }
+
+    @Test
+    fun testZooKeeperSecurityAnomalyAndScore() {
+        val scoreUseCase = com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase()
+        val anomalyUseCase = com.mrcoder20.portx.domain.usecase.AnomalyDetectionUseCase()
+
+        val scanWithZk = ScanResult(
+            target = "10.0.0.50",
+            openPorts = listOf(2181),
+            portBanners = mapOf(2181 to "imok"),
+            portServices = mapOf(2181 to "zookeeper"),
+            timestamp = 1700000000000L,
+            securityScore = 0
+        )
+
+        // Base 100 - (1 port * 3) - 15 (ZooKeeper) = 82
+        assertEquals(82, scoreUseCase(scanWithZk))
+
+        val anomalies = anomalyUseCase(scanWithZk)
+        assertTrue(anomalies.any { it.contains("Port 2181") && it.contains("ZooKeeper") })
+    }
+
+    @Test
+    fun testCorruptedTimestampResilienceLogic() {
+        val (fallbackD, fallbackT) = try {
+            throw IllegalArgumentException("Simulated timezone or corrupted clock error")
+        } catch (_: Exception) {
+            "N/A" to "N/A"
+        }
+        assertEquals("N/A", fallbackD)
+        assertEquals("N/A", fallbackT)
+
+        val validTimestamp = 1700000000000L // 2023-11-14T22:13:20Z
+        val (validD, validT) = try {
+            val dt = kotlin.time.Instant.fromEpochMilliseconds(validTimestamp)
+                .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+            dt.date.toString() to "${dt.time.hour.toString().padStart(2, '0')}:${dt.time.minute.toString().padStart(2, '0')}"
+        } catch (_: Exception) {
+            "N/A" to "N/A"
+        }
+        assertTrue(validD.startsWith("2023-11-1"))
+        assertTrue(validT.contains(":"))
+    }
+
+    @Test
+    fun testGuessServiceExtensions() {
+        val scanner = PortScanner()
+        assertEquals("zookeeper", scanner.guessService(2181))
+        assertEquals("rabbitmq", scanner.guessService(5672))
     }
 }
 

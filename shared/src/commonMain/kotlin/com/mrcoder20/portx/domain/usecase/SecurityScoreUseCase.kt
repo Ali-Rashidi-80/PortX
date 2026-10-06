@@ -24,6 +24,7 @@ class SecurityScoreUseCase {
             1883 to 10,// MQTT unencrypted IoT broker
             1900 to 10,// SSDP / UPnP amplification
             2049 to 15,// NFS unauthenticated share exposure
+            2181 to 15,// ZooKeeper unauthenticated cluster metadata exposure
             2375 to 20,// Docker daemon unauthenticated API
             2379 to 20,// etcd unauthenticated cluster datastore
             3389 to 15,// RDP exposed
