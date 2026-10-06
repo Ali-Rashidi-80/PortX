@@ -1270,6 +1270,97 @@ class NetworkToolsHardeningTest {
         assertTrue(com.mrcoder20.portx.domain.isValidTarget("sub.domain.co.uk."))
         assertTrue(com.mrcoder20.portx.domain.isValidTarget("google.com"))
     }
+
+    @Test
+    fun testUdpBinaryResponseParsers() {
+        val scanner = PortScanner()
+
+        // 1. DNS (RFC 1035) NoError with 2 Answers
+        val dnsNoError = ByteArray(12).apply {
+            this[2] = 0x81.toByte() // QR=1, RD=1
+            this[3] = 0x80.toByte() // RA=1, RCODE=0 (NoError)
+            this[4] = 0x00; this[5] = 0x01 // QDCOUNT = 1
+            this[6] = 0x00; this[7] = 0x02 // ANCOUNT = 2
+        }
+        val dnsBanner = scanner.parseUdpResponseBanner(53, dnsNoError)
+        assertTrue(dnsBanner.contains("DNS Response"), "Should be DNS Response: $dnsBanner")
+        assertTrue(dnsBanner.contains("NoError"), "Should identify NoError RCODE: $dnsBanner")
+        assertTrue(dnsBanner.contains("Answers: 2"), "Should parse answer count: $dnsBanner")
+
+        // DNS NXDomain
+        val dnsNxDomain = ByteArray(12).apply {
+            this[2] = 0x81.toByte()
+            this[3] = 0x83.toByte() // RCODE=3 (NXDomain)
+        }
+        assertTrue(scanner.parseUdpResponseBanner(53, dnsNxDomain).contains("NXDomain"))
+
+        // 2. NTP (RFC 5905) v4 Server Stratum 1
+        val ntpPacket = ByteArray(48).apply {
+            this[0] = 0x24 // VN=4, Mode=4 (Server)
+            this[1] = 0x01 // Stratum 1 (Primary reference)
+        }
+        val ntpBanner = scanner.parseUdpResponseBanner(123, ntpPacket)
+        assertEquals("NTP v4 Server (Stratum 1)", ntpBanner)
+
+        // 3. SNMP (RFC 1157) v1/v2c Response
+        val snmpPacket = byteArrayOf(0x30, 0x24, 0x02, 0x01, 0x00, 0x04, 0x06, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0xa2.toByte(), 0x17)
+        val snmpBanner = scanner.parseUdpResponseBanner(161, snmpPacket)
+        assertEquals("SNMP Response Agent (v1/v2c)", snmpBanner)
+
+        // 4. CoAP (RFC 7252) ACK
+        val coapPacket = byteArrayOf(0x60.toByte(), 0x45.toByte(), 0x00, 0x01) // ACK, Code 2.05 Content
+        val coapBanner = scanner.parseUdpResponseBanner(5683, coapPacket)
+        assertTrue(coapBanner.contains("CoAP ACK"), "Should parse CoAP ACK: $coapBanner")
+
+        // 5. SSDP UPnP Text response
+        val ssdpPacket = "HTTP/1.1 200 OK\r\nServer: Linux/4.14 UPnP/1.0 MiniUPnPd/2.1\r\nST: upnp:rootdevice\r\n\r\n".encodeToByteArray()
+        val ssdpBanner = scanner.parseUdpResponseBanner(1900, ssdpPacket)
+        assertTrue(ssdpBanner.contains("SSDP Server: Linux/4.14 UPnP/1.0 MiniUPnPd/2.1"), "Should extract SSDP server header: $ssdpBanner")
+    }
+
+    @Test
+    fun testGlobalPingOutputParsers() {
+        // Japanese / Traditional Chinese Windows ping output
+        val jaOutput = "8.8.8.8 からの応答: バイト数 =32 時間 =14ms TTL=117"
+        assertEquals(14L, com.mrcoder20.portx.domain.parseTimeFromPingOutput(jaOutput))
+
+        // Polish Linux / Windows ping output
+        val plOutput = "Odpowiedź z 8.8.8.8: bajty=32 czas=23ms TTL=54"
+        assertEquals(23L, com.mrcoder20.portx.domain.parseTimeFromPingOutput(plOutput))
+
+        // Turkish ping output
+        val trOutput = "8.8.8.8 cevabı: bayt=32 zaman=9ms TTL=56"
+        assertEquals(9L, com.mrcoder20.portx.domain.parseTimeFromPingOutput(trOutput))
+    }
+
+    @Test
+    fun testExtractTitleRtlEntities() {
+        val scanner = PortScanner()
+        val html = "<html><head><title>سایت&zwnj;اصلی &laquo;پورت&zwnj;ایکس&raquo; &rlm;</title></head></html>"
+        val title = scanner.extractTitle(html)
+        assertTrue(title.contains("سایت\u200Cاصلی"), "Should decode &zwnj; to zero-width non-joiner: $title")
+        assertTrue(title.contains("«پورت\u200Cایکس»"), "Should decode &laquo; and &raquo;: $title")
+    }
+
+    @Test
+    fun testIotMqttBrokerFingerprints() {
+        val fpUseCase = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()
+
+        // Mosquitto MQTT broker
+        val mosqResult = fpUseCase(listOf(1883), mapOf(1883 to "Eclipse Mosquitto version 2.0.15"))
+        assertEquals("IoT Message Broker", mosqResult.deviceName)
+        assertEquals("Eclipse Mosquitto MQTT Broker", mosqResult.osFingerprint)
+
+        // EMQX Distributed Broker
+        val emqxResult = fpUseCase(listOf(1883), mapOf(1883 to "EMQX/5.0.26"))
+        assertEquals("IoT Message Broker", emqxResult.deviceName)
+        assertEquals("EMQX Distributed Broker", emqxResult.osFingerprint)
+
+        // Generic MQTT Broker
+        val genericResult = fpUseCase(listOf(1883), mapOf(1883 to "MQTT 3.1.1 (ReturnCode: 0)"))
+        assertEquals("IoT Message Broker", genericResult.deviceName)
+        assertEquals("MQTT Broker", genericResult.osFingerprint)
+    }
 }
 
 

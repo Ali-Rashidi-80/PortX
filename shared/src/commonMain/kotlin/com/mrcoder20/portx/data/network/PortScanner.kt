@@ -383,6 +383,80 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         }
     }
 
+    internal fun parseUdpResponseBanner(port: Int, bytes: ByteArray): String {
+        return try {
+            when {
+                port == 53 && bytes.size >= 12 -> {
+                    val flags = ((bytes[2].toInt() and 0xFF) shl 8) or (bytes[3].toInt() and 0xFF)
+                    val isResponse = (flags and 0x8000) != 0
+                    val rcode = flags and 0x000F
+                    val rcodeName = when (rcode) {
+                        0 -> "NoError"
+                        1 -> "FormatError"
+                        2 -> "ServerFailure"
+                        3 -> "NXDomain"
+                        4 -> "NotImplemented"
+                        5 -> "Refused"
+                        else -> "RCODE $rcode"
+                    }
+                    val anCount = ((bytes[6].toInt() and 0xFF) shl 8) or (bytes[7].toInt() and 0xFF)
+                    if (isResponse) "DNS Response ($rcodeName, Answers: $anCount)" else "DNS Query/Server"
+                }
+                port == 123 && bytes.size >= 48 -> {
+                    val vn = (bytes[0].toInt() and 0x38) ushr 3
+                    val mode = bytes[0].toInt() and 0x07
+                    val stratum = bytes[1].toInt() and 0xFF
+                    val modeName = when (mode) {
+                        3 -> "Client"
+                        4 -> "Server"
+                        5 -> "Broadcast"
+                        else -> "Mode $mode"
+                    }
+                    "NTP v$vn $modeName (Stratum $stratum)"
+                }
+                port == 161 && bytes.isNotEmpty() && bytes[0] == 0x30.toByte() -> {
+                    val hasGetResponse = bytes.any { it == 0xA2.toByte() }
+                    if (hasGetResponse) "SNMP Response Agent (v1/v2c)" else "SNMP Agent"
+                }
+                port == 5683 && bytes.size >= 4 -> {
+                    val type = (bytes[0].toInt() and 0x30) ushr 4
+                    val typeName = when (type) {
+                        0 -> "CON"
+                        1 -> "NON"
+                        2 -> "ACK"
+                        3 -> "RST"
+                        else -> "Type $type"
+                    }
+                    val code = bytes[1].toInt() and 0xFF
+                    val codeClass = code ushr 5
+                    val codeDetail = code and 0x1F
+                    "CoAP $typeName ($codeClass.$codeDetail)"
+                }
+                port == 1900 -> {
+                    val text = try { bytes.decodeToString() } catch (_: Exception) { "" }
+                    val server = text.lines().find { it.startsWith("Server:", ignoreCase = true) }?.removePrefix("Server:")?.trim()
+                    val st = text.lines().find { it.startsWith("ST:", ignoreCase = true) }?.removePrefix("ST:")?.trim()
+                    when {
+                        !server.isNullOrBlank() -> "SSDP Server: $server"
+                        !st.isNullOrBlank() -> "SSDP ST: $st"
+                        text.startsWith("HTTP/") -> text.lines().firstOrNull() ?: "SSDP Service"
+                        else -> "SSDP Service"
+                    }
+                }
+                else -> {
+                    val text = try {
+                        bytes.decodeToString()
+                    } catch (_: Exception) {
+                        bytes.filter { it in 32..126 }.toByteArray().decodeToString()
+                    }
+                    text.filter { (it.code >= 32 && it.code !in 127..159) || it == '\n' || it == '\r' || it == '\t' }.trim().take(150)
+                }
+            }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
     private suspend fun scanUdpPort(selector: SelectorManager, target: String, port: Int): ScanPortResult {
         return try {
             val address = InetSocketAddress(target.removePrefix("[").removeSuffix("]"), port)
@@ -392,14 +466,14 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 val payload = getUdpProbePayload(port)
                 val packet = buildPacket { writeFully(payload) }
                 socket.send(Datagram(packet, address))
-                val response = withTimeoutOrNull(300) {
+                val udpTimeout = maxOf(600L, timing.getAdaptiveTimeout(800))
+                val response = withTimeoutOrNull(udpTimeout) {
                     socket.receive()
                 }
                 if (response != null) {
-                    banner = try {
-                        val text = response.packet.readText()
-                        text.filter { (it.code >= 32 && it.code !in 127..159) || it == '\n' || it == '\r' || it == '\t' }.trim().take(150)
-                    } catch (_: Exception) { "" }
+                    @Suppress("DEPRECATION")
+                    val bytes = response.packet.readBytes()
+                    banner = parseUdpResponseBanner(port, bytes)
                     "open"
                 } else "open|filtered"
             } finally {
@@ -431,8 +505,10 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 service = if (port in setOf(443, 8443)) "https" else "http"
                 val title = extractTitle(grabbed)
                 val server = grabbed.lines().find { it.startsWith("Server:", true) }?.removePrefix("Server:")?.trim() ?: ""
-                httpInfo = HttpInfo(title = title, server = server)
-                if (server.isNotEmpty()) version = server
+                val statusMatch = Regex("""HTTP/\d+(?:\.\d+)?\s+(\d{3})""", RegexOption.IGNORE_CASE).find(grabbed)
+                val status = statusMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                httpInfo = HttpInfo(title = title, server = server, status = status)
+                version = if (server.isNotEmpty()) server else if (status > 0) "HTTP $status" else ""
             }
             lowBanner.contains("ftp") -> {
                 service = "ftp"
@@ -470,8 +546,23 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             port == 9100 || lowBanner.contains("jetdirect") || lowBanner.contains("pjl") -> {
                 service = "jetdirect"
             }
-            port == 5432 || lowBanner.contains("postgresql") -> {
+            port == 5432 || lowBanner.contains("postgresql") || lowBanner.contains("password authentication failed") -> {
                 service = "postgres"
+                version = when {
+                    grabbed == "S" || grabbed.startsWith("S") -> "PostgreSQL (SSL Enabled)"
+                    grabbed == "N" || grabbed.startsWith("N") -> "PostgreSQL (Plain)"
+                    lowBanner.contains("password authentication failed") || lowBanner.contains("fatal") -> "PostgreSQL Server"
+                    else -> ""
+                }
+            }
+            port in setOf(1883, 8883) || lowBanner.contains("mqtt") -> {
+                service = if (port == 8883) "mqtts" else "mqtt"
+                version = when {
+                    lowBanner.contains("returncode: 0") || lowBanner.contains("accepted") -> "MQTT 3.1.1 (Connected)"
+                    lowBanner.contains("returncode: 5") || lowBanner.contains("auth") -> "MQTT 3.1.1 (Auth Required)"
+                    lowBanner.contains("returncode:") -> "MQTT 3.1.1 Broker"
+                    else -> ""
+                }
             }
             port == 1433 || lowBanner.contains("microsoft sql") -> {
                 service = "mssql"
@@ -485,8 +576,11 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             port == 3389 || lowBanner.contains("rdp") -> {
                 service = "rdp"
             }
-            port == 502 -> {
+            port == 502 || lowBanner.contains("modbus") -> {
                 service = "modbus"
+                if (grabbed.isNotBlank() && grabbed != "modbus") {
+                    version = grabbed.lines().firstOrNull()?.take(50) ?: "Modbus/TCP"
+                }
             }
             port == 102 -> {
                 service = "s7comm"
@@ -539,6 +633,12 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 sendChannel.writeFully(byteArrayOf(0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x01, 0x2b, 0x0e, 0x01, 0x00))
             } else if (port == 9100) {
                 sendChannel.writeStringUtf8("@PJL INFO ID\r\n")
+            } else if (port == 1883) {
+                // MQTT 3.1.1 CONNECT packet
+                sendChannel.writeFully(byteArrayOf(0x10, 0x0c, 0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x02, 0x00, 0x3c, 0x00, 0x00))
+            } else if (port == 5432) {
+                // PostgreSQL SSLRequest packet (8 bytes: Length=8, Code=80877103)
+                sendChannel.writeFully(byteArrayOf(0x00, 0x00, 0x00, 0x08, 0x04, 0xd2.toByte(), 0x16, 0x2f))
             }
 
             val buffer = ByteArray(2048)
@@ -554,6 +654,23 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                             if (nextRead > 0) totalRead += nextRead
                         }
                     }
+                }
+                if (port == 1883 && totalRead >= 4 && buffer[0] == 0x20.toByte() && buffer[1] == 0x02.toByte()) {
+                    val returnCode = buffer[3].toInt() and 0xFF
+                    val rcDesc = when (returnCode) {
+                        0 -> "Accepted"
+                        1 -> "Unacceptable Protocol Version"
+                        2 -> "Identifier Rejected"
+                        3 -> "Server Unavailable"
+                        4 -> "Bad User/Password"
+                        5 -> "Not Authorized"
+                        else -> "Code $returnCode"
+                    }
+                    return@withTimeoutOrNull "MQTT 3.1.1 CONNACK (ReturnCode: $returnCode - $rcDesc)"
+                }
+                if (port == 5432 && totalRead == 1) {
+                    val char = buffer[0].toInt().toChar()
+                    if (char == 'S' || char == 'N') return@withTimeoutOrNull char.toString()
                 }
                 val raw = buffer.decodeToString(0, totalRead)
                 val sanitized = raw.filter { (it.code >= 32 && it.code !in 127..159) || it == '\n' || it == '\r' || it == '\t' }.trim()
@@ -596,6 +713,11 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             .replace("&mdash;", "—")
             .replace("&ndash;", "–")
             .replace("&bull;", "•")
+            .replace("&zwnj;", "\u200C")
+            .replace("&rlm;", "\u200F")
+            .replace("&lrm;", "\u200E")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
             .replace("|", "/")
             .replace(Regex("""\s+"""), " ")
             .trim()

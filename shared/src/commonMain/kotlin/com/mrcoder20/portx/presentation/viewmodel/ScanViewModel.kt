@@ -257,6 +257,7 @@ class ScanViewModel(
     fun stopScan() {
         scanLauncherJob?.cancel()
         scannerController.stopScan()
+        addLog("Scan stopped by user.")
         _uiState.update { it.copy(isLoading = false) }
     }
 

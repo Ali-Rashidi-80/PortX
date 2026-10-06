@@ -101,6 +101,9 @@ class DeviceFingerprintUseCase {
         if (ports.contains(5683) || ports.contains(5684) || ports.contains(1883) || ports.contains(8883) || ports.contains(1884)) {
             val (name, os) = when {
                 ports.contains(5683) || ports.contains(5684) -> "IoT Constrained Node" to "CoAP Sensor Node (RFC 7252)"
+                allBannersLower.contains("mosquitto") -> "IoT Message Broker" to "Eclipse Mosquitto MQTT Broker"
+                allBannersLower.contains("emqx") -> "IoT Message Broker" to "EMQX Distributed Broker"
+                allBannersLower.contains("hivemq") -> "IoT Message Broker" to "HiveMQ Enterprise Broker"
                 else -> "IoT Message Broker" to "MQTT Broker"
             }
             return FingerprintResult(name, os)
