@@ -16,7 +16,13 @@
 
 ### 📦 Desktop Packaging & CI/CD
 - **Native Desktop Shortcuts:** Configured Compose desktop packaging to automatically generate desktop icons and start-menu shortcuts on Windows (`.msi`), Linux (`.deb`), and macOS (`.dmg`).
-- **Comprehensive Unit Test Suites:** Added dedicated test suites for `DatabaseAdaptersTest.kt` (custom SQLite column adapters), `ScanManagerTest.kt` (flow state and UI event dispatcher), `SecurityHardenTest.kt` (encryption involution and client factory), `DeviceFingerprintUseCaseTest.kt` (heuristic device and OS classification across SCADA, Printers, Routers, NAS, Cloud, and DBs), `FirewallDetectionUseCaseTest.kt` (perimeter exposure evaluation), `ScanPortUseCaseTest.kt` (orchestration and automatic persistence), and `RemoteApiTest.kt` (threat intel and CVE lookup models).
+- **100% Comprehensive Test Suite Matrix (16 Suites, 148 Tests):** Expanded automated test harness across all architectural layers with zero gaps:
+  - *Data & Persistence:* `DatabaseAdaptersTest.kt` (custom SQLite column adapters) and `ScanRepositoryImplJvmTest.kt` (in-memory SQLite repository queries, sorting, and deletions).
+  - *State & Domain:* `ScanManagerTest.kt` (flow state and UI event dispatcher), `SettingsManagerJvmTest.kt` (SQLite persistence for language, theme, and ARGB accent colors), and `SecurityHardenTest.kt` (cryptographic involution and secure client factory).
+  - *Use Cases:* `DeviceFingerprintUseCaseTest.kt` (heuristic device and OS classification across SCADA, Printers, Routers, NAS, Cloud, and DBs), `FirewallDetectionUseCaseTest.kt` (perimeter exposure evaluation), and `ScanPortUseCaseTest.kt` (orchestration and automatic persistence).
+  - *Presentation & ViewModels:* `ReportsViewModelTest.kt` (scan history loading, filtering, and deletion), `ToolsViewModelTest.kt` (target validation and tool switching), and `PresentationAdversarialTest.kt` (adversarial user inputs).
+  - *Network & Benchmarks:* `PortScannerTest.kt`, `RemoteApiTest.kt`, `NetworkToolsHardeningTest.kt` (79 network tool assertions), and `LiveSystemBenchmarkTest.kt` (8 real-time hardware benchmarks).
+  - *Dependency Injection:* `KoinGraphTest.kt` (validating Koin component resolution).
 - **Continuous Integration Workflow:** Created `.github/workflows/ci.yml` for automated multiplatform JVM testing, desktop compilation, and Android APK builds on pull requests and pushes.
 - **Automated Dependency Auditing:** Added `.github/dependabot.yml` for automated weekly security vulnerability scans across Gradle dependencies and GitHub Actions.
 
