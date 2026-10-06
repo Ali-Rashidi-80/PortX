@@ -42,4 +42,26 @@ class PortScannerTest {
         // Rate should eventually decrease significantly from the initial middle ground
         assertTrue(lowRate < 1000)
     }
+
+    @Test
+    fun testRealLoopbackScanThroughput(): Unit = runTest {
+        val scanner = PortScanner()
+        val count = 1000
+        val config = ScanConfig(
+            target = "127.0.0.1",
+            startPort = 50000,
+            endPort = 50000 + count - 1,
+            concurrency = 500,
+            timeoutMs = 150,
+            serviceDetect = false,
+            randomizePorts = false
+        )
+        val start = System.currentTimeMillis()
+        val result = scanner.scan(config)
+        val elapsed = System.currentTimeMillis() - start
+        val throughput = if (elapsed > 0) (result.totalPorts * 1000L) / elapsed else result.totalPorts.toLong()
+        println("BENCHMARK_RESULT: Scanned ${result.totalPorts} ports in ${elapsed}ms -> Measured Rate: $throughput ports/sec")
+        assertTrue(result.totalPorts == count)
+        assertTrue(result.durationMs >= 0)
+    }
 }

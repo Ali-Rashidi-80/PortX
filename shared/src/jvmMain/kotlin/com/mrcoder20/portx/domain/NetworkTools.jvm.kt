@@ -87,7 +87,9 @@ class JvmNetworkTools : NetworkTools {
             val isFailure = output.contains("100% loss", ignoreCase = true) ||
                     output.contains("100% packet loss", ignoreCase = true) ||
                     output.contains("Request timed out", ignoreCase = true) ||
-                    output.contains("Destination host unreachable", ignoreCase = true)
+                    output.contains("Destination host unreachable", ignoreCase = true) ||
+                    output.contains("Network is unreachable", ignoreCase = true) ||
+                    output.contains("Permission denied", ignoreCase = true)
 
             if (proc.exitValue() == 0 && !isFailure) {
                 val parsedTime = parseTimeFromPingOutput(output) ?: elapsed
@@ -193,26 +195,7 @@ class JvmNetworkTools : NetworkTools {
         }
     }
 
-    internal fun extractNextWhoisServer(response: String, currentServer: String): String? {
-        val lines = response.lines()
-        for (line in lines) {
-            val trimmed = line.trim()
-            val lower = trimmed.lowercase()
-            if (lower.startsWith("whois:") || lower.startsWith("refer:") || lower.startsWith("registrar whois server:") || lower.startsWith("referralserver:")) {
-                val candidate = trimmed.substringAfter(":")
-                    .trim()
-                    .removePrefix("whois://")
-                    .removePrefix("rwhois://")
-                    .substringBefore("/")
-                    .substringBefore(":")
-                    .trim()
-                if (candidate.isNotBlank() && !candidate.equals(currentServer, ignoreCase = true) && !candidate.contains("iana.org", ignoreCase = true)) {
-                    return candidate
-                }
-            }
-        }
-        return null
-    }
+
 
     private suspend fun tryQueryRdap(cleanHost: String): String? {
         val client = SecurityHarden.createSecureClient()

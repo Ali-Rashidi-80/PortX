@@ -73,7 +73,7 @@ fun sanitizeHost(input: String): String {
  * Extracts round-trip time in milliseconds from native ping output (Windows, Linux, macOS, Android).
  */
 fun parseTimeFromPingOutput(output: String): Long? {
-    val regex = Regex("""(?:time|zeit|temps|время)[=<]?\s*([\d.]+)\s*(?:ms|мс)""", RegexOption.IGNORE_CASE)
+    val regex = Regex("""(?:time|zeit|temps|время|时间|tiempo|tempo)[=<]?\s*([\d.]+)\s*(?:ms|мс|毫秒)""", RegexOption.IGNORE_CASE)
     val match = regex.find(output) ?: return null
     val raw = match.groupValues[1]
     return raw.toDoubleOrNull()?.toLong()?.coerceAtLeast(1L)
@@ -92,7 +92,9 @@ fun parseTtlFromPingOutput(output: String): Int? {
  * Determines whether a target IP/hostname is a loopback, link-local, or private RFC 1918 / RFC 4193 / RFC 6598 address.
  */
 fun isTargetLocalOrPrivate(target: String): Boolean {
-    val clean = target.trim().lowercase().removePrefix("[").removeSuffix("]")
+    val clean = target.trim().lowercase().removePrefix("[").removeSuffix("]").let {
+        if (it.contains("%")) it.substringBefore("%") else it
+    }
     if (clean == "localhost" || clean == "::1" || clean == "0.0.0.0" || clean == "::" || clean == "255.255.255.255") return true
     
     // RFC 4291: IPv4-mapped IPv6 address (e.g. ::ffff:192.168.1.1)
@@ -164,7 +166,9 @@ fun isValidTarget(target: String): Boolean {
  * Neutralizes HTML error pages, captive portals, or corrupted text from polluting IP state.
  */
 fun isValidIpAddress(ip: String): Boolean {
-    val clean = ip.trim().removePrefix("[").removeSuffix("]")
+    val raw = ip.trim().removePrefix("[").removeSuffix("]")
+    if (raw.isBlank()) return false
+    val clean = if (raw.contains("%")) raw.substringBefore("%") else raw
     if (clean.isBlank()) return false
 
     // Support RFC 4291 Section 2.5.5.2: IPv4-mapped IPv6 (e.g. ::ffff:192.168.1.1)
@@ -216,5 +220,35 @@ fun isValidIpAddress(ip: String): Boolean {
     }
 
     return false
+}
+
+/**
+ * Extracts referral WHOIS server hostname from response (RFC 3912 / IANA referrals).
+ */
+fun extractNextWhoisServer(response: String, currentServer: String): String? {
+    val lines = response.lines()
+    for (line in lines) {
+        val trimmed = line.trim()
+        val lower = trimmed.lowercase()
+        if (lower.startsWith("whois:") ||
+            lower.startsWith("whois server:") ||
+            lower.startsWith("refer:") ||
+            lower.startsWith("registrar whois server:") ||
+            lower.startsWith("registry whois server:") ||
+            lower.startsWith("referralserver:")
+        ) {
+            val candidate = trimmed.substringAfter(":")
+                .trim()
+                .removePrefix("whois://")
+                .removePrefix("rwhois://")
+                .substringBefore("/")
+                .substringBefore(":")
+                .trim()
+            if (candidate.isNotBlank() && !candidate.equals(currentServer, ignoreCase = true) && !candidate.contains("iana.org", ignoreCase = true)) {
+                return candidate
+            }
+        }
+    }
+    return null
 }
 

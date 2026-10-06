@@ -981,4 +981,38 @@ class NetworkToolsHardeningTest {
         assertEquals("Фильтр по цели или устройству...", LocalizedStrings.get("search_reports", "ru"))
         assertEquals("按目标或设备过滤...", LocalizedStrings.get("search_reports", "zh"))
     }
+
+    @Test
+    fun testPingOutputParserInternationalization() {
+        val cnOutput = "来自 8.8.8.8 的回复: 字节=32 时间=28ms TTL=116"
+        assertEquals(28L, parseTimeFromPingOutput(cnOutput))
+
+        val cnSubMs = "来自 127.0.0.1 的回复: 字节=32 时间<1ms TTL=128"
+        assertEquals(1L, parseTimeFromPingOutput(cnSubMs))
+
+        val esOutput = "Respuesta desde 8.8.8.8: bytes=32 tiempo=15ms TTL=57"
+        assertEquals(15L, parseTimeFromPingOutput(esOutput))
+
+        val ptOutput = "Resposta de 8.8.8.8: bytes=32 tempo=20ms TTL=57"
+        assertEquals(20L, parseTimeFromPingOutput(ptOutput))
+    }
+
+    @Test
+    fun testIpv6ScopeIdHandling() {
+        assertTrue(isValidIpAddress("fe80::1%eth0"), "Link-local IPv6 with interface scope ID must be valid")
+        assertTrue(isValidIpAddress("fe80::1%12"), "Link-local IPv6 with numeric scope ID must be valid")
+        assertTrue(isTargetLocalOrPrivate("fe80::1%wlan0"), "Link-local IPv6 with scope ID must be recognized as local/private")
+        assertTrue(isValidTarget("fe80::1%eth0"), "Scoped IPv6 must be recognized as a valid scan target")
+    }
+
+    @Test
+    fun testExtractNextWhoisServerCcTld() {
+        val ccTldResponse = "Domain: example.io\nwhois server: whois.nic.io\nStatus: active"
+        val nextServer = extractNextWhoisServer(ccTldResponse, "whois.iana.org")
+        assertEquals("whois.nic.io", nextServer)
+
+        val ukResponse = "Domain name:\nexample.uk\nregistry whois server: whois.registry.uk\n"
+        val ukServer = extractNextWhoisServer(ukResponse, "whois.iana.org")
+        assertEquals("whois.registry.uk", ukServer)
+    }
 }

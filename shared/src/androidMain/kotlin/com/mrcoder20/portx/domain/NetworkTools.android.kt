@@ -161,26 +161,48 @@ class AndroidNetworkTools : NetworkTools {
             try { client.close() } catch (_: Exception) {}
         }
 
-        // 2. Secondary fallback: Native Port 43 Socket query
+        // 2. Secondary fallback: Native Port 43 Socket query with iterative referral follow
         try {
-            val server = if (isValidIpAddress(cleanHost)) "whois.arin.net" else "whois.iana.org"
-            val socket = java.net.Socket()
-            try {
-                socket.connect(java.net.InetSocketAddress(server, 43), 6000)
-                socket.soTimeout = 6000
-                socket.getOutputStream().write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
-                socket.getOutputStream().flush()
-                val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
-                val sb = StringBuilder()
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    sb.append(line).append("\n")
+            val visited = mutableSetOf<String>()
+            var currentServer = if (isValidIpAddress(cleanHost)) "whois.arin.net" else "whois.iana.org"
+            var bestContent: String? = null
+
+            repeat(3) {
+                if (visited.contains(currentServer)) return@withContext bestContent ?: "WHOIS data not available."
+                visited.add(currentServer)
+
+                val socket = java.net.Socket()
+                val content = try {
+                    socket.connect(java.net.InetSocketAddress(currentServer, 43), 6000)
+                    socket.soTimeout = 6000
+                    socket.getOutputStream().write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
+                    socket.getOutputStream().flush()
+                    val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
+                    val sb = StringBuilder()
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        sb.append(line).append("\n")
+                    }
+                    val res = sb.toString()
+                    if (res.isNotBlank()) res else null
+                } catch (_: Exception) {
+                    null
+                } finally {
+                    try { socket.close() } catch (_: Exception) {}
                 }
-                val content = sb.toString()
-                if (content.isNotBlank()) return@withContext content
-            } finally {
-                try { socket.close() } catch (_: Exception) {}
+
+                if (content != null) {
+                    bestContent = content
+                    val nextServer = extractNextWhoisServer(content, currentServer)
+                    if (nextServer.isNullOrBlank() || visited.contains(nextServer)) {
+                        return@withContext bestContent
+                    }
+                    currentServer = nextServer
+                } else {
+                    if (bestContent != null) return@withContext bestContent
+                }
             }
+            if (bestContent != null) return@withContext bestContent
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {}
