@@ -115,8 +115,8 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                                 placeholder = {
                                     Text(
                                         when (state.activeTool) {
-                                            "DNS" -> "Domain (e.g. google.com)"
-                                            "WHOIS" -> "Domain (e.g. wikipedia.org)"
+                                            "DNS" -> LocalizedStrings.get("placeholder_dns", lang)
+                                            "WHOIS" -> LocalizedStrings.get("placeholder_whois", lang)
                                             else -> LocalizedStrings.get("target", lang)
                                         },
                                         color = if (isDark) TextMuted else TextMutedLight,
@@ -1145,7 +1145,7 @@ fun LocalInfoPanel(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                "Gateway: $subnetHint",
+                                "${LocalizedStrings.get("gateway_label", lang)}: $subnetHint",
                                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                                 color = if (isDark) TextMuted else TextMutedLight
                             )
@@ -1159,7 +1159,7 @@ fun LocalInfoPanel(
                         ) {
                             Icon(Icons.Default.NetworkPing, null, tint = Color.Black, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Ping Gateway", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            Text(LocalizedStrings.get("ping_gateway", lang), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         }
                     }
                 }

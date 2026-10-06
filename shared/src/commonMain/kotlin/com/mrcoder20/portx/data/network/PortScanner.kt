@@ -125,7 +125,11 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
         }
         
         val action = getAction(nextState)
-        val reward = (successRate / 10.0) - (latencyMs / 150.0) + (if (action == "turbo" && successRate > 90.0) 30.0 else 0.0)
+        val isDegraded = nextState == "congested" || nextState == "high_latency"
+        val reward = (successRate / 10.0) - (latencyMs / 150.0) +
+            (if (action == "turbo" && successRate > 90.0) 30.0 else 0.0) +
+            (if (isDegraded && action == "safety") 20.0 else 0.0) -
+            (if (isDegraded && (action == "increase" || action == "turbo")) 30.0 else 0.0)
         
         update(state, action, reward, nextState)
         

@@ -605,7 +605,25 @@ fun ReportDetailDialog(
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     val isRtl = lang == "fa" || lang == "ar"
-    val scrollState = rememberScrollState()
+    val listState = rememberLazyListState()
+    var portFilterQuery by remember { mutableStateOf("") }
+    var visiblePortLimit by remember { mutableStateOf(100) }
+
+    val sortedPorts = remember(scan.openPorts) { scan.openPorts.distinct().sorted() }
+    val filteredPorts = remember(sortedPorts, portFilterQuery) {
+        if (portFilterQuery.isBlank()) sortedPorts
+        else {
+            val q = portFilterQuery.trim().lowercase()
+            sortedPorts.filter { port ->
+                port.toString().contains(q) ||
+                (scan.portServices[port]?.lowercase()?.contains(q) == true) ||
+                (scan.portBanners[port]?.lowercase()?.contains(q) == true)
+            }
+        }
+    }
+    val displayedPorts = remember(filteredPorts, visiblePortLimit) {
+        filteredPorts.take(visiblePortLimit)
+    }
 
     val grade = when {
         scan.securityScore >= 90 -> "A+" to TertiaryNeon
@@ -674,95 +692,155 @@ fun ReportDetailDialog(
                     modifier = Modifier.padding(vertical = 12.dp)
                 )
 
-                // Scrollable Content
+                // Virtualized Scrollable Content
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    Column(
+                    LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(end = if (!isRtl) 10.dp else 0.dp, start = if (isRtl) 10.dp else 0.dp)
-                            .verticalScroll(scrollState),
+                            .padding(end = if (!isRtl) 10.dp else 0.dp, start = if (isRtl) 10.dp else 0.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // KPI Metric Tiles
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            MetricTile(
-                                title = LocalizedStrings.get("security_score", lang),
-                                value = "${scan.securityScore}%",
-                                accent = grade.second,
-                                modifier = Modifier.weight(1f)
-                            )
-                            MetricTile(
-                                title = LocalizedStrings.get("threat_score", lang),
-                                value = "${100 - scan.securityScore}%",
-                                accent = DangerNeon,
-                                modifier = Modifier.weight(1f)
-                            )
-                            MetricTile(
-                                title = LocalizedStrings.get("open_ports_count", lang),
-                                value = "${scan.openPorts.size}",
-                                accent = accent,
-                                modifier = Modifier.weight(1f)
-                            )
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                MetricTile(
+                                    title = LocalizedStrings.get("security_score", lang),
+                                    value = "${scan.securityScore}%",
+                                    accent = grade.second,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                MetricTile(
+                                    title = LocalizedStrings.get("threat_score", lang),
+                                    value = "${100 - scan.securityScore}%",
+                                    accent = DangerNeon,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                MetricTile(
+                                    title = LocalizedStrings.get("open_ports_count", lang),
+                                    value = "${scan.openPorts.size}",
+                                    accent = accent,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
 
                         // System Environment Info
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f),
-                            border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    LocalizedStrings.get("executive_summary", lang),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = accent
-                                )
-                                scan.deviceName?.let {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(LocalizedStrings.get("device_profile", lang), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
-                                        Text(it, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = if (isDark) Color.White else Color.Black)
+                        item {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f),
+                                border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        LocalizedStrings.get("executive_summary", lang),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = accent
+                                    )
+                                    scan.deviceName?.let {
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(LocalizedStrings.get("device_profile", lang), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                            Text(it, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = if (isDark) Color.White else Color.Black)
+                                        }
                                     }
-                                }
-                                scan.osFingerprint?.let {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("OS Fingerprint", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
-                                        Text(it, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = SecondaryNeon)
+                                    scan.osFingerprint?.let {
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("OS Fingerprint", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                            Text(it, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = SecondaryNeon)
+                                        }
                                     }
-                                }
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Scan Protocol", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
-                                    Text("${scan.scanType ?: "TCP"} • ${scan.concurrentScans} conns", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = TertiaryNeon)
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Scan Protocol", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                        Text("${scan.scanType ?: "TCP"} • ${scan.concurrentScans} conns", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = TertiaryNeon)
+                                    }
                                 }
                             }
                         }
 
-                        // Open Ports List
-                        Text(
-                            LocalizedStrings.get("discovered_ports", lang),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (isDark) Color.White else Color.Black
-                        )
+                        // Open Ports List Header + Search Filter
+                        item {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        LocalizedStrings.get("discovered_ports", lang),
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isDark) Color.White else Color.Black
+                                    )
+                                    if (sortedPorts.isNotEmpty()) {
+                                        Text(
+                                            "${sortedPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                            color = accent,
+                                            modifier = Modifier
+                                                .background(accent.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                if (sortedPorts.size > 15) {
+                                    OutlinedTextField(
+                                        value = portFilterQuery,
+                                        onValueChange = { portFilterQuery = it },
+                                        placeholder = {
+                                            Text(
+                                                LocalizedStrings.get("search_ports_in_report", lang),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (isDark) TextMuted else TextMutedLight
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Search, null, tint = accent, modifier = Modifier.size(16.dp))
+                                        },
+                                        trailingIcon = {
+                                            if (portFilterQuery.isNotEmpty()) {
+                                                IconButton(onClick = { portFilterQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                                    Icon(Icons.Default.Close, null, tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(14.dp))
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            unfocusedBorderColor = if (isDark) GlassBorder else GlassBorderLight,
+                                            focusedBorderColor = accent,
+                                            unfocusedTextColor = if (isDark) Color.White else Color.Black,
+                                            focusedTextColor = if (isDark) Color.White else Color.Black
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        singleLine = true,
+                                        textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+                                    )
+                                }
+                            }
+                        }
 
-                        if (scan.openPorts.isEmpty()) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                                color = TertiaryNeon.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, TertiaryNeon.copy(alpha = 0.3f))
-                            ) {
-                                Text(
-                                    "No open ports detected. Perimeter is fully sealed.",
-                                    color = TertiaryNeon,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(12.dp)
-                                )
+                        if (filteredPorts.isEmpty()) {
+                            item {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = (if (scan.openPorts.isEmpty()) TertiaryNeon else DangerNeon).copy(alpha = 0.08f),
+                                    border = BorderStroke(1.dp, (if (scan.openPorts.isEmpty()) TertiaryNeon else DangerNeon).copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        if (scan.openPorts.isEmpty()) LocalizedStrings.get("no_open_ports", lang)
+                                        else LocalizedStrings.get("no_ports_found", lang),
+                                        color = if (scan.openPorts.isEmpty()) TertiaryNeon else DangerNeon,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(12.dp)
+                                    )
+                                }
                             }
                         } else {
-                            scan.openPorts.sorted().forEach { port ->
+                            items(displayedPorts, key = { it }) { port ->
                                 val banner = scan.portBanners[port]
                                 val service = scan.portServices[port] ?: "Service"
                                 val isHighRisk = port in listOf(21, 23, 445, 3389)
@@ -806,11 +884,59 @@ fun ReportDetailDialog(
                                     }
                                 }
                             }
+
+                            if (filteredPorts.size > displayedPorts.size) {
+                                item {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
+                                        border = BorderStroke(1.dp, accent.copy(alpha = 0.3f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            val showingText = LocalizedStrings.get("showing_ports_count", lang)
+                                                .replace("{shown}", "${displayedPorts.size}")
+                                                .replace("{total}", "${filteredPorts.size}")
+                                            Text(
+                                                showingText,
+                                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                                color = if (isDark) TextMuted else TextMutedLight
+                                            )
+
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                TextButton(
+                                                    onClick = { visiblePortLimit += 250 },
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = accent)
+                                                ) {
+                                                    Text("+250", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                                }
+                                                Button(
+                                                    onClick = { visiblePortLimit = filteredPorts.size },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = accent),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                                ) {
+                                                    Text(
+                                                        LocalizedStrings.get("filter_all", lang),
+                                                        color = Color.Black,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    PortXScrollStateVerticalScrollbar(
-                        scrollState = scrollState,
+                    PortXVerticalScrollbar(
+                        listState = listState,
                         modifier = Modifier
                             .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
                             .fillMaxHeight()

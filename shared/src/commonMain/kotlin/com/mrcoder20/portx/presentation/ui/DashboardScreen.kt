@@ -249,8 +249,8 @@ fun DashboardScreen(viewModel: ScanViewModel) {
         val width = maxWidth
         
         when {
-            width > 1200.dp -> LargeDesktopDashboard(state, viewModel, accent, lang)
-            width > 800.dp -> DesktopDashboard(state, viewModel, accent, lang)
+            width >= 1020.dp -> LargeDesktopDashboard(state, viewModel, accent, lang)
+            width >= 620.dp -> DesktopDashboard(state, viewModel, accent, lang)
             else -> MobileDashboard(state, viewModel, accent, lang)
         }
     }
@@ -337,6 +337,7 @@ fun LargeDesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: 
 
 @Composable
 fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
+    var leftSubTab by remember { mutableStateOf(0) }
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -360,39 +361,74 @@ fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color
             modifier = Modifier.weight(1f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Left: Visualizer & Logs
+            // Left Column (weight 1f): Visualizer & Tabbed Logs/Config
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 SecurityVisualizerCard(
                     state,
-                    modifier = Modifier.fillMaxWidth().height(250.dp),
+                    modifier = Modifier.fillMaxWidth().height(230.dp),
                     accent = accent,
                     lang = lang
                 )
-                EngineLogsCard(
-                    state,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                
+                CyberSegmentedControl(
+                    items = listOf(
+                        LocalizedStrings.get("logs_tab", lang) to Icons.Default.Terminal,
+                        LocalizedStrings.get("engine_config", lang) to Icons.Default.Tune
+                    ),
+                    selectedIndex = leftSubTab,
+                    onIndexSelected = { leftSubTab = it },
                     accent = accent,
-                    lang = lang,
-                    onClearLogs = { viewModel.clearLogs() }
+                    modifier = Modifier.fillMaxWidth()
                 )
+
+                AnimatedContent(
+                    targetState = leftSubTab,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    transitionSpec = { fadeIn() togetherWith fadeOut() }
+                ) { tab ->
+                    if (tab == 0) {
+                        EngineLogsCard(
+                            state,
+                            modifier = Modifier.fillMaxSize(),
+                            accent = accent,
+                            lang = lang,
+                            onClearLogs = { viewModel.clearLogs() }
+                        )
+                    } else {
+                        val scrollState = rememberScrollState()
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(scrollState)
+                                    .padding(end = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                AdvancedParametersCard(state, viewModel, accent = accent, lang = lang)
+                                EngineConfigurationCard(state, viewModel, accent = accent, lang = lang)
+                            }
+                            PortXScrollStateVerticalScrollbar(
+                                scrollState = scrollState,
+                                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                            )
+                        }
+                    }
+                }
             }
 
-            // Right: Discovered Services & Settings
+            // Right Column (weight 1.25f): Discovered Services & CVE Advisories (Full Height)
             Column(
-                modifier = Modifier.weight(1.1f).fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.weight(1.25f).fillMaxHeight()
             ) {
                 ActiveServicesCard(
                     state,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    modifier = Modifier.fillMaxSize(),
                     accent = accent,
                     lang = lang
                 )
-                AdvancedParametersCard(state, viewModel, accent = accent, lang = lang)
-                EngineConfigurationCard(state, viewModel, accent = accent, lang = lang)
             }
         }
     }
@@ -400,14 +436,16 @@ fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color
 
 @Composable
 fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
     var showSettings by remember { mutableStateOf(false) }
     var selectedMobileTab by remember { mutableStateOf(0) }
+    var isRadarCollapsed by remember { mutableStateOf(false) }
     
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
         
         DashboardIpInput(
             state = state, 
@@ -428,13 +466,79 @@ fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 AdvancedParametersCard(state, viewModel, accent, lang)
                 EngineConfigurationCard(state, viewModel, accent, lang)
             }
         }
 
-        SecurityVisualizerCard(state, modifier = Modifier.height(240.dp), smallSize = true, accent = accent, lang = lang)
+        // Responsive collapsible or compact radar HUD
+        AnimatedVisibility(
+            visible = !isRadarCollapsed,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            SecurityVisualizerCard(
+                state = state,
+                modifier = Modifier.fillMaxWidth().height(175.dp),
+                smallSize = true,
+                accent = accent,
+                lang = lang,
+                onCollapse = { isRadarCollapsed = true }
+            )
+        }
+
+        if (isRadarCollapsed) {
+            Surface(
+                onClick = { isRadarCollapsed = false },
+                shape = RoundedCornerShape(12.dp),
+                color = if (isDark) GlassBackground else GlassLight,
+                border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val score = state.result?.securityScore ?: 0
+                    val statusColor = when {
+                        state.isLoading -> accent
+                        state.result != null -> if (score > 80) TertiaryNeon else if (score > 50) (if (isDark) WarningNeon else WarningLight) else (if (isDark) DangerNeon else DangerLight)
+                        else -> accent
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier.size(28.dp).background(statusColor.copy(alpha = 0.15f), CircleShape).border(1.dp, statusColor, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (state.isLoading) "${state.progress}%" else "$score%",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = statusColor, fontSize = 9.sp)
+                            )
+                        }
+                        Text(
+                            text = if (state.isLoading) LocalizedStrings.get("engine_running", lang) else if (state.result != null) "${LocalizedStrings.get("security_score", lang)}: $score%" else LocalizedStrings.get("ready", lang),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (isDark) Color.White else Color.Black
+                        )
+                        if (!state.firewallStatus.isNullOrBlank()) {
+                            Text(
+                                text = "• ${state.firewallStatus}",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = if (isDark) TextMuted else TextMutedLight,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    Icon(Icons.Default.ExpandMore, contentDescription = "Expand", tint = accent, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
 
         CyberSegmentedControl(
             items = listOf(
@@ -471,7 +575,7 @@ fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color,
                 modifier = Modifier.padding(horizontal = 8.dp).align(Alignment.CenterHorizontally)
             )
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
     }
 }
 
@@ -498,64 +602,96 @@ fun DashboardIpInput(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (showSettingsToggle) {
-                    IconButton(onClick = onSettingsToggle) {
-                        Icon(Icons.Default.Tune, null, tint = accent)
-                    }
-                } else {
-                    Icon(Icons.Default.Language, null, tint = accent, modifier = Modifier.padding(start = 8.dp).size(22.dp))
-                }
-                
-                OutlinedTextField(
-                    value = state.ip,
-                    onValueChange = onIpChange,
-                    placeholder = { Text(LocalizedStrings.get("target", lang), color = if (LocalAppSettings.current.theme == "DARK") TextMuted else TextMutedLight, maxLines = 1) },
-                    modifier = Modifier.weight(1f),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedTextColor = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black,
-                        focusedTextColor = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black,
-                        cursorColor = accent
-                    ),
-                    singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Go,
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
-                    ),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onGo = {
-                            if (state.isLoading) onStopScan() else onStartScan()
+                // Dedicated Cyber Search Input Box
+                Surface(
+                    modifier = Modifier.weight(1f).height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.65f),
+                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (showSettingsToggle) {
+                            IconButton(onClick = onSettingsToggle, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Tune, null, tint = accent, modifier = Modifier.size(18.dp))
+                            }
+                        } else {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.padding(start = 4.dp, end = 4.dp).size(20.dp)
+                            )
                         }
-                    ),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Medium,
-                        textDirection = TextDirection.Ltr
-                    ),
-                    trailingIcon = {
+
+                        OutlinedTextField(
+                            value = state.ip,
+                            onValueChange = onIpChange,
+                            placeholder = {
+                                Text(
+                                    LocalizedStrings.get("target", lang),
+                                    color = if (isDark) TextMuted else TextMutedLight,
+                                    fontSize = 13.sp,
+                                    maxLines = 1
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedTextColor = if (isDark) Color.White else Color.Black,
+                                focusedTextColor = if (isDark) Color.White else Color.Black,
+                                cursorColor = accent
+                            ),
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Go,
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onGo = {
+                                    if (state.isLoading) onStopScan() else onStartScan()
+                                }
+                            ),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = FontFamily.Monospace,
+                                textDirection = TextDirection.Ltr,
+                                fontSize = 14.sp
+                            )
+                        )
+
                         if (state.ip.isNotEmpty()) {
                             val ipTrimmed = state.ip.trim()
                             val isIpv4 = ipTrimmed.split(".").let { parts -> parts.size == 4 && parts.all { p -> p.toIntOrNull() in 0..255 } }
                             val isLocal = ipTrimmed == "127.0.0.1" || ipTrimmed.equals("localhost", ignoreCase = true)
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.35f)),
-                                modifier = Modifier.padding(end = 4.dp)
+                                shape = RoundedCornerShape(6.dp),
+                                color = (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.4f)),
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
                                 Text(
                                     if (isLocal) "LOCAL" else if (isIpv4) "IPv4" else "HOST",
                                     color = if (isLocal) TertiaryNeon else accent,
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
+
+                            IconButton(onClick = { onIpChange("") }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(14.dp))
+                            }
                         }
                     }
-                )
-                
+                }
+
+                Spacer(Modifier.width(8.dp))
+
                 val infiniteTransition = rememberInfiniteTransition()
                 val pulseAlpha by infiniteTransition.animateFloat(
                     initialValue = 0.6f, targetValue = 1f,
@@ -565,8 +701,8 @@ fun DashboardIpInput(
                 Button(
                     onClick = { if (state.isLoading) onStopScan() else onStartScan() },
                     colors = ButtonDefaults.buttonColors(containerColor = if (state.isLoading) DangerNeon.copy(alpha = pulseAlpha) else accent),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.padding(end = 2.dp).height(46.dp).width(90.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(46.dp).width(90.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
                     Icon(if (state.isLoading) Icons.Default.Stop else Icons.Default.FlashOn, null, tint = Color.Black, modifier = Modifier.size(18.dp))
@@ -623,12 +759,40 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Text(LocalizedStrings.get("advanced", lang), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = accent, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(16.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ScanChip(LocalizedStrings.get("banner_grabbing", lang), state.bannerGrabbing, accent) { viewModel.toggleBannerGrabbing(it) }
-                ScanChip(LocalizedStrings.get("full_port_scan", lang), state.allPorts, accent) { viewModel.toggleAllPorts(it) }
-                ScanChip(LocalizedStrings.get("multi_protocol", lang), state.allProtocols, accent) { viewModel.toggleAllProtocols(it) }
-                ScanChip(LocalizedStrings.get("stealth_mode", lang), state.scanType == "SYN", accent) { viewModel.onScanTypeChange(if(it) "SYN" else "TCP") }
+            Spacer(Modifier.height(14.dp))
+
+            // Engine Features in a clean 2x2 symmetrical grid
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ScanChip(
+                        label = LocalizedStrings.get("banner_grabbing", lang),
+                        checked = state.bannerGrabbing,
+                        accent = accent,
+                        modifier = Modifier.weight(1f)
+                    ) { viewModel.toggleBannerGrabbing(it) }
+
+                    ScanChip(
+                        label = LocalizedStrings.get("full_port_scan", lang),
+                        checked = state.allPorts,
+                        accent = accent,
+                        modifier = Modifier.weight(1f)
+                    ) { viewModel.toggleAllPorts(it) }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ScanChip(
+                        label = LocalizedStrings.get("multi_protocol", lang),
+                        checked = state.allProtocols,
+                        accent = accent,
+                        modifier = Modifier.weight(1f)
+                    ) { viewModel.toggleAllProtocols(it) }
+
+                    ScanChip(
+                        label = LocalizedStrings.get("stealth_mode", lang),
+                        checked = state.scanType == "SYN",
+                        accent = accent,
+                        modifier = Modifier.weight(1f)
+                    ) { viewModel.onScanTypeChange(if (it) "SYN" else "TCP") }
+                }
             }
 
             if (!state.allPorts) {
@@ -637,7 +801,11 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
                 Spacer(Modifier.height(10.dp))
                 
                 val currentRange = "${state.startPort}-${state.endPort}"
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     ScanChip(LocalizedStrings.get("top_20", lang), currentRange == "1-100", accent) {
                         viewModel.setPortRange("1", "100")
                     }
@@ -757,9 +925,16 @@ fun EngineConfigurationCard(state: ScanUIState, viewModel: ScanViewModel, accent
 }
 
 @Composable
-fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, smallSize: Boolean = false, accent: Color, lang: String) {
+fun SecurityVisualizerCard(
+    state: ScanUIState, 
+    modifier: Modifier = Modifier, 
+    smallSize: Boolean = false, 
+    accent: Color, 
+    lang: String,
+    onCollapse: (() -> Unit)? = null
+) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    GlassCard(modifier = modifier, contentPadding = PaddingValues(16.dp)) {
+    GlassCard(modifier = modifier, contentPadding = if (smallSize) PaddingValues(10.dp) else PaddingValues(16.dp)) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -769,6 +944,14 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
                 contentAlignment = Alignment.Center, 
                 modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
+                if (onCollapse != null) {
+                    IconButton(
+                        onClick = onCollapse,
+                        modifier = Modifier.align(Alignment.TopEnd).size(26.dp)
+                    ) {
+                        Icon(Icons.Default.ExpandLess, contentDescription = "Collapse", tint = accent, modifier = Modifier.size(18.dp))
+                    }
+                }
                 val displayProgress = if (state.isLoading) state.progress / 100f else {
                     val result = state.result
                     if (result != null) result.securityScore / 100f else 0f
@@ -785,35 +968,49 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
                     }
                     else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.2f)
                 }
-                AdvancedLiquidGauge(progress = displayProgress, isLoading = state.isLoading, color = statusColor, gaugeSize = if (smallSize) 170.dp else 210.dp)
+                AdvancedLiquidGauge(progress = displayProgress, isLoading = state.isLoading, color = statusColor, gaugeSize = if (smallSize) 125.dp else 210.dp)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     if (state.isLoading) {
-                        Text("${state.progress}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
-                        Text(LocalizedStrings.get("engine_running", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
+                        Text(
+                            "${state.progress}%", 
+                            style = (if (smallSize) MaterialTheme.typography.titleLarge else MaterialTheme.typography.displayMedium).copy(
+                                fontWeight = FontWeight.Black, 
+                                color = if (isDark) Color.White else Color.Black, 
+                                shadow = Shadow(color = statusColor, blurRadius = 25f)
+                            )
+                        )
+                        Text(LocalizedStrings.get("engine_running", lang), style = (if (smallSize) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium).copy(color = statusColor, letterSpacing = if (smallSize) 1.sp else 2.sp))
                     } else {
                         val result = state.result
                         if (result != null) {
-                            Text("${result.securityScore}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
-                            Text(LocalizedStrings.get("security_score", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
+                            Text(
+                                "${result.securityScore}%", 
+                                style = (if (smallSize) MaterialTheme.typography.titleLarge else MaterialTheme.typography.displayMedium).copy(
+                                    fontWeight = FontWeight.Black, 
+                                    color = if (isDark) Color.White else Color.Black, 
+                                    shadow = Shadow(color = statusColor, blurRadius = 25f)
+                                )
+                            )
+                            Text(LocalizedStrings.get("security_score", lang), style = (if (smallSize) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium).copy(color = statusColor, letterSpacing = if (smallSize) 1.sp else 2.sp))
                         } else {
-                            Icon(Icons.Default.Radar, null, tint = if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f), modifier = Modifier.size(if (smallSize) 32.dp else 48.dp))
-                            Text(LocalizedStrings.get("ready", lang), style = MaterialTheme.typography.titleMedium.copy(color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 2.sp))
+                            Icon(Icons.Default.Radar, null, tint = if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f), modifier = Modifier.size(if (smallSize) 28.dp else 48.dp))
+                            Text(LocalizedStrings.get("ready", lang), style = (if (smallSize) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium).copy(color = if (isDark) TextMuted else TextMutedLight, letterSpacing = if (smallSize) 1.sp else 2.sp))
                         }
                     }
                 }
             }
 
-            // Bottom Profile / Perimeter Status Container (moved out of gauge to avoid cluttering)
+            // Bottom Profile / Perimeter Status Container (clean, concise, and localized)
             if (!state.firewallStatus.isNullOrBlank()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(if (smallSize) 4.dp else 8.dp))
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
                     border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = if (smallSize) 4.dp else 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -821,12 +1018,19 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
                             Icons.Default.Shield,
                             contentDescription = null,
                             tint = accent,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(if (smallSize) 13.dp else 16.dp)
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(6.dp))
+                        val localizedFirewall = when {
+                            state.firewallStatus.contains("Open Perimeter") -> LocalizedStrings.get("firewall_open", lang)
+                            state.firewallStatus.contains("Hardened Perimeter") -> LocalizedStrings.get("firewall_hardened", lang)
+                            state.firewallStatus.contains("Standard") -> LocalizedStrings.get("firewall_standard", lang)
+                            state.firewallStatus.contains("Firewall") -> LocalizedStrings.get("firewall_filtered", lang)
+                            else -> state.firewallStatus
+                        }
                         Text(
-                            text = state.firewallStatus,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            text = localizedFirewall,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = if (smallSize) 10.sp else 11.sp),
                             color = if (isDark) TextMuted else TextMutedLight,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -847,6 +1051,7 @@ fun EngineLogsCard(
     onClearLogs: (() -> Unit)? = null
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
+    val isRtl = lang == "fa" || lang == "ar"
     val logListState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
     var isLogsCopied by remember { mutableStateOf(false) }
@@ -936,38 +1141,48 @@ fun EngineLogsCard(
                     .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                     .padding(8.dp)
             ) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(end = 12.dp)) {
-                        itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
-                            val logColor = when {
-                                log.contains("completed", ignoreCase = true) || log.contains("found", ignoreCase = true) || log.contains("active", ignoreCase = true) -> TertiaryNeon
-                                log.contains("error", ignoreCase = true) || log.contains("failed", ignoreCase = true) || log.contains("refused", ignoreCase = true) -> DangerNeon
-                                log.contains("warning", ignoreCase = true) || log.contains("timeout", ignoreCase = true) -> WarningNeon
-                                log.contains("probing", ignoreCase = true) || log.contains("scan", ignoreCase = true) -> accent
-                                else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.85f)
-                            }
-                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
-                                Text(
-                                    log,
-                                    color = logColor,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                                    textAlign = TextAlign.Start
-                                )
-                            }
-                        }
-                        if (state.logs.isEmpty()) item {
-                            Text(
-                                LocalizedStrings.get("waiting_engine_activity", lang),
-                                color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.6f),
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                if (state.logs.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(12.dp),
+                        contentAlignment = if (isRtl) Alignment.TopEnd else Alignment.TopStart
+                    ) {
+                        Text(
+                            LocalizedStrings.get("waiting_engine_activity", lang),
+                            color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
                             )
-                        }
+                        )
                     }
-                    PortXVerticalScrollbar(
-                        listState = logListState,
-                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
-                    )
+                } else {
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(end = 12.dp)) {
+                            itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
+                                val logColor = when {
+                                    log.contains("completed", ignoreCase = true) || log.contains("found", ignoreCase = true) || log.contains("active", ignoreCase = true) -> TertiaryNeon
+                                    log.contains("error", ignoreCase = true) || log.contains("failed", ignoreCase = true) || log.contains("refused", ignoreCase = true) -> DangerNeon
+                                    log.contains("warning", ignoreCase = true) || log.contains("timeout", ignoreCase = true) -> WarningNeon
+                                    log.contains("probing", ignoreCase = true) || log.contains("scan", ignoreCase = true) -> accent
+                                    else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.85f)
+                                }
+                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
+                                    Text(
+                                        log,
+                                        color = logColor,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
+                            }
+                        }
+                        PortXVerticalScrollbar(
+                            listState = logListState,
+                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                        )
+                    }
                 }
             }
         }
@@ -989,10 +1204,11 @@ fun FilterChipMini(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = if (isSelected) chipColor.copy(alpha = 0.18f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.04f)),
-        border = BorderStroke(1.dp, if (isSelected) chipColor else (if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f)))
+        border = BorderStroke(1.dp, if (isSelected) chipColor else (if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))),
+        modifier = Modifier.defaultMinSize(minHeight = 28.dp).height(28.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -1169,7 +1385,10 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
 
                     // Quick category chips
                     Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 32.dp)
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1298,12 +1517,28 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
 }
 
 @Composable
-fun ScanChip(label: String, checked: Boolean, accent: Color, onCheckedChange: (Boolean) -> Unit) {
+fun ScanChip(label: String, checked: Boolean, accent: Color, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    Surface(onClick = { onCheckedChange(!checked) }, shape = RoundedCornerShape(12.dp), color = if (checked) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)), border = BorderStroke(1.dp, if (checked) accent else (if (isDark) GlassBorder else GlassBorderLight))) {
-        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Surface(
+        onClick = { onCheckedChange(!checked) }, 
+        shape = RoundedCornerShape(12.dp), 
+        color = if (checked) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)), 
+        border = BorderStroke(1.dp, if (checked) accent else (if (isDark) GlassBorder else GlassBorderLight)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), 
+            verticalAlignment = Alignment.CenterVertically, 
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (checked) accent else (if (isDark) TextMuted else TextMutedLight)))
-            Text(label, style = MaterialTheme.typography.labelMedium, color = if (checked) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight))
+            Text(
+                label, 
+                style = MaterialTheme.typography.labelMedium, 
+                color = if (checked) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
         }
     }
 }
