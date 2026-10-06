@@ -178,10 +178,16 @@ class PresentationAdversarialTest {
         assertEquals("MQTT IoT Broker", getServiceTitle(1883))
         assertEquals("Android ADB Debugger", getServiceTitle(5555))
         assertEquals("PostgreSQL Database", getServiceTitle(5432))
-        assertEquals("MySQL Database", getServiceTitle(3306))
+        assertEquals("MariaDB Database", getServiceTitle(3306))
         assertEquals("Redis In-Memory DB", getServiceTitle(6379))
         assertEquals("SSH Secure Shell", getServiceTitle(22))
         assertEquals("HTTP Web Server", getServiceTitle(80))
+        assertEquals("OpenVPN Server", getServiceTitle(1194))
+        assertEquals("WireGuard VPN Tunnel", getServiceTitle(51820))
+        assertEquals("CoAP IoT Node", getServiceTitle(5683))
+        assertEquals("etcd Datastore", getServiceTitle(2379))
+        assertEquals("Cassandra Database", getServiceTitle(9042))
+        assertEquals("ClickHouse Analytical DB", getServiceTitle(8123))
         assertEquals("Custom-api Service", getServiceTitle(9999, "custom-api"))
         assertEquals("Service on Port 8899", getServiceTitle(8899, null))
 
@@ -192,10 +198,28 @@ class PresentationAdversarialTest {
         assertTrue(getServiceDescription(1883).contains("MQTT"))
         assertTrue(getServiceDescription(5555).contains("Android Debug Bridge"))
         assertTrue(getServiceDescription(445).contains("Microsoft SMB"))
+        assertTrue(getServiceDescription(51820).contains("WireGuard"))
+        assertTrue(getServiceDescription(1194).contains("OpenVPN"))
+        assertTrue(getServiceDescription(5683).contains("Constrained Application Protocol"))
         assertEquals("Active custom-proxy service", getServiceDescription(8099, "custom-proxy"))
         assertEquals("Active Network Service", getServiceDescription(60000, null))
 
-        // 7. DisplayPort data class contract
+        // 7. Verify banned technologies are absent from all registered ports
+        val registeredPorts = listOf(21, 22, 23, 25, 53, 80, 443, 1194, 1433, 1521, 1883, 2049, 2375, 2379, 3000, 3306, 3389, 4222, 4840, 5000, 5432, 5555, 5672, 5683, 5900, 6379, 6443, 8000, 8080, 8123, 8200, 8443, 8500, 9000, 9042, 9092, 9200, 10250, 11211, 27017, 47808, 50051, 51820)
+        registeredPorts.forEach { port ->
+            val title = getServiceTitle(port)
+            val desc = getServiceDescription(port)
+            assertFalse(title.contains("MySQL", ignoreCase = true), "Port $port title contains MySQL: $title")
+            assertFalse(desc.contains("MySQL", ignoreCase = true), "Port $port desc contains MySQL: $desc")
+            assertFalse(title.contains("Node.js", ignoreCase = true), "Port $port title contains Node.js: $title")
+            assertFalse(desc.contains("Node.js", ignoreCase = true), "Port $port desc contains Node.js: $desc")
+            assertFalse(title.contains("PHP", ignoreCase = true), "Port $port title contains PHP: $title")
+            assertFalse(desc.contains("PHP", ignoreCase = true), "Port $port desc contains PHP: $desc")
+            assertFalse(title.contains("Flask", ignoreCase = true), "Port $port title contains Flask: $title")
+            assertFalse(desc.contains("Flask", ignoreCase = true), "Port $port desc contains Flask: $desc")
+        }
+
+        // 8. DisplayPort data class contract
         val dp = DisplayPort(
             number = 502,
             title = getServiceTitle(502),
