@@ -6,6 +6,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.domain.model.ScanResult
+import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.theme.*
 import com.mrcoder20.portx.presentation.viewmodel.ReportsViewModel
 import kotlinx.datetime.TimeZone
@@ -130,17 +133,36 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                             Text(LocalizedStrings.get("no_matching_reports", lang), color = TextMuted, fontSize = 12.sp)
                         }
                     } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(filteredScans, key = { it.id ?: it.timestamp }) { scan ->
-                                ReportHistoryItem(
-                                    scan = scan,
-                                    accent = accent,
-                                    lang = lang,
-                                    onDelete = { scan.id?.let { viewModel.deleteScan(it) } },
-                                    onExport = { viewModel.shareScan(scan) },
-                                    onDownload = { viewModel.downloadScan(scan) }
-                                )
+                        val reportsListState = rememberLazyListState()
+                        val isRtl = lang == "fa" || lang == "ar"
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                            LazyColumn(
+                                state = reportsListState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        start = if (isRtl) 14.dp else 0.dp,
+                                        end = if (!isRtl) 14.dp else 0.dp
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(filteredScans, key = { it.id ?: it.timestamp }) { scan ->
+                                    ReportHistoryItem(
+                                        scan = scan,
+                                        accent = accent,
+                                        lang = lang,
+                                        onDelete = { scan.id?.let { viewModel.deleteScan(it) } },
+                                        onExport = { viewModel.shareScan(scan) },
+                                        onDownload = { viewModel.downloadScan(scan) }
+                                    )
+                                }
                             }
+                            PortXVerticalScrollbar(
+                                listState = reportsListState,
+                                modifier = Modifier
+                                    .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+                                    .fillMaxHeight()
+                            )
                         }
                     }
                 }

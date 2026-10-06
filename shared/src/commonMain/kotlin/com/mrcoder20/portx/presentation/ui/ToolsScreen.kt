@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.LocalizedStrings
+import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.theme.*
 import com.mrcoder20.portx.presentation.viewmodel.ToolsViewModel
 import org.koin.compose.koinInject
@@ -294,7 +297,7 @@ fun PingResultPanel(
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         itemsIndexed(results, key = { index, res -> "${index}_${res.sequence}" }) { _, res ->
                             Row(modifier = Modifier.fillMaxWidth().clickable { onCopyItem(res.message) }, verticalAlignment = Alignment.CenterVertically) {
                                 Text("> ", color = accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -304,6 +307,10 @@ fun PingResultPanel(
                         if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("engine_ready", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                     }
                 }
+                PortXVerticalScrollbar(
+                    listState = listState,
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
             }
         }
     }
@@ -350,9 +357,10 @@ fun DnsResultPanel(
             }
             Spacer(Modifier.height(12.dp))
             if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
+            val dnsListState = rememberLazyListState()
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyColumn(state = dnsListState, modifier = Modifier.fillMaxSize().padding(end = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         itemsIndexed(results, key = { index, ip -> "${index}_$ip" }) { _, ip ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onCopyItem(ip) }.padding(vertical = 4.dp)) {
                                 Icon(Icons.Default.Adjust, null, tint = accent, modifier = Modifier.size(14.dp))
@@ -363,6 +371,10 @@ fun DnsResultPanel(
                         if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("awaiting_dns", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
                     }
                 }
+                PortXVerticalScrollbar(
+                    listState = dnsListState,
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
             }
         }
     }
@@ -414,20 +426,27 @@ fun WhoisResultPanel(
             }
             Spacer(Modifier.height(12.dp))
             if (isLoading && result == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).verticalScroll(rememberScrollState()).padding(12.dp)) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    SelectionContainer {
-                        Text(
-                            result ?: LocalizedStrings.get("ready_whois", lang),
-                            color = if (result != null) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                            textAlign = TextAlign.Start,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+            val whoisScrollState = rememberScrollState()
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(12.dp)) {
+                Box(modifier = Modifier.fillMaxSize().verticalScroll(whoisScrollState).padding(end = 10.dp)) {
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        SelectionContainer {
+                            Text(
+                                result ?: LocalizedStrings.get("ready_whois", lang),
+                                color = if (result != null) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
+                PortXScrollStateVerticalScrollbar(
+                    scrollState = whoisScrollState,
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
             }
         }
     }
@@ -443,43 +462,63 @@ fun LocalInfoPanel(
     onCopy: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+    val isRtl = lang == "fa" || lang == "ar"
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(LocalizedStrings.get("device_environment", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = accent, strokeWidth = 2.dp)
-                } else {
-                    IconButton(onClick = onRefresh, modifier = Modifier.size(44.dp)) {
-                        Icon(Icons.Default.Refresh, null, tint = accent, modifier = Modifier.size(20.dp))
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        start = if (isRtl) 12.dp else 0.dp,
+                        end = if (!isRtl) 12.dp else 0.dp
+                    )
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(LocalizedStrings.get("device_environment", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = accent, strokeWidth = 2.dp)
+                    } else {
+                        IconButton(onClick = onRefresh, modifier = Modifier.size(44.dp)) {
+                            Icon(Icons.Default.Refresh, null, tint = accent, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                info?.let {
+                    InfoItem(LocalizedStrings.get("internal_ip", lang), it.ipAddress, Icons.Default.Lan, accent) { onCopy(it.ipAddress) }
+                    InfoItem(LocalizedStrings.get("interface", lang), it.interfaceName, Icons.Default.SettingsInputComponent, accent) { onCopy(it.interfaceName) }
+                    InfoItem(LocalizedStrings.get("connection", lang), if (it.isWifi) LocalizedStrings.get("wifi", lang) else LocalizedStrings.get("wired", lang), if (it.isWifi) Icons.Default.Wifi else Icons.Default.SettingsEthernet, accent) {}
+                }
+
+                publicIp?.let {
+                    InfoItem(LocalizedStrings.get("public_ip", lang), it, Icons.Default.Public, accent) { onCopy(it) }
+                }
+                
+                if (info == null && publicIp == null && !isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        Button(
+                            onClick = onRefresh,
+                            colors = ButtonDefaults.buttonColors(containerColor = accent.copy(alpha = 0.2f)),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, accent)
+                        ) {
+                            Icon(Icons.Default.Refresh, null, tint = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black)
+                            Spacer(Modifier.width(8.dp))
+                            Text(LocalizedStrings.get("refresh", lang), color = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black)
+                        }
                     }
                 }
             }
 
-            info?.let {
-                InfoItem(LocalizedStrings.get("internal_ip", lang), it.ipAddress, Icons.Default.Lan, accent) { onCopy(it.ipAddress) }
-                InfoItem(LocalizedStrings.get("interface", lang), it.interfaceName, Icons.Default.SettingsInputComponent, accent) { onCopy(it.interfaceName) }
-                InfoItem(LocalizedStrings.get("connection", lang), if (it.isWifi) LocalizedStrings.get("wifi", lang) else LocalizedStrings.get("wired", lang), if (it.isWifi) Icons.Default.Wifi else Icons.Default.SettingsEthernet, accent) {}
-            }
-
-            publicIp?.let {
-                InfoItem(LocalizedStrings.get("public_ip", lang), it, Icons.Default.Public, accent) { onCopy(it) }
-            }
-            
-            if (info == null && publicIp == null && !isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Button(
-                        onClick = onRefresh,
-                        colors = ButtonDefaults.buttonColors(containerColor = accent.copy(alpha = 0.2f)),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, accent)
-                    ) {
-                        Icon(Icons.Default.Refresh, null, tint = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black)
-                        Spacer(Modifier.width(8.dp))
-                        Text(LocalizedStrings.get("refresh", lang), color = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black)
-                    }
-                }
-            }
+            PortXScrollStateVerticalScrollbar(
+                scrollState = scrollState,
+                modifier = Modifier
+                    .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+                    .fillMaxHeight()
+            )
         }
     }
 }

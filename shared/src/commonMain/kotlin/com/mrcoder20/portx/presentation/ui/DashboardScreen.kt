@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
@@ -754,7 +756,7 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).border(1.dp, GlassBorder.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    LazyColumn(state = logListState, modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(end = 10.dp)) {
                         itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
@@ -763,7 +765,56 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
                         }
                         if (state.logs.isEmpty()) item { Text(LocalizedStrings.get("waiting_engine_activity", lang), color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)) }
                     }
+                    PortXVerticalScrollbar(
+                        listState = logListState,
+                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun FilterChipMini(
+    label: String,
+    count: Int? = null,
+    isSelected: Boolean,
+    accent: Color,
+    isDanger: Boolean = false,
+    onClick: () -> Unit
+) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
+    val chipColor = if (isDanger) DangerNeon else accent
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) chipColor.copy(alpha = 0.18f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.04f)),
+        border = BorderStroke(1.dp, if (isSelected) chipColor else (if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f)))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 11.sp
+                ),
+                color = if (isSelected) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight)
+            )
+            if (count != null && count > 0) {
+                Text(
+                    count.toString(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = if (isSelected) chipColor else (if (isDark) TextMuted else TextMutedLight)
+                )
             }
         }
     }
@@ -772,22 +823,62 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
 @Composable
 fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Color, lang: String) {
     val isDark = LocalAppSettings.current.theme == "DARK"
+    val isRtl = lang == "fa" || lang == "ar"
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val result = state.result
     var selectedPortForDetail by remember { mutableStateOf<DisplayPort?>(null) }
+    var portSearchQuery by remember { mutableStateOf("") }
+    var selectedCategoryFilter by remember { mutableStateOf("ALL") }
+
+    val allPortsToShow = remember(result, accent) {
+        result?.openPorts?.distinct()?.sorted()?.map { portNumber ->
+            val banner = (result.portBanners[portNumber] ?: "").trim()
+            val rawService = (result.portServices[portNumber] ?: "").trim()
+            val title = getServiceTitle(portNumber, rawService.ifEmpty { null })
+            val description = if (banner.isNotEmpty()) banner else getServiceDescription(portNumber, rawService.ifEmpty { null })
+            DisplayPort(portNumber, title, description, getPortColor(portNumber, accent))
+        } ?: emptyList()
+    }
+
+    val threatCount = remember(allPortsToShow) { allPortsToShow.count { it.color == DangerNeon } }
+    val webCount = remember(allPortsToShow) { allPortsToShow.count { it.number in listOf(80, 443, 8000, 8008, 8080, 8443, 8888, 9000, 9090, 3000, 5000) } }
+    val dbCount = remember(allPortsToShow) { allPortsToShow.count { it.number in listOf(1433, 1521, 3306, 5432, 6379, 27017, 9200, 11211) } }
+    val remoteCount = remember(allPortsToShow) { allPortsToShow.count { it.number in listOf(21, 22, 23, 3389, 5900, 5985, 5986) } }
+
+    val filteredPorts = remember(allPortsToShow, portSearchQuery, selectedCategoryFilter) {
+        allPortsToShow.filter { port ->
+            val matchesCategory = when (selectedCategoryFilter) {
+                "THREATS" -> port.color == DangerNeon
+                "WEB" -> port.number in listOf(80, 443, 8000, 8008, 8080, 8443, 8888, 9000, 9090, 3000, 5000)
+                "DATABASE" -> port.number in listOf(1433, 1521, 3306, 5432, 6379, 27017, 9200, 11211)
+                "REMOTE" -> port.number in listOf(21, 22, 23, 3389, 5900, 5985, 5986)
+                else -> true
+            }
+            if (!matchesCategory) return@filter false
+
+            if (portSearchQuery.isBlank()) true
+            else {
+                val q = portSearchQuery.trim().lowercase()
+                port.number.toString().contains(q) ||
+                port.title.lowercase().contains(q) ||
+                port.description.lowercase().contains(q)
+            }
+        }
+    }
 
     GlassCard(modifier = modifier) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                 Text(LocalizedStrings.get("active_services", lang), style = MaterialTheme.typography.labelLarge.copy(color = if (isDark) TextMuted else TextMutedLight, fontWeight = FontWeight.Bold, letterSpacing = 1.sp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (result != null && result.openPorts.isNotEmpty()) {
-                        Text("${result.openPorts.size} ${LocalizedStrings.get("found", lang)}", style = MaterialTheme.typography.labelSmall, color = accent, modifier = Modifier.background(accent.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+                    if (allPortsToShow.isNotEmpty()) {
+                        val countText = if (filteredPorts.size != allPortsToShow.size) "${filteredPorts.size} / ${allPortsToShow.size}" else "${allPortsToShow.size}"
+                        Text("$countText ${LocalizedStrings.get("found", lang)}", style = MaterialTheme.typography.labelSmall, color = accent, modifier = Modifier.background(accent.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
                     }
                     Row(modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape).border(1.dp, if (isDark) GlassBorder else GlassBorderLight, CircleShape)) {
                         IconButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
-                        IconButton(onClick = { scope.launch { val count = state.result?.openPorts?.distinct()?.size ?: 0; if (count > 0) listState.animateScrollToItem(count - 1) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
+                        IconButton(onClick = { scope.launch { if (filteredPorts.isNotEmpty()) listState.animateScrollToItem(filteredPorts.size - 1) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
                     }
                 }
             }
@@ -841,27 +932,154 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                 }
             }
 
-            Box(modifier = Modifier.weight(1f)) {
-                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
-                    val portsToShow = result?.openPorts?.distinct()?.sorted()?.map { portNumber ->
-                        val banner = (result.portBanners[portNumber] ?: "").trim()
-                        val rawService = (result.portServices[portNumber] ?: "").trim()
-                        val title = getServiceTitle(portNumber, rawService.ifEmpty { null })
-                        val description = if (banner.isNotEmpty()) banner else getServiceDescription(portNumber, rawService.ifEmpty { null })
-                        DisplayPort(portNumber, title, description, getPortColor(portNumber, accent))
-                    } ?: emptyList()
-                    if (portsToShow.isEmpty()) item {
-                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(if (state.isLoading) Icons.Default.HourglassEmpty else Icons.Default.SearchOff, null, tint = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.3f), modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.height(12.dp))
-                                Text(if (state.isLoading) LocalizedStrings.get("scanning_network", lang) else LocalizedStrings.get("no_services", lang), color = if (isDark) TextMuted else TextMutedLight, style = MaterialTheme.typography.bodySmall)
+            // --- PORT SEARCH & FILTER CONTROLS ---
+            if (allPortsToShow.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 10.dp)) {
+                    OutlinedTextField(
+                        value = portSearchQuery,
+                        onValueChange = { portSearchQuery = it },
+                        placeholder = { 
+                            Text(
+                                LocalizedStrings.get("search_ports_placeholder", lang), 
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDark) TextMuted else TextMutedLight,
+                                maxLines = 1
+                            ) 
+                        },
+                        leadingIcon = { 
+                            Icon(Icons.Default.Search, null, tint = accent, modifier = Modifier.size(18.dp)) 
+                        },
+                        trailingIcon = {
+                            if (portSearchQuery.isNotEmpty()) {
+                                IconButton(onClick = { portSearchQuery = "" }, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.Close, null, tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(16.dp))
+                                }
                             }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = if (isDark) GlassBorder else GlassBorderLight,
+                            focusedTextColor = if (isDark) Color.White else Color.Black,
+                            unfocusedTextColor = if (isDark) Color.White else Color.Black
+                        ),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.ContentOrLtr)
+                    )
+
+                    // Quick category chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterChipMini(
+                            label = LocalizedStrings.get("filter_all", lang),
+                            count = allPortsToShow.size,
+                            isSelected = selectedCategoryFilter == "ALL",
+                            accent = accent,
+                            onClick = { selectedCategoryFilter = "ALL" }
+                        )
+                        if (threatCount > 0) {
+                            FilterChipMini(
+                                label = LocalizedStrings.get("filter_threats", lang),
+                                count = threatCount,
+                                isSelected = selectedCategoryFilter == "THREATS",
+                                accent = accent,
+                                isDanger = true,
+                                onClick = { selectedCategoryFilter = "THREATS" }
+                            )
                         }
-                    } else items(portsToShow, key = { it.number }) { port -> 
-                        PortItem(port = port, onClick = { selectedPortForDetail = port }) 
+                        if (webCount > 0) {
+                            FilterChipMini(
+                                label = LocalizedStrings.get("filter_web", lang),
+                                count = webCount,
+                                isSelected = selectedCategoryFilter == "WEB",
+                                accent = accent,
+                                onClick = { selectedCategoryFilter = "WEB" }
+                            )
+                        }
+                        if (dbCount > 0) {
+                            FilterChipMini(
+                                label = LocalizedStrings.get("filter_db", lang),
+                                count = dbCount,
+                                isSelected = selectedCategoryFilter == "DATABASE",
+                                accent = accent,
+                                onClick = { selectedCategoryFilter = "DATABASE" }
+                            )
+                        }
+                        if (remoteCount > 0) {
+                            FilterChipMini(
+                                label = LocalizedStrings.get("filter_remote", lang),
+                                count = remoteCount,
+                                isSelected = selectedCategoryFilter == "REMOTE",
+                                accent = accent,
+                                onClick = { selectedCategoryFilter = "REMOTE" }
+                            )
+                        }
                     }
                 }
+            }
+
+            // --- PORTS LIST + AUTOMATIC RTL/LTR SCROLLBAR ---
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            start = if (isRtl) 14.dp else 0.dp,
+                            end = if (!isRtl) 14.dp else 0.dp
+                        ),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    if (filteredPorts.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        if (state.isLoading) Icons.Default.HourglassEmpty else Icons.Default.SearchOff,
+                                        null,
+                                        tint = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.3f),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        if (state.isLoading) LocalizedStrings.get("scanning_network", lang)
+                                        else if (portSearchQuery.isNotEmpty() || selectedCategoryFilter != "ALL") LocalizedStrings.get("no_ports_found", lang)
+                                        else LocalizedStrings.get("no_services", lang),
+                                        color = if (isDark) TextMuted else TextMutedLight,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    if (portSearchQuery.isNotEmpty() || selectedCategoryFilter != "ALL") {
+                                        Spacer(Modifier.height(8.dp))
+                                        TextButton(onClick = {
+                                            portSearchQuery = ""
+                                            selectedCategoryFilter = "ALL"
+                                        }) {
+                                            Text(LocalizedStrings.get("clear_filter", lang), color = accent, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        items(filteredPorts, key = { it.number }) { port ->
+                            PortItem(port = port, onClick = { selectedPortForDetail = port })
+                        }
+                    }
+                }
+
+                // Automatic Left for RTL (fa/ar), Right for LTR (en/etc.)
+                PortXVerticalScrollbar(
+                    listState = listState,
+                    modifier = Modifier
+                        .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+                        .fillMaxHeight()
+                )
+
                 Box(modifier = Modifier.fillMaxWidth().height(32.dp).align(Alignment.BottomCenter).background(Brush.verticalGradient(listOf(Color.Transparent, (if (isDark) BackgroundDark else BackgroundLight).copy(alpha = 0.5f)))))
             }
 

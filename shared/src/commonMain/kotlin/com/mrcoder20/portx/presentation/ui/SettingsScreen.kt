@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.Language
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.domain.SettingsManager
+import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.theme.*
 import org.koin.compose.koinInject
 
@@ -32,13 +34,20 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
     val isDark = state.theme == "DARK"
     val uriHandler = LocalUriHandler.current
     val githubUrl = "https://github.com/mr-coder20/PortX"
+    val scrollState = rememberScrollState()
+    val isRtl = state.language == "fa" || state.language == "ar"
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .padding(
+                    start = if (isRtl) 14.dp else 0.dp,
+                    end = if (!isRtl) 14.dp else 0.dp
+                )
+                .verticalScroll(scrollState)
+        ) {
         Spacer(modifier = Modifier.height(32.dp))
 
         // 1. LANGUAGE SELECTOR
@@ -167,6 +176,14 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                 Icon(Icons.Default.Code, null, tint = TextMuted, modifier = Modifier.size(16.dp))
             }
         }
+    }
+
+    PortXScrollStateVerticalScrollbar(
+        scrollState = scrollState,
+        modifier = Modifier
+            .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+            .fillMaxHeight()
+    )
     }
 }
 

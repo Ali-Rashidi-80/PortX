@@ -92,7 +92,15 @@ object LocalizedStrings {
             "no_matching_reports" to "No matching reports found",
             "copy_details" to "Copy Details",
             "copied" to "Copied!",
-            "close" to "Close"
+            "close" to "Close",
+            "search_ports_placeholder" to "Search port, service, or banner...",
+            "filter_all" to "All",
+            "filter_threats" to "Threats",
+            "filter_web" to "Web",
+            "filter_db" to "Database",
+            "filter_remote" to "Remote/Admin",
+            "no_ports_found" to "No ports match search criteria",
+            "clear_filter" to "Clear Filter"
         ),
         "fa" to mapOf(
             "dashboard" to "داشبورد",
@@ -169,7 +177,15 @@ object LocalizedStrings {
             "no_matching_reports" to "گزارشی مطابق جستجو یافت نشد",
             "copy_details" to "کپی جزئیات",
             "copied" to "کپی شد!",
-            "close" to "بستن"
+            "close" to "بستن",
+            "search_ports_placeholder" to "جستجوی پورت، سرویس یا بنر...",
+            "filter_all" to "همه",
+            "filter_threats" to "پرخطر / تهدید",
+            "filter_web" to "وب (Web)",
+            "filter_db" to "پایگاه‌داده (DB)",
+            "filter_remote" to "مدیریتی (Remote)",
+            "no_ports_found" to "هیچ پورتی مطابق با فیلتر یافت نشد",
+            "clear_filter" to "پاک‌سازی فیلتر"
         ),
         "ar" to mapOf(
             "dashboard" to "لوحة القيادة",
