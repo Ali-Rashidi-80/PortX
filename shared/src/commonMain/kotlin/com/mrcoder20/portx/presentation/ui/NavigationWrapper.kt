@@ -91,31 +91,110 @@ fun NavigationWrapper(
                     Row(modifier = Modifier.fillMaxSize()) {
                         Surface(
                             modifier = Modifier
-                                .width(320.dp)
+                                .width(300.dp)
                                 .fillMaxHeight()
-                                .padding(20.dp)
-                                .clip(RoundedCornerShape(28.dp))
-                                .border(1.dp, if (settings.theme == "DARK") GlassBorder else GlassBorderLight, RoundedCornerShape(28.dp)),
+                                .padding(16.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .border(1.dp, if (settings.theme == "DARK") GlassBorder else GlassBorderLight, RoundedCornerShape(24.dp)),
                             color = if (settings.theme == "DARK") GlassBackground else GlassLight
                         ) {
                             Column(
-                                modifier = Modifier.padding(24.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(20.dp),
+                                verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    "PortX",
-                                    style = MaterialTheme.typography.headlineMedium.copy(
-                                        fontWeight = FontWeight.Black,
-                                        color = if (settings.theme == "DARK") Color.White else Color.Black,
-                                        shadow = Shadow(color = accent, blurRadius = 15f)
-                                    ),
-                                    modifier = Modifier.padding(bottom = 24.dp)
-                                )
-                                
-                                DesktopNavItem(Icons.Default.Home, LocalizedStrings.get("dashboard", lang), selectedTab == 0) { onTabSelected(0) }
-                                DesktopNavItem(Icons.Default.Build, LocalizedStrings.get("tools", lang), selectedTab == 1) { onTabSelected(1) }
-                                DesktopNavItem(Icons.AutoMirrored.Filled.List, LocalizedStrings.get("reports", lang), selectedTab == 2) { onTabSelected(2) }
-                                DesktopNavItem(Icons.Default.Settings, LocalizedStrings.get("settings", lang), selectedTab == 3) { onTabSelected(3) }
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // Brand Header
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.padding(bottom = 14.dp, top = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(accent.copy(alpha = 0.15f))
+                                                .border(1.dp, accent.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(22.dp))
+                                        }
+                                        Column {
+                                            Text(
+                                                "PortX",
+                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (settings.theme == "DARK") Color.White else Color.Black,
+                                                    shadow = Shadow(color = accent.copy(alpha = 0.8f), blurRadius = 12f)
+                                                )
+                                            )
+                                            Text(
+                                                "ENTERPRISE SUITE v5.2",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    fontSize = 9.sp,
+                                                    letterSpacing = 1.sp,
+                                                    color = if (settings.theme == "DARK") TextMuted else TextMutedLight
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    HorizontalDivider(
+                                        color = (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.4f),
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+
+                                    DesktopNavItem(Icons.Default.Home, LocalizedStrings.get("dashboard", lang), selectedTab == 0) { onTabSelected(0) }
+                                    DesktopNavItem(Icons.Default.Build, LocalizedStrings.get("tools", lang), selectedTab == 1) { onTabSelected(1) }
+                                    DesktopNavItem(Icons.AutoMirrored.Filled.List, LocalizedStrings.get("reports", lang), selectedTab == 2) { onTabSelected(2) }
+                                    DesktopNavItem(Icons.Default.Settings, LocalizedStrings.get("settings", lang), selectedTab == 3) { onTabSelected(3) }
+                                }
+
+                                // Engine Telemetry Footer
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = (if (settings.theme == "DARK") Color.Black else Color.White).copy(alpha = 0.25f),
+                                    border = BorderStroke(1.dp, (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.4f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        val infiniteTransition = rememberInfiniteTransition()
+                                        val pulseAlpha by infiniteTransition.animateFloat(
+                                            initialValue = 0.4f,
+                                            targetValue = 1f,
+                                            animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(TertiaryNeon.copy(alpha = pulseAlpha))
+                                                .border(2.dp, TertiaryNeon.copy(alpha = 0.4f), CircleShape)
+                                        )
+                                        Column {
+                                            Text(
+                                                LocalizedStrings.get("engine_standby", lang),
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
+                                                color = if (settings.theme == "DARK") Color.White else Color.Black
+                                            )
+                                            Text(
+                                                "Local Engine • TCP/UDP",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    fontSize = 9.sp
+                                                ),
+                                                color = if (settings.theme == "DARK") TextMuted else TextMutedLight
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                         
@@ -215,12 +294,18 @@ fun InfiniteBottomBar(
 fun WindowControlBtn(icon: ImageVector, color: Color, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val animatedAlpha by animateFloatAsState(
-        targetValue = if (isHovered) 0.15f else 0.05f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow)
-    )
+    val isClose = color == DangerNeon
+
+    val bgBrush = if (isClose && isHovered) {
+        Color.Red.copy(alpha = 0.85f)
+    } else if (isHovered) {
+        color.copy(alpha = 0.2f)
+    } else {
+        color.copy(alpha = 0.05f)
+    }
+
     val animatedScale by animateFloatAsState(
-        targetValue = if (isHovered) 1.1f else 1.0f,
+        targetValue = if (isHovered) 1.08f else 1.0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
     )
 
@@ -232,7 +317,7 @@ fun WindowControlBtn(icon: ImageVector, color: Color, onClick: () -> Unit) {
                 scaleY = animatedScale
             }
             .clip(CircleShape)
-            .background(color.copy(alpha = animatedAlpha))
+            .background(bgBrush)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -243,7 +328,7 @@ fun WindowControlBtn(icon: ImageVector, color: Color, onClick: () -> Unit) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = color.copy(alpha = if (isHovered) 1f else 0.6f),
+            tint = if (isClose && isHovered) Color.White else color.copy(alpha = if (isHovered) 1f else 0.7f),
             modifier = Modifier.size(14.dp)
         )
     }
@@ -259,6 +344,10 @@ fun RowScope.BottomNavItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val accent = LocalAccentColor.current
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.08f else 1.0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
     
     Box(
         modifier = Modifier
@@ -277,12 +366,21 @@ fun RowScope.BottomNavItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
+                    .size(46.dp)
+                    .graphicsLayer {
+                        scaleX = animatedScale
+                        scaleY = animatedScale
+                    }
+                    .clip(RoundedCornerShape(14.dp))
                     .background(
                         brush = if (isSelected) {
-                            Brush.linearGradient(listOf(accent.copy(alpha = 0.2f), accent.copy(alpha = 0.1f)))
+                            Brush.linearGradient(listOf(accent.copy(alpha = 0.25f), accent.copy(alpha = 0.1f)))
                         } else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                    )
+                    .border(
+                        1.dp,
+                        if (isSelected) accent.copy(alpha = 0.5f) else Color.Transparent,
+                        RoundedCornerShape(14.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -290,7 +388,7 @@ fun RowScope.BottomNavItem(
                     imageVector = icon,
                     contentDescription = label,
                     tint = if (isSelected) accent else (if (isDark) TextMuted else TextMutedLight),
-                    modifier = Modifier.size(if (isSelected) 26.dp else 24.dp)
+                    modifier = Modifier.size(if (isSelected) 24.dp else 22.dp)
                 )
             }
         }
@@ -306,32 +404,101 @@ fun DesktopNavItem(
 ) {
     val accent = LocalAccentColor.current
     val isDark = LocalAppSettings.current.theme == "DARK"
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    val bgBrush = if (isSelected) {
+        Brush.horizontalGradient(
+            listOf(accent.copy(alpha = 0.18f), accent.copy(alpha = 0.05f))
+        )
+    } else if (isHovered) {
+        Brush.horizontalGradient(
+            listOf(
+                (if (isDark) Color.White else Color.Black).copy(alpha = 0.08f),
+                (if (isDark) Color.White else Color.Black).copy(alpha = 0.02f)
+            )
+        )
+    } else {
+        Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+    }
+
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isHovered) 1.02f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium)
+    )
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        color = if (isSelected) accent.copy(alpha = 0.15f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
+            .height(50.dp)
+            .graphicsLayer {
+                scaleX = animatedScale
+                scaleY = animatedScale
+            }
+            .clip(RoundedCornerShape(14.dp))
+            .border(
+                1.dp,
+                if (isSelected) accent.copy(alpha = 0.4f)
+                else if (isHovered) (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f)
+                else Color.Transparent,
+                RoundedCornerShape(14.dp)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        color = Color.Transparent,
+        shape = RoundedCornerShape(14.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgBrush),
+            contentAlignment = Alignment.CenterStart
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (isSelected) accent else (if (isDark) TextSecondary else TextSecondaryLight),
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = label,
-                color = if (isSelected) (if (isDark) Color.White else Color.Black) else (if (isDark) TextSecondary else TextSecondaryLight),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Active indicator pill
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(accent)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSelected) accent.copy(alpha = 0.2f) else Color.Transparent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = if (isSelected) accent else (if (isDark) TextSecondary else TextSecondaryLight),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Text(
+                    text = label,
+                    color = if (isSelected) (if (isDark) Color.White else Color.Black)
+                    else (if (isDark) TextSecondary else TextSecondaryLight),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                )
+            }
         }
     }
 }

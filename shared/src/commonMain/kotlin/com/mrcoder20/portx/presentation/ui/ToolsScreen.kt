@@ -263,8 +263,27 @@ fun PingResultPanel(
     val isDark = LocalAppSettings.current.theme == "DARK"
     val listState = rememberLazyListState()
     LaunchedEffect(results.size) { if (results.isNotEmpty()) listState.animateScrollToItem(results.size - 1) }
+
+    // KPI Metrics Calculation
+    val totalSent = results.size
+    val totalReceived = results.count { it.isSuccess }
+    val packetLoss = if (totalSent > 0) ((totalSent - totalReceived) * 100) / totalSent else 0
+    val latencies = remember(results) {
+        val regex = "(\\d+(?:\\.\\d+)?)\\s*ms".toRegex()
+        results.filter { it.isSuccess }.mapNotNull { res ->
+            regex.find(res.message)?.groupValues?.get(1)?.toDoubleOrNull()
+        }
+    }
+    val avgLatencyStr = if (latencies.isNotEmpty()) {
+        val avg = kotlin.math.round(latencies.average() * 10) / 10.0
+        "${avg} ms"
+    } else {
+        "—"
+    }
+
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -294,8 +313,54 @@ fun PingResultPanel(
                 }
                 if (isLoading) Text(LocalizedStrings.get("querying", lang), style = MaterialTheme.typography.labelSmall, color = accent)
             }
-            Spacer(Modifier.height(12.dp))
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+
+            Spacer(Modifier.height(10.dp))
+
+            // KPI Telemetry Banner (Tx, Rx, Loss %, Avg Latency)
+            if (results.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // TX
+                    KpiStatCard(
+                        title = LocalizedStrings.get("packets_tx", lang),
+                        value = "$totalSent",
+                        accent = accent,
+                        modifier = Modifier.weight(1f)
+                    )
+                    // RX
+                    KpiStatCard(
+                        title = LocalizedStrings.get("packets_rx", lang),
+                        value = "$totalReceived",
+                        accent = SecondaryNeon,
+                        modifier = Modifier.weight(1f)
+                    )
+                    // Loss %
+                    val lossColor = when {
+                        packetLoss == 0 -> TertiaryNeon
+                        packetLoss < 20 -> WarningNeon
+                        else -> DangerNeon
+                    }
+                    KpiStatCard(
+                        title = LocalizedStrings.get("packet_loss", lang),
+                        value = "$packetLoss%",
+                        accent = lossColor,
+                        modifier = Modifier.weight(1f)
+                    )
+                    // Avg Latency
+                    KpiStatCard(
+                        title = LocalizedStrings.get("avg_latency", lang),
+                        value = avgLatencyStr,
+                        accent = Color(0xFF00E5FF),
+                        modifier = Modifier.weight(1.1f)
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+
+            // Terminal Log Box
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(12.dp)).padding(10.dp)) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(end = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         itemsIndexed(results, key = { index, res -> "${index}_${res.sequence}" }) { _, res ->
@@ -317,6 +382,47 @@ fun PingResultPanel(
 }
 
 @Composable
+fun KpiStatCard(
+    title: String,
+    value: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
+    Surface(
+        modifier = modifier.height(56.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.25f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
+                color = if (isDark) TextMuted else TextMutedLight,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp
+                ),
+                color = accent,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
 fun DnsResultPanel(
     results: List<String>, 
     isLoading: Boolean, 
@@ -326,7 +432,7 @@ fun DnsResultPanel(
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,18 +460,77 @@ fun DnsResultPanel(
                         )
                     }
                 }
+                if (results.isNotEmpty()) {
+                    Surface(
+                        color = SecondaryNeon.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, SecondaryNeon.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            "${results.size} ${LocalizedStrings.get("dns_records_count", lang)}",
+                            color = SecondaryNeon,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(12.dp))
             if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             val dnsListState = rememberLazyListState()
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(10.dp)).padding(8.dp)) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     LazyColumn(state = dnsListState, modifier = Modifier.fillMaxSize().padding(end = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         itemsIndexed(results, key = { index, ip -> "${index}_$ip" }) { _, ip ->
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onCopyItem(ip) }.padding(vertical = 4.dp)) {
-                                Icon(Icons.Default.Adjust, null, tint = accent, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Text(ip, color = if (isDark) Color.White else Color.Black, fontFamily = FontFamily.Monospace, fontSize = 14.sp, textAlign = TextAlign.Start)
+                            val recordType = when {
+                                ip.contains(":") -> "AAAA"
+                                ip.matches(Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) -> "A"
+                                else -> "PTR"
+                            }
+                            val badgeColor = when (recordType) {
+                                "A" -> SecondaryNeon
+                                "AAAA" -> Color(0xFF00E5FF)
+                                else -> accent
+                            }
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().clickable { onCopyItem(ip) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f),
+                                border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+                                ) {
+                                    Surface(
+                                        color = badgeColor.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(4.dp),
+                                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f))
+                                    ) {
+                                        Text(
+                                            recordType,
+                                            color = badgeColor,
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, fontSize = 9.sp),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        ip,
+                                        color = if (isDark) Color.White else Color.Black,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Start
+                                    )
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = "Copy",
+                                        tint = if (isDark) TextMuted else TextMutedLight,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                         if (results.isEmpty() && !isLoading) item { Text(LocalizedStrings.get("awaiting_dns", lang), color = if (isDark) TextMuted else TextMutedLight, fontSize = 12.sp, fontFamily = FontFamily.Monospace) }
@@ -389,8 +554,20 @@ fun WhoisResultPanel(
 ) {
     val accent = LocalAccentColor.current
     val isDark = LocalAppSettings.current.theme == "DARK"
+    
+    // Parse WHOIS summary fields if result is present
+    val whoisSummary = remember(result) {
+        if (result == null) null
+        else {
+            val registrarMatch = "(?i)Registrar:\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
+            val createdMatch = "(?i)(?:Creation Date|created):\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
+            val expiryMatch = "(?i)(?:Registry Expiry Date|paid-till|Expiration Date):\\s*([^\\r\\n]+)".toRegex().find(result)?.groupValues?.get(1)?.trim()
+            Triple(registrarMatch, createdMatch, expiryMatch)
+        }
+    }
+
     GlassCard(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp)) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -424,10 +601,50 @@ fun WhoisResultPanel(
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+
+            // Structured WHOIS HUD summary banner if key fields are extracted
+            if (whoisSummary != null && (whoisSummary.first != null || whoisSummary.second != null || whoisSummary.third != null)) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
+                    border = BorderStroke(1.dp, accent.copy(alpha = 0.25f))
+                ) {
+                    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            LocalizedStrings.get("whois_summary", lang),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
+                            color = accent
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            whoisSummary.first?.let { reg ->
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(LocalizedStrings.get("registrar", lang), style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = if (isDark) TextMuted else TextMutedLight)
+                                    Text(reg, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp), color = if (isDark) Color.White else Color.Black, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                }
+                            }
+                            whoisSummary.second?.let { crt ->
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(LocalizedStrings.get("created_date", lang), style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = if (isDark) TextMuted else TextMutedLight)
+                                    Text(crt, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp), color = if (isDark) Color.White else Color.Black, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                }
+                            }
+                            whoisSummary.third?.let { exp ->
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(LocalizedStrings.get("expiry_date", lang), style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = if (isDark) TextMuted else TextMutedLight)
+                                    Text(exp, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp), color = WarningNeon, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
             if (isLoading && result == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp), color = accent)
             val whoisScrollState = rememberScrollState()
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(12.dp)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(10.dp)).padding(12.dp)) {
                 Box(modifier = Modifier.fillMaxSize().verticalScroll(whoisScrollState).padding(end = 10.dp)) {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                         SelectionContainer {
@@ -474,7 +691,7 @@ fun LocalInfoPanel(
                         end = if (!isRtl) 12.dp else 0.dp
                     )
                     .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(LocalizedStrings.get("device_environment", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = accent)
@@ -489,12 +706,12 @@ fun LocalInfoPanel(
 
                 info?.let {
                     InfoItem(LocalizedStrings.get("internal_ip", lang), it.ipAddress, Icons.Default.Lan, accent) { onCopy(it.ipAddress) }
-                    InfoItem(LocalizedStrings.get("interface", lang), it.interfaceName, Icons.Default.SettingsInputComponent, accent) { onCopy(it.interfaceName) }
-                    InfoItem(LocalizedStrings.get("connection", lang), if (it.isWifi) LocalizedStrings.get("wifi", lang) else LocalizedStrings.get("wired", lang), if (it.isWifi) Icons.Default.Wifi else Icons.Default.SettingsEthernet, accent) {}
+                    InfoItem(LocalizedStrings.get("interface", lang), it.interfaceName, Icons.Default.SettingsInputComponent, SecondaryNeon) { onCopy(it.interfaceName) }
+                    InfoItem(LocalizedStrings.get("connection", lang), if (it.isWifi) LocalizedStrings.get("wifi", lang) else LocalizedStrings.get("wired", lang), if (it.isWifi) Icons.Default.Wifi else Icons.Default.SettingsEthernet, TertiaryNeon) {}
                 }
 
                 publicIp?.let {
-                    InfoItem(LocalizedStrings.get("public_ip", lang), it, Icons.Default.Public, accent) { onCopy(it) }
+                    InfoItem(LocalizedStrings.get("public_ip", lang), it, Icons.Default.Public, Color(0xFF00E5FF)) { onCopy(it) }
                 }
                 
                 if (info == null && publicIp == null && !isLoading) {
@@ -526,15 +743,30 @@ fun LocalInfoPanel(
 @Composable
 fun InfoItem(label: String, value: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    Row(
-        modifier = Modifier.fillMaxWidth().background(if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f), RoundedCornerShape(12.dp)).clickable { onClick() }.padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f),
+        border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
     ) {
-        Box(modifier = Modifier.size(36.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(18.dp)) }
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 1.sp)
-            Text(value, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr), color = if (isDark) Color.White else Color.Black)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(40.dp).background(color.copy(alpha = 0.12f), CircleShape).border(1.dp, color.copy(alpha = 0.3f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 0.5.sp)
+                Text(value, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr), color = if (isDark) Color.White else Color.Black)
+            }
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = "Copy",
+                tint = if (isDark) TextMuted.copy(alpha = 0.6f) else TextMutedLight.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

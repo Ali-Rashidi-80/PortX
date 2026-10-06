@@ -245,9 +245,25 @@ fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifi
         val width = size.width
         val height = size.height
         val spacing = width / (scores.size - 1)
-        val vPadding = 10.dp.toPx()
+        val vPadding = 12.dp.toPx()
         val graphHeight = (height - vPadding * 2).coerceAtLeast(1f)
         
+        // Subtle baseline grid lines
+        val y50 = vPadding + graphHeight * 0.5f
+        val y80 = vPadding + graphHeight * 0.2f
+        drawLine(
+            color = Color.White.copy(alpha = 0.05f),
+            start = Offset(0f, y50),
+            end = Offset(width, y50),
+            strokeWidth = 1.dp.toPx()
+        )
+        drawLine(
+            color = Color.White.copy(alpha = 0.08f),
+            start = Offset(0f, y80),
+            end = Offset(width, y80),
+            strokeWidth = 1.dp.toPx()
+        )
+
         val points = scores.mapIndexed { index, score ->
             Offset(index * spacing, vPadding + graphHeight * (1 - score))
         }
@@ -270,18 +286,34 @@ fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifi
             close()
         }
 
+        // Gradient Area Fill
         drawPath(
             path = fillPath,
             brush = Brush.verticalGradient(
-                colors = listOf(accent.copy(alpha = 0.2f), Color.Transparent)
+                colors = listOf(accent.copy(alpha = 0.25f), Color.Transparent)
             )
         )
 
+        // Curve Stroke
         drawPath(
             path = path,
             brush = Brush.horizontalGradient(listOf(SecondaryNeon, accent)),
             style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
         )
+
+        // Glowing Vertex Points
+        points.forEach { pt ->
+            drawCircle(
+                color = accent.copy(alpha = 0.35f),
+                radius = 7.dp.toPx(),
+                center = pt
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 2.5.dp.toPx(),
+                center = pt
+            )
+        }
     }
 }
 
@@ -304,68 +336,115 @@ fun ReportHistoryItem(
     } catch (_: Exception) {
         "N/A" to "N/A"
     }
+
+    val (riskLabel, riskColor) = when {
+        scan.securityScore >= 80 -> LocalizedStrings.get("secure", lang) to TertiaryNeon
+        scan.securityScore >= 50 -> LocalizedStrings.get("warning", lang) to WarningNeon
+        else -> LocalizedStrings.get("high_risk", lang) to DangerNeon
+    }
     
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 84.dp)
+            .heightIn(min = 90.dp)
             .clip(RoundedCornerShape(20.dp))
             .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(20.dp)),
         color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f)
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 val isolatedTarget = "\u2066${scan.target}\u2069"
                 val title = if (!scan.deviceName.isNullOrBlank()) "$isolatedTarget (${scan.deviceName})" else "${LocalizedStrings.get("target", lang)}: $isolatedTarget"
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isDark) Color.White else Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                val isolatedDateTime = "\u2066$formattedDate $formattedTime\u2069"
-                val subtitle = if (!scan.osFingerprint.isNullOrBlank()) {
-                    "$isolatedDateTime • ${scan.osFingerprint}"
-                } else {
-                    isolatedDateTime
+                
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isDark) Color.White else Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    // Security Risk Pill
+                    Surface(
+                        color = riskColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, riskColor.copy(alpha = 0.4f))
+                    ) {
+                        Text(
+                            text = riskLabel,
+                            color = riskColor,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, fontSize = 9.sp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isDark) TextMuted else TextMutedLight,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
+
+                Spacer(Modifier.height(4.dp))
+                
+                // Metadata row: Date/Time + OS Fingerprint + Open Ports Badge
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val isolatedDateTime = "\u2066$formattedDate $formattedTime\u2069"
+                    Text(
+                        text = if (!scan.osFingerprint.isNullOrBlank()) "$isolatedDateTime • ${scan.osFingerprint}" else isolatedDateTime,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = if (isDark) TextMuted else TextMutedLight,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    // Open Ports Count Badge
+                    Surface(
+                        color = accent.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(0.5.dp, accent.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = "${scan.openPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
+                            color = accent,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }
             }
             
-            Text(
-                "${scan.securityScore}%", 
-                color = if (scan.securityScore > 70) TertiaryNeon else (if (isDark) DangerNeon else DangerLight),
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
+            // Score Display
+            Surface(
+                color = riskColor.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, riskColor.copy(alpha = 0.3f)),
+                modifier = Modifier.padding(horizontal = 6.dp)
+            ) {
+                Text(
+                    "${scan.securityScore}%", 
+                    color = riskColor,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                )
+            }
 
             IconButton(
                 onClick = onDownload,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.Download, contentDescription = "Download Report", tint = accent, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Download, contentDescription = "Download Report", tint = accent, modifier = Modifier.size(18.dp))
             }
 
             IconButton(
                 onClick = onExport,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.Share, contentDescription = "Export Report", tint = SecondaryNeon, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Share, contentDescription = "Export Report", tint = SecondaryNeon, modifier = Modifier.size(18.dp))
             }
             
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Report", tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Report", tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(18.dp))
             }
         }
     }

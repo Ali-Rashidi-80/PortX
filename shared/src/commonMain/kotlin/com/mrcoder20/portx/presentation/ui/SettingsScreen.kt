@@ -50,55 +50,43 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
         ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 1. LANGUAGE SELECTOR
+        // 1. LANGUAGE SELECTOR (INTERACTIVE CARDS)
         SettingsSectionTitle(LocalizedStrings.get("language", state.language))
-        var showLanguageMenu by remember { mutableStateOf(false) }
-        val currentLang = Language.entries.find { it.code == state.language } ?: Language.EN
-        
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Box(modifier = Modifier.padding(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Language.entries.forEach { langItem ->
+                val isSelected = state.language == langItem.code
                 Surface(
-                    onClick = { showLanguageMenu = true },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f),
-                    border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight),
-                    modifier = Modifier.fillMaxWidth()
+                    onClick = { settingsManager.updateLanguage(langItem.code) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) accent.copy(alpha = 0.12f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f)),
+                    border = BorderStroke(1.5.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight)),
+                    modifier = Modifier.weight(1f).height(80.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                    Text(currentLang.label, color = if (isDark) Color.White else Color.Black, fontWeight = FontWeight.Medium)
-                        Icon(Icons.Default.ArrowDropDown, null, tint = TextMuted)
-                    }
-                }
-
-                DropdownMenu(
-                    expanded = showLanguageMenu,
-                    onDismissRequest = { showLanguageMenu = false },
-                    modifier = Modifier
-                        .background(if (isDark) SurfaceDark.copy(alpha = 0.95f) else Color.White)
-                        .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(8.dp))
-                ) {
-                    val targetLanguages = Language.entries
-                    targetLanguages.forEach { lang ->
-                        DropdownMenuItem(
-                            text = { 
-                                Text(
-                                    lang.label, 
-                                    color = if (state.language == lang.code) accent else if (isDark) Color.White else Color.Black 
-                                ) 
-                            },
-                            onClick = {
-                                settingsManager.updateLanguage(lang.code)
-                                showLanguageMenu = false
-                            },
-                            leadingIcon = {
-                                if (state.language == lang.code) {
-                                    Icon(Icons.Default.Check, null, tint = accent, modifier = Modifier.size(18.dp))
-                                }
-                            }
+                        Surface(
+                            color = if (isSelected) accent else (if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f)),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                langItem.code.uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, fontSize = 10.sp),
+                                color = if (isSelected) Color.Black else (if (isDark) Color.White else Color.Black),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            langItem.label,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
+                            color = if (isSelected) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
+                            maxLines = 1
                         )
                     }
                 }
@@ -107,7 +95,38 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 2. APPEARANCE (Theme & Color)
+        // 2. SCAN ENGINE PRESETS & TUNING
+        SettingsSectionTitle(LocalizedStrings.get("scan_presets", state.language))
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val presets = listOf(
+                    Triple(LocalizedStrings.get("preset_fast", state.language), "100ms • Turbo", SecondaryNeon),
+                    Triple(LocalizedStrings.get("preset_balanced", state.language), "500ms • Stable", accent),
+                    Triple(LocalizedStrings.get("preset_deep", state.language), "1500ms • Deep", TertiaryNeon)
+                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    presets.forEachIndexed { idx, (title, meta, pColor) ->
+                        val isDefault = idx == 1
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
+                            border = BorderStroke(1.dp, if (isDefault) pColor.copy(alpha = 0.5f) else (if (isDark) GlassBorder else GlassBorderLight)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(title, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = if (isDark) Color.White else Color.Black)
+                                Spacer(Modifier.height(4.dp))
+                                Text(meta, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), color = pColor)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 3. APPEARANCE (Theme & Color)
         SettingsSectionTitle(LocalizedStrings.get("theme", state.language))
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(4.dp)) {
@@ -157,7 +176,30 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 3. COMMUNICATION
+        // 4. SYSTEM & CORE DIAGNOSTICS HUD
+        SettingsSectionTitle(LocalizedStrings.get("system_info", state.language))
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(LocalizedStrings.get("runtime_arch", state.language), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                    Text("KMP • Compose 1.7.3", style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontWeight = FontWeight.Bold), color = accent)
+                }
+                HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Core Engine", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                    Text("Async NIO Sockets", style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontWeight = FontWeight.Bold), color = SecondaryNeon)
+                }
+                HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Advisory Database", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                    Text("NVD / CVE Embedded v2026", style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontWeight = FontWeight.Bold), color = TertiaryNeon)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 5. COMMUNICATION
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CommunicationGlassButton(LocalizedStrings.get("about", state.language), Icons.Default.Info, Modifier.weight(1f)) { try { uriHandler.openUri(githubUrl) } catch (_: Exception) {} }
             CommunicationGlassButton(LocalizedStrings.get("support", state.language), Icons.Default.HeadsetMic, Modifier.weight(1f)) { try { uriHandler.openUri("$githubUrl/issues") } catch (_: Exception) {} }

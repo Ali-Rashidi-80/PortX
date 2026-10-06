@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
@@ -498,7 +499,37 @@ fun DashboardIpInput(
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight.Medium,
                     textDirection = TextDirection.Ltr
-                )
+                ),
+                trailingIcon = {
+                    if (state.ip.isNotEmpty()) {
+                        val ipTrimmed = state.ip.trim()
+                        val isIpv4 = ipTrimmed.split(".").let { parts -> parts.size == 4 && parts.all { p -> p.toIntOrNull() in 0..255 } }
+                        val isLocal = ipTrimmed == "127.0.0.1" || ipTrimmed.equals("localhost", ignoreCase = true)
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.35f)),
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Text(
+                                if (isLocal) "LOCAL" else if (isIpv4) "IPv4" else "HOST",
+                                color = if (isLocal) TertiaryNeon else accent,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else {
+                        TextButton(
+                            onClick = { onIpChange("127.0.0.1") },
+                            contentPadding = PaddingValues(horizontal = 6.dp),
+                            modifier = Modifier.height(28.dp).padding(end = 4.dp)
+                        ) {
+                            Text("127.0.0.1", color = accent.copy(alpha = 0.7f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
             )
             
             val infiniteTransition = rememberInfiniteTransition()
@@ -745,25 +776,107 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
 fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Color, lang: String = "en") {
     val isDark = LocalAppSettings.current.theme == "DARK"
     val logListState = rememberLazyListState()
+    val clipboardManager = LocalClipboardManager.current
+    var isLogsCopied by remember { mutableStateOf(false) }
+
     LaunchedEffect(state.logs.size) { if (state.logs.isNotEmpty()) logListState.animateScrollToItem(state.logs.size - 1) }
+    LaunchedEffect(isLogsCopied) {
+        if (isLogsCopied) {
+            kotlinx.coroutines.delay(2000)
+            isLogsCopied = false
+        }
+    }
+
     GlassCard(modifier = modifier, contentPadding = PaddingValues(12.dp)) {
         Column {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Terminal, null, tint = accent, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(LocalizedStrings.get("live_engine_logs", lang), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Terminal, null, tint = accent, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        LocalizedStrings.get("live_engine_logs", lang),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                        color = if (isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.06f),
+                        border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            "${state.logs.size} ${LocalizedStrings.get("logs_count", lang)}",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = accent,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    if (state.logs.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(state.logs.joinToString("\n")))
+                                isLogsCopied = true
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                if (isLogsCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                                contentDescription = LocalizedStrings.get("copy_all_logs", lang),
+                                tint = if (isLogsCopied) TertiaryNeon else (if (isDark) TextMuted else TextMutedLight),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
             }
-            Spacer(Modifier.height(12.dp))
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().background(if (isDark) Color.Black.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).border(1.dp, GlassBorder.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+            Spacer(Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                    .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                    .padding(8.dp)
+            ) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(end = 10.dp)) {
+                    LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(end = 12.dp)) {
                         itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
-                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            val logColor = when {
+                                log.contains("completed", ignoreCase = true) || log.contains("found", ignoreCase = true) || log.contains("active", ignoreCase = true) -> TertiaryNeon
+                                log.contains("error", ignoreCase = true) || log.contains("failed", ignoreCase = true) || log.contains("refused", ignoreCase = true) -> DangerNeon
+                                log.contains("warning", ignoreCase = true) || log.contains("timeout", ignoreCase = true) -> WarningNeon
+                                log.contains("probing", ignoreCase = true) || log.contains("scan", ignoreCase = true) -> accent
+                                else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.85f)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.5.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
-                                Text(log, color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), textAlign = TextAlign.Start)
+                                Text(
+                                    log,
+                                    color = logColor,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                    textAlign = TextAlign.Start
+                                )
                             }
                         }
-                        if (state.logs.isEmpty()) item { Text(LocalizedStrings.get("waiting_engine_activity", lang), color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)) }
+                        if (state.logs.isEmpty()) item {
+                            Text(
+                                LocalizedStrings.get("waiting_engine_activity", lang),
+                                color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            )
+                        }
                     }
                     PortXVerticalScrollbar(
                         listState = logListState,
@@ -1244,6 +1357,14 @@ fun PortDetailDialog(
     var isCopied by remember { mutableStateOf(false) }
     val (riskLabel, riskColor, riskIcon) = getPortRiskLevel(port.number)
     val advisory = getPortSecurityAdvisory(port.number)
+    val dialogScrollState = rememberScrollState()
+    var copiedAction by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(copiedAction) {
+        if (copiedAction != null) {
+            kotlinx.coroutines.delay(2000)
+            copiedAction = null
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1278,7 +1399,7 @@ fun PortDetailDialog(
                             color = if (isDark) Color.White else Color.Black
                         )
                         Text(
-                            "\u2066${target}:${port.number}\u2069 • TCP Active",
+                            "\u2066${target}:${port.number}\u2069 • TCP LISTENING",
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr),
                             color = if (isDark) TextMuted else TextMutedLight
                         )
@@ -1290,77 +1411,150 @@ fun PortDetailDialog(
             }
         },
         text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Risk Level Badge
-                Row(
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(riskColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
-                        .border(1.dp, riskColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .verticalScroll(dialogScrollState)
+                        .padding(end = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(riskIcon, null, tint = riskColor, modifier = Modifier.size(16.dp))
-                    Text(
-                        text = riskLabel,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
-                        color = riskColor
-                    )
-                }
+                    // Risk Level & State Badges
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = riskColor.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, riskColor.copy(alpha = 0.4f)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(riskIcon, null, tint = riskColor, modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = riskLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
+                                    color = riskColor,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
 
-                // Service & Banner Box
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.04f),
-                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.2f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            "DETECTED BANNER / SERVICE SIGNATURE",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
-                            color = accent
-                        )
-                        val bannerText = if (!rawBanner.isNullOrBlank()) rawBanner.trim() else port.description
-                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                            Text(
-                                text = bannerText,
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.9f),
-                                textAlign = TextAlign.Start,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = TertiaryNeon.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, TertiaryNeon.copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TertiaryNeon))
+                                Text("OPEN", color = TertiaryNeon, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                            }
                         }
                     }
-                }
 
-                // Security Advisory Box
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f),
-                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.25f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.Security, null, tint = SecondaryNeon, modifier = Modifier.size(14.dp))
+                    // Quick Actions Row (cURL, IP:Port copy)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val urlStr = if (port.number == 443 || port.number == 8443) "https://${target}:${port.number}" else "http://${target}:${port.number}"
+                                clipboardManager.setText(AnnotatedString(urlStr))
+                                copiedAction = "URL"
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f)),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(if (copiedAction == "URL") Icons.Default.Check else Icons.Default.Link, null, tint = accent, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(if (copiedAction == "URL") LocalizedStrings.get("copied", lang) else LocalizedStrings.get("copy_url", lang), fontSize = 11.sp, color = if (isDark) Color.White else Color.Black)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val curlCmd = "curl -v -m 5 http://${target}:${port.number}/"
+                                clipboardManager.setText(AnnotatedString(curlCmd))
+                                copiedAction = "CURL"
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f)),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(if (copiedAction == "CURL") Icons.Default.Check else Icons.Default.Terminal, null, tint = SecondaryNeon, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(if (copiedAction == "CURL") LocalizedStrings.get("copied", lang) else LocalizedStrings.get("copy_curl", lang), fontSize = 11.sp, color = if (isDark) Color.White else Color.Black)
+                        }
+                    }
+
+                    // Service & Banner Box
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.04f),
+                        border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                "SECURITY ADVISORY & HARDENING",
+                                "DETECTED BANNER / SERVICE SIGNATURE",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
-                                color = SecondaryNeon
+                                color = accent
+                            )
+                            val bannerText = if (!rawBanner.isNullOrBlank()) rawBanner.trim() else port.description
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                Text(
+                                    text = bannerText,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.9f),
+                                    textAlign = TextAlign.Start,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
+                    // Security Advisory Box
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f),
+                        border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Security, null, tint = SecondaryNeon, modifier = Modifier.size(14.dp))
+                                Text(
+                                    "SECURITY ADVISORY & HARDENING",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
+                                    color = SecondaryNeon
+                                )
+                            }
+                            Text(
+                                text = advisory,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = if (isDark) TextSecondary else TextSecondaryLight
                             )
                         }
-                        Text(
-                            text = advisory,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = if (isDark) TextSecondary else TextSecondaryLight
-                        )
                     }
                 }
+
+                PortXScrollStateVerticalScrollbar(
+                    scrollState = dialogScrollState,
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
             }
         },
         confirmButton = {
@@ -1370,7 +1564,7 @@ fun PortDetailDialog(
                         appendLine("Port: ${port.number}")
                         appendLine("Title: ${port.title}")
                         appendLine("Target: ${target}:${port.number}")
-                        appendLine("Status: OPEN")
+                        appendLine("Status: OPEN (TCP)")
                         appendLine("Banner: ${rawBanner ?: port.description}")
                         appendLine("Risk: $riskLabel")
                         appendLine("Advisory: $advisory")
