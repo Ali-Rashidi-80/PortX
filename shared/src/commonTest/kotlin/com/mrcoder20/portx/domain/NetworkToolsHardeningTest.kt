@@ -943,4 +943,25 @@ class NetworkToolsHardeningTest {
         assertEquals("127.0.0.1", summary.target)
         assertEquals(10, summary.totalPorts)
     }
+
+    @Test
+    fun testDatabaseAdaptersQuotedJsonFallback() {
+        val adapter = com.mrcoder20.portx.data.local.mapIntStringAdapter
+        // Test JSON-style quoted key-value pairs
+        val jsonStyle = "{\"80\":\"Apache/2.4\"|\"443\":\"nginx/1.22\"}"
+        val decoded = adapter.decode(jsonStyle)
+        assertEquals(2, decoded.size)
+        assertEquals("Apache/2.4", decoded[80])
+        assertEquals("nginx/1.22", decoded[443])
+    }
+
+    @Test
+    fun testIpv6BracketStripping() {
+        val bracketed = "[2001:db8::1]"
+        val stripped = bracketed.removePrefix("[").removeSuffix("]")
+        assertEquals("2001:db8::1", stripped)
+
+        val unbracketed = "2001:db8::1"
+        assertEquals("2001:db8::1", unbracketed.removePrefix("[").removeSuffix("]"))
+    }
 }

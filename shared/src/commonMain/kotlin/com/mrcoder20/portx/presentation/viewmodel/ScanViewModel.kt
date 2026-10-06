@@ -223,7 +223,7 @@ class ScanViewModel(
                                 addLog("External connectivity confirmed.")
                             }
                         } finally {
-                            selector.close()
+                            try { selector.close() } catch (_: Exception) {}
                         }
                     } catch (e: CancellationException) {
                         throw e

@@ -235,7 +235,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 for (res in bannerChannel) {
                     val enriched = try {
                         val socket = withTimeoutOrNull(2500) {
-                            aSocket(selectorManager).tcp().connect(resolvedTarget, res.port) {
+                            aSocket(selectorManager).tcp().connect(resolvedTarget.removePrefix("[").removeSuffix("]"), res.port) {
                                 socketTimeout = 2000
                             }
                         }
@@ -345,7 +345,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
     ): ScanPortResult {
         return try {
             val socket = withTimeoutOrNull(timeout + 100) {
-                aSocket(selector).tcp().connect(target, port) {
+                aSocket(selector).tcp().connect(target.removePrefix("[").removeSuffix("]"), port) {
                     socketTimeout = timeout
                 }
             }
@@ -384,7 +384,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
 
     private suspend fun scanUdpPort(selector: SelectorManager, target: String, port: Int): ScanPortResult {
         return try {
-            val address = InetSocketAddress(target, port)
+            val address = InetSocketAddress(target.removePrefix("[").removeSuffix("]"), port)
             val socket = aSocket(selector).udp().bind()
             var banner = ""
             val state = try {

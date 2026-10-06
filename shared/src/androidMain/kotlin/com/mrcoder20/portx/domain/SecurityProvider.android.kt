@@ -59,15 +59,21 @@ class AndroidSecurityProvider : SecurityProvider {
 
     private fun checkSuBinary(): Boolean {
         return try {
-            val process = Runtime.getRuntime().exec(arrayOf("which", "su"))
-            val output = process.inputStream.bufferedReader().readLine()?.trim()
+            val process = ProcessBuilder(listOf("which", "su")).redirectErrorStream(true).start()
             val finished = process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)
             if (!finished) {
-                process.destroyForcibly()
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        process.destroyForcibly()
+                    } else {
+                        process.destroy()
+                    }
+                } catch (_: Throwable) { process.destroy() }
                 return false
             }
+            val output = process.inputStream.bufferedReader().readLine()?.trim()
             val exitCode = process.exitValue()
-            process.destroy()
+            try { process.destroy() } catch (_: Throwable) {}
             exitCode == 0 && !output.isNullOrBlank() && 
                 !output.contains("not found", ignoreCase = true) && 
                 !output.contains("no su", ignoreCase = true)

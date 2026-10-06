@@ -65,17 +65,32 @@ class AndroidNetworkTools : NetworkTools {
         var process: Process? = null
         try {
             val start = System.currentTimeMillis()
-            val proc = Runtime.getRuntime().exec(arrayOf(pingBin, "-c", "1", "-W", timeoutSec.toString(), ipStr))
+            val proc = ProcessBuilder(listOf(pingBin, "-c", "1", "-W", timeoutSec.toString(), ipStr))
+                .redirectErrorStream(true)
+                .start()
             process = proc
             val finished = proc.waitFor(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
             if (!finished) {
-                proc.destroy()
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        proc.destroyForcibly()
+                    } else {
+                        proc.destroy()
+                    }
+                } catch (_: Throwable) { proc.destroy() }
                 return PingAttempt(false, null, null)
             }
             val output = proc.inputStream.bufferedReader().readText()
             val elapsed = System.currentTimeMillis() - start
 
-            if (proc.exitValue() == 0 && !output.contains("100% packet loss", ignoreCase = true)) {
+            val isFailure = output.contains("100% loss", ignoreCase = true) ||
+                    output.contains("100% packet loss", ignoreCase = true) ||
+                    output.contains("Request timed out", ignoreCase = true) ||
+                    output.contains("Destination host unreachable", ignoreCase = true) ||
+                    output.contains("Network is unreachable", ignoreCase = true) ||
+                    output.contains("Permission denied", ignoreCase = true)
+
+            if (proc.exitValue() == 0 && !isFailure) {
                 val parsedTime = parseTimeFromPingOutput(output) ?: elapsed
                 val parsedTtl = parseTtlFromPingOutput(output)
                 return PingAttempt(true, parsedTime, parsedTtl)
@@ -83,7 +98,13 @@ class AndroidNetworkTools : NetworkTools {
         } catch (e: Exception) {
             // Android exec failed or restricted, fallback to isReachable
         } finally {
-            try { process?.destroy() } catch (_: Exception) {}
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    process?.destroyForcibly()
+                } else {
+                    process?.destroy()
+                }
+            } catch (_: Exception) {}
         }
 
         return try {
