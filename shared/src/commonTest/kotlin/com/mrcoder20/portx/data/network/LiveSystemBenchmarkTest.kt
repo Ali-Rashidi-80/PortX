@@ -5,6 +5,10 @@ import java.net.ServerSocket
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import com.mrcoder20.portx.domain.model.ScanResult
+import com.mrcoder20.portx.domain.usecase.AnomalyDetectionUseCase
+import com.mrcoder20.portx.domain.usecase.ExportReportUseCase
+import com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase
 
 class LiveSystemBenchmarkTest {
 
@@ -259,5 +263,150 @@ class LiveSystemBenchmarkTest {
             try { server.close() } catch (_: Exception) {}
             serverThread.interrupt()
         }
+    }
+
+    @Test
+    fun benchmark06_securityAndAnomalyEngineThroughput(): Unit = runTest {
+        println("\n=======================================================")
+        println(" PORTX BENCHMARK 6: SECURITY POSTURE & ANOMALY HEURISTICS")
+        println("=======================================================")
+
+        val anomalyUseCase = AnomalyDetectionUseCase()
+        val scoreUseCase = SecurityScoreUseCase()
+
+        // Construct mock ScanResult with 25 mixed standard, cloud, and ICS/SCADA vectors
+        val testPorts = listOf(
+            21, 22, 23, 80, 102, 135, 139, 161, 389, 443, 445, 502,
+            1883, 1900, 2049, 2181, 2375, 2379, 3389, 4840, 5555, 5683,
+            5900, 6379, 8080, 9200, 10250, 11211, 27017, 47808
+        )
+        val mockResult = ScanResult(
+            target = "10.0.0.1",
+            openPorts = testPorts,
+            timestamp = System.currentTimeMillis(),
+            securityScore = 0
+        )
+
+        val iterations = 10000
+        val startNano = System.nanoTime()
+        var totalAnomaliesCount = 0
+        var totalScoreSum = 0
+
+        for (i in 0 until iterations) {
+            val anomalies = anomalyUseCase(mockResult)
+            val score = scoreUseCase(mockResult)
+            totalAnomaliesCount += anomalies.size
+            totalScoreSum += score
+        }
+
+        val elapsedNs = System.nanoTime() - startNano
+        val elapsedMs = elapsedNs / 1_000_000.0
+        val opsPerSec = (iterations * 1000.0) / elapsedMs
+        val latencyUsPerOp = (elapsedNs / 1000.0) / iterations
+
+        println("Evaluated Iterations   : $iterations")
+        println("Total Evaluation Time  : ${"%.2f".format(elapsedMs)} ms")
+        println("Engine Throughput Rate : ${opsPerSec.toLong()} evaluations/sec")
+        println("Single Decision Latency: ${"%.3f".format(latencyUsPerOp)} microseconds")
+        println("Identified Anomalies   : ${totalAnomaliesCount / iterations} distinct vectors detected")
+        println("Computed Posture Score : ${totalScoreSum / iterations}%")
+        println("=======================================================\n")
+
+        assertTrue(totalAnomaliesCount > 0)
+        assertTrue(totalScoreSum >= 0)
+    }
+
+    @Test
+    fun benchmark07_reportSerializationThroughput(): Unit = runTest {
+        println("\n=======================================================")
+        println(" PORTX BENCHMARK 7: REPORT SERIALIZATION ENGINE (1,000 Ports)")
+        println("=======================================================")
+
+        val exportUseCase = ExportReportUseCase()
+        val ports = (1000..1999).toList()
+        val services = ports.associateWith { "service-$it" }
+        val banners = ports.associateWith { "Server: PortX-Daemon/$it OpenSSL/3.0.2" }
+
+        val largeResult = ScanResult(
+            target = "192.168.1.100",
+            openPorts = ports,
+            portServices = services,
+            portBanners = banners,
+            timestamp = System.currentTimeMillis(),
+            securityScore = 45,
+            deviceName = "Core-Edge-Gateway",
+            osFingerprint = "Linux 6.8 Enterprise Kernel"
+        )
+
+        // 1. CSV Format
+        val csvStart = System.nanoTime()
+        val csvOutput = exportUseCase(largeResult, "CSV")
+        val csvDurationMs = (System.nanoTime() - csvStart) / 1_000_000.0
+
+        // 2. Markdown Format
+        val mdStart = System.nanoTime()
+        val mdOutput = exportUseCase(largeResult, "MD")
+        val mdDurationMs = (System.nanoTime() - mdStart) / 1_000_000.0
+
+        // 3. JSON Format
+        val jsonStart = System.nanoTime()
+        val jsonOutput = exportUseCase(largeResult, "JSON")
+        val jsonDurationMs = (System.nanoTime() - jsonStart) / 1_000_000.0
+
+        println("CSV Generation   : ${"%.2f".format(csvDurationMs)} ms (${csvOutput.length} bytes, ${"%.2f".format((csvOutput.length / 1024.0) / (csvDurationMs / 1000.0))} KB/sec)")
+        println("Markdown Report  : ${"%.2f".format(mdDurationMs)} ms (${mdOutput.length} bytes, ${"%.2f".format((mdOutput.length / 1024.0) / (mdDurationMs / 1000.0))} KB/sec)")
+        println("JSON Export      : ${"%.2f".format(jsonDurationMs)} ms (${jsonOutput.length} bytes, ${"%.2f".format((jsonOutput.length / 1024.0) / (jsonDurationMs / 1000.0))} KB/sec)")
+        println("=======================================================\n")
+
+        assertTrue(csvOutput.isNotEmpty())
+        assertTrue(mdOutput.isNotEmpty())
+        assertTrue(jsonOutput.isNotEmpty())
+    }
+
+    @Test
+    fun benchmark08_udpProbeEngineThroughput(): Unit = runTest {
+        println("\n=======================================================")
+        println(" PORTX BENCHMARK 8: UDP PROBE SYNTHESIS & SCAN DISPATCH")
+        println("=======================================================")
+
+        val scanner = PortScanner()
+
+        // 1. Measure byte-payload synthesis speed across RFC specs
+        val probePorts = listOf(53, 123, 161, 1900, 5683, 9999)
+        val synthesisIterations = 50000
+        val synStart = System.nanoTime()
+        var totalPayloadBytes = 0
+
+        for (i in 0 until synthesisIterations) {
+            val p = probePorts[i % probePorts.size]
+            val payload = scanner.getUdpProbePayload(p)
+            totalPayloadBytes += payload.size
+        }
+        val synElapsedMs = (System.nanoTime() - synStart) / 1_000_000.0
+        val synRate = (synthesisIterations * 1000.0) / synElapsedMs
+
+        println("Payload Synthesis Speed : ${synRate.toLong()} probes/sec (${"%.2f".format(synElapsedMs)} ms for $synthesisIterations probes)")
+
+        // 2. Live UDP socket dispatch on loopback
+        val udpConfig = ScanConfig(
+            target = "127.0.0.1",
+            startPort = 45000,
+            endPort = 45019,
+            concurrency = 20,
+            timeoutMs = 150,
+            scanType = "UDP",
+            serviceDetect = false
+        )
+
+        val netStart = System.currentTimeMillis()
+        val result = scanner.scan(udpConfig)
+        val netElapsed = maxOf(1L, System.currentTimeMillis() - netStart)
+        val udpRate = (result.totalPorts * 1000L) / netElapsed
+
+        println("UDP Loopback 20-Port Dispatch: ${netElapsed} ms -> $udpRate ports/sec")
+        println("UDP Accounting        : ${result.closedPorts} closed, ${result.filtered} filtered, ${result.openPorts} open")
+        println("=======================================================\n")
+
+        assertTrue(result.totalPorts == 20)
     }
 }
