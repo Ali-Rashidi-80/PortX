@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.touchDragScroll
 import com.mrcoder20.portx.presentation.ui.theme.*
 import com.mrcoder20.portx.presentation.viewmodel.ToolsViewModel
 import org.koin.compose.koinInject
@@ -248,10 +249,14 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                         }
                     }
                     if (presets.isNotEmpty()) {
+                        val isRtl = lang == "fa" || lang == "ar"
+                        val quickScrollState = rememberScrollState()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                                .touchDragScroll(quickScrollState, isVertical = false, isRtl = isRtl)
+                                .horizontalScroll(quickScrollState)
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -281,6 +286,7 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                                     )
                                 }
                             }
+                            Spacer(Modifier.width(16.dp))
                         }
                     }
                 }
@@ -546,6 +552,7 @@ fun PingResultPanel(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
+                            .touchDragScroll(listState, isVertical = true)
                             .padding(end = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
@@ -751,6 +758,7 @@ fun DnsResultPanel(
                         state = dnsListState,
                         modifier = Modifier
                             .fillMaxSize()
+                            .touchDragScroll(dnsListState, isVertical = true)
                             .padding(end = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -1001,7 +1009,13 @@ fun WhoisResultPanel(
                     )
                     .padding(12.dp)
             ) {
-                Box(modifier = Modifier.fillMaxSize().verticalScroll(whoisScrollState).padding(end = 10.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .touchDragScroll(whoisScrollState, isVertical = true)
+                        .verticalScroll(whoisScrollState)
+                        .padding(end = 10.dp)
+                ) {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                         SelectionContainer {
                             Text(
@@ -1058,6 +1072,7 @@ fun LocalInfoPanel(
                         start = if (isRtl) 12.dp else 0.dp,
                         end = if (!isRtl) 12.dp else 0.dp
                     )
+                    .touchDragScroll(scrollState, isVertical = true)
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {

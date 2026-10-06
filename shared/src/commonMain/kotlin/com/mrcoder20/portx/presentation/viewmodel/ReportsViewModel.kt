@@ -33,18 +33,22 @@ class ReportsViewModel(
         _uiState.update { it.copy(exportFormat = format) }
     }
 
-    fun shareScan(scan: ScanResult) {
+    fun getExportContent(scan: ScanResult, format: String = _uiState.value.exportFormat): String {
+        return exportReportUseCase(scan, format)
+    }
+
+    fun shareScan(scan: ScanResult, format: String = _uiState.value.exportFormat) {
         try {
-            val (_, content, fileName, mimeType) = prepareExport(scan)
+            val (_, content, fileName, mimeType) = prepareExport(scan, format)
             fileSharer.shareFile(content, fileName, mimeType)
         } catch (e: Exception) {
             showSnackbar("Share failed: ${e.message ?: "Unknown error"}")
         }
     }
 
-    fun downloadScan(scan: ScanResult) {
+    fun downloadScan(scan: ScanResult, format: String = _uiState.value.exportFormat) {
         try {
-            val (_, content, fileName, mimeType) = prepareExport(scan)
+            val (_, content, fileName, mimeType) = prepareExport(scan, format)
             val path = fileSharer.downloadFile(content, fileName, mimeType)
             if (path != null) {
                 showSnackbar("Saved to: $path")
@@ -56,10 +60,18 @@ class ReportsViewModel(
         }
     }
 
-    private var snackbarJob: Job? = null
+    fun saveScanAs(scan: ScanResult, format: String = _uiState.value.exportFormat) {
+        shareScan(scan, format)
+    }
+
+    fun quickSaveScan(scan: ScanResult, format: String = _uiState.value.exportFormat) {
+        downloadScan(scan, format)
+    }
+
+    var snackbarJob: Job? = null
     private var loadScansJob: Job? = null
 
-    private fun showSnackbar(message: String) {
+    fun showSnackbar(message: String) {
         snackbarJob?.cancel()
         snackbarJob = viewModelScope.launch {
             _uiState.update { it.copy(snackbarMessage = message) }
@@ -68,8 +80,8 @@ class ReportsViewModel(
         }
     }
 
-    private fun prepareExport(scan: ScanResult): ExportData {
-        val format = _uiState.value.exportFormat
+    private fun prepareExport(scan: ScanResult, targetFormat: String = _uiState.value.exportFormat): ExportData {
+        val format = targetFormat.uppercase()
         val content = exportReportUseCase(scan, format)
         val extension = if (format == "MD") "md" else format.lowercase()
         val sanitizedTarget = scan.target.replace(Regex("[^a-zA-Z0-9._-]"), "_")

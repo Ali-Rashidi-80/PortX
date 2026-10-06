@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.touchDragScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
@@ -483,7 +484,7 @@ fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color,
         ) {
             SecurityVisualizerCard(
                 state = state,
-                modifier = Modifier.fillMaxWidth().height(175.dp),
+                modifier = Modifier.fillMaxWidth().height(135.dp),
                 smallSize = true,
                 accent = accent,
                 lang = lang,
@@ -712,10 +713,13 @@ fun DashboardIpInput(
             }
 
             // Quick Target Presets Row
+            val isRtl = lang == "fa" || lang == "ar"
+            val ipPresetsScrollState = rememberScrollState()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
+                    .touchDragScroll(ipPresetsScrollState, isVertical = false, isRtl = isRtl)
+                    .horizontalScroll(ipPresetsScrollState)
                     .padding(horizontal = 6.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -747,6 +751,7 @@ fun DashboardIpInput(
                         }
                     }
                 }
+                Spacer(Modifier.width(16.dp))
             }
         }
     }
@@ -796,15 +801,15 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
             }
 
             if (!state.allPorts) {
+                val currentRange = "${state.startPort}-${state.endPort}"
                 Spacer(Modifier.height(16.dp))
                 Text(LocalizedStrings.get("port_range", lang), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(10.dp))
                 
-                val currentRange = "${state.startPort}-${state.endPort}"
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ScanChip(LocalizedStrings.get("top_20", lang), currentRange == "1-100", accent) {
                         viewModel.setPortRange("1", "100")
@@ -1158,7 +1163,13 @@ fun EngineLogsCard(
                     }
                 } else {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(end = 12.dp)) {
+                        LazyColumn(
+                            state = logListState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .touchDragScroll(logListState, isVertical = true)
+                                .padding(end = 12.dp)
+                        ) {
                             itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
                                 val logColor = when {
                                     log.contains("completed", ignoreCase = true) || log.contains("found", ignoreCase = true) || log.contains("active", ignoreCase = true) -> TertiaryNeon
@@ -1205,10 +1216,10 @@ fun FilterChipMini(
         shape = RoundedCornerShape(8.dp),
         color = if (isSelected) chipColor.copy(alpha = 0.18f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.04f)),
         border = BorderStroke(1.dp, if (isSelected) chipColor else (if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))),
-        modifier = Modifier.defaultMinSize(minHeight = 28.dp).height(28.dp)
+        modifier = Modifier.requiredHeight(28.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            modifier = Modifier.fillMaxHeight().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -1384,11 +1395,14 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     )
 
                     // Quick category chips
+                    val isRtl = lang == "fa" || lang == "ar"
+                    val chipsScrollState = rememberScrollState()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 32.dp)
-                            .horizontalScroll(rememberScrollState()),
+                            .height(32.dp)
+                            .touchDragScroll(chipsScrollState, isVertical = false, isRtl = isRtl)
+                            .horizontalScroll(chipsScrollState),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1436,6 +1450,7 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                                 onClick = { selectedCategoryFilter = "REMOTE" }
                             )
                         }
+                        Spacer(Modifier.width(16.dp))
                     }
                 }
             }
@@ -1447,6 +1462,7 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .fillMaxSize()
+                        .touchDragScroll(listState, isVertical = true)
                         .padding(
                             start = if (isRtl) 14.dp else 0.dp,
                             end = if (!isRtl) 14.dp else 0.dp
@@ -1536,8 +1552,7 @@ fun ScanChip(label: String, checked: Boolean, accent: Color, modifier: Modifier 
                 label, 
                 style = MaterialTheme.typography.labelMedium, 
                 color = if (checked) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                softWrap = false
             )
         }
     }
@@ -1627,20 +1642,89 @@ fun PortItem(port: DisplayPort, onClick: () -> Unit = {}) {
     }
 }
 
-fun getPortRiskLevel(port: Int): Triple<String, Color, ImageVector> {
+fun getPortRiskLevel(port: Int, lang: String = "en"): Triple<String, Color, ImageVector> {
     return when (port) {
-        21, 23, 102, 135, 137, 138, 139, 445, 502, 1883, 2049, 2181, 2375, 2379, 5555, 10250, 11211 -> 
-            Triple("CRITICAL / HIGH RISK", DangerNeon, Icons.Default.Warning)
-        22, 1194, 1433, 1521, 3306, 3389, 4840, 51820, 5432, 5900, 6379, 6443, 8123, 8200, 8500, 9042, 9200, 9300, 27017 -> 
-            Triple("PRIVILEGED / ADMINISTRATIVE", SecondaryNeon, Icons.Default.Lock)
-        80, 443, 8000, 8080, 8081, 8088, 8443, 8888, 9090, 3000, 5000 -> 
-            Triple("STANDARD WEB SERVICE", PrimaryNeon, Icons.Default.Language)
-        else -> 
-            Triple("STANDARD NETWORK SERVICE", TertiaryNeon, Icons.Default.CheckCircle)
+        21, 23, 102, 135, 137, 138, 139, 445, 502, 1883, 2049, 2181, 2375, 2379, 5555, 10250, 11211 -> {
+            val label = when (lang) {
+                "fa" -> "بحرانی / پرخطر"
+                "ar" -> "حرج / عالي الخطورة"
+                else -> "CRITICAL / HIGH RISK"
+            }
+            Triple(label, DangerNeon, Icons.Default.Warning)
+        }
+        22, 1194, 1433, 1521, 3306, 3389, 4840, 51820, 5432, 5900, 6379, 6443, 8123, 8200, 8500, 9042, 9200, 9300, 27017 -> {
+            val label = when (lang) {
+                "fa" -> "دسترسی ویژه / مدیریتی"
+                "ar" -> "وصول متميز / إداري"
+                else -> "PRIVILEGED / ADMINISTRATIVE"
+            }
+            Triple(label, SecondaryNeon, Icons.Default.Lock)
+        }
+        80, 443, 8000, 8080, 8081, 8088, 8443, 8888, 9090, 3000, 5000 -> {
+            val label = when (lang) {
+                "fa" -> "وب‌سرویس استاندارد"
+                "ar" -> "خدمة ويب قياسية"
+                else -> "STANDARD WEB SERVICE"
+            }
+            Triple(label, PrimaryNeon, Icons.Default.Language)
+        }
+        else -> {
+            val label = when (lang) {
+                "fa" -> "سرویس شبکه استاندارد"
+                "ar" -> "خدمة شبكة قياسية"
+                else -> "STANDARD NETWORK SERVICE"
+            }
+            Triple(label, TertiaryNeon, Icons.Default.CheckCircle)
+        }
     }
 }
 
-fun getPortSecurityAdvisory(port: Int): String {
+fun getPortSecurityAdvisory(port: Int, lang: String = "en"): String {
+    if (lang == "fa") {
+        return when (port) {
+            21 -> "پروتکل FTP ناامن است و اطلاعات ورود را به صورت متن خام منتقل می‌کند. به SFTP (پورت ۲۲) یا FTPS مهاجرت کنید و دسترسی خارجی فایروال را مسدود نمایید."
+            22 -> "فقط احراز هویت با کلید عمومی SSH را مجاز کنید، ورود مستقیم کاربر root را غیرفعال کرده و از Fail2ban جهت جلوگیری از حملات Brute-force استفاده کنید."
+            23 -> "پروتکل Telnet کاملاً منسوخ و فاقد رمزنگاری است. این سرویس را فوراً متوقف کرده و SSH را جایگزین نمایید."
+            53 -> "سرویس DNS شناسایی شد. مطمئن شوید Open Recursion غیرفعال باشد تا از حملات تقویت DNS و مسموم‌سازی کش جلوگیری شود."
+            80 -> "ترافیک وب HTTP غیررمزنگاری‌شده است. تغییر مسیر خودکار به HTTPS با هدرهای HSTS و گواهینامه‌های معتبر TLS را اجباری کنید."
+            135 -> "سرویس Microsoft RPC یک بردار حمله پرخطر برای نفوذ جانبی و افزایش سطح دسترسی در شبکه ویندوزی است. دسترسی این پورت را در فایروال مسدود کنید."
+            137, 138, 139 -> "سرویس‌های NetBIOS اطلاعات ساختار شبکه داخلی را افشا می‌کنند. آن‌ها را به VLAN داخلی محدود کرده یا SMBv1 را کاملاً غیرفعال نمایید."
+            443 -> "اندپوینت وب امن HTTPS. پیکربندی TLS را بررسی کنید تا نسخه‌های قدیمی TLS 1.0/1.1 غیرفعال باشند و از رمزنگاری‌های مدرن استفاده شود."
+            445 -> "اشتراک فایل SMB / اکتیو دایرکتوری، بردار اصلی انتشار باج‌افزارها (مانند WannaCry) است. هرگز نباید در اینترنت عمومی باز باشد."
+            1433 -> "پایگاه‌داده Microsoft SQL Server. رمزهای پیچیده اعمال کنید، کاربر 'sa' را غیرفعال کرده و دسترسی را فقط به VPN یا IPهای مجاز محدود سازید."
+            1883 -> "بروکر IoT پروتکل MQTT بدون رمزنگاری است. به پورت ۸۸۸۳ با احراز هویت دوطرفه گواهینامه دیجیتال (mTLS) مهاجرت نمایید."
+            3306 -> "پورت پایگاه‌داده MySQL/MariaDB در دسترس است. تنها به localhost (127.0.0.1) گوش فرا دهید یا از تونل امن SSH استفاده کنید."
+            3389 -> "سرویس ریموت دسکتاپ ویندوز (RDP). هدف دائمی حملات نفوذ باج‌افزاری است. احراز هویت در سطح شبکه (NLA) را فعال کرده و اتصال را به VPN محدود کنید."
+            5432 -> "پورت پایگاه‌داده PostgreSQL. دسترسی را در pg_hba.conf به رنج‌های IP معتبر محدود کرده و اتصال اجباری SSL/TLS را فعال کنید."
+            6379 -> "پایگاه‌داده حافظه‌محور Redis به طور پیش‌فرض فاقد احراز هویت است. به 127.0.0.1 متصل شوید، requirepass قوی تعیین کرده و دستورات خطرناک را غیرفعال کنید."
+            5900 -> "سرویس ریموت دسکتاپ VNC ترافیک صفحه را منتقل می‌کند. رمز عبور قوی قرار دهید، احراز هویت امن را اجباری کرده و از تونل SSH یا VPN استفاده کنید."
+            8080, 8443 -> "سرویس وب یا پراکسی جانبی. مسیرهای عیب‌یابی، Swagger و پنل‌های مدیریتی را بررسی کرده و از عدم استفاده از رمزهای پیش‌فرض مطمئن شوید."
+            27017 -> "پورت پایگاه‌داده MongoDB باز است. مطمئن شوید احراز هویت (auth = true) فعال و رمزنگاری داده‌ها در حال انتقال (TLS) برقرار باشد."
+            else -> "بررسی کنید که آیا این سرویس واقعاً نیاز به دسترسی عمومی دارد یا خیر. اصل حداقل دسترسی و فیلتر دقیق ترافیک ورودی فایروال را اعمال کنید."
+        }
+    } else if (lang == "ar") {
+        return when (port) {
+            21 -> "ينقل بروتوكول FTP غير المشفر بيانات الاعتماد كنص صريح. قم بالترقية إلى SFTP أو FTPS وحظر الوصول الخارجي."
+            22 -> "فرض المصادقة بمفتاح SSH فقط، وتعطيل تسجيل دخول root، وتفعيل الحماية ضد هجمات القوة الغاشمة."
+            23 -> "بروتوكول Telnet قديم وغير مشفر نهائياً. أوقف هذه الخدمة فوراً واستبدلها بـ SSH."
+            53 -> "تم اكتشاف محلل DNS. تأكد من تعطيل التكرار المفتوح لمنع هجمات التضخيم والتسميم."
+            80 -> "حركة مرور HTTP غير مشفرة. فرض إعادة التوجيه إلى HTTPS مع ترويسات HSTS وشهادات حديثة."
+            135 -> "خدمة Microsoft RPC تشكل خطراً كبيراً للحركة الجانبية وتصعيد الامتيازات. احظر المنفذ في جدار الحماية."
+            137, 138, 139 -> "خدمات NetBIOS تكشف تفاصيل الشبكة الداخلية. اعزلها داخل شبكة محلية أو عطل SMBv1."
+            443 -> "نقطة نهاية HTTPS آمنة. تأكد من تعطيل بروتوكولات TLS القديمة وتفعيل حزم التشفير القوية."
+            445 -> "مشاركة ملفات SMB. المتجه الرئيسي لبرمجيات الفدية مثل WannaCry. لا تعرضه للإنترنت العام نهائياً."
+            1433 -> "قاعدة بيانات SQL Server. فرض كلمات مرور قوية، وتعطيل حساب 'sa'، وتقييد الوصول لشبكة VPN."
+            1883 -> "وسيط MQTT غير مشفر. الانتقال إلى المنفذ 8883 مع مصادقة TLS المتبادلة."
+            3306 -> "قاعدة بيانات MySQL/MariaDB مكشوفة. اربطها حصرياً بـ 127.0.0.1 أو استخدم نفق SSH."
+            3389 -> "بروتوكول سطح المكتب البعيد RDP. هدف رئيسي لهجمات الفدية. اطلب اتصال VPN وفعّل NLA."
+            5432 -> "قاعدة بيانات PostgreSQL. قيد الوصول في pg_hba.conf واشترط اتصالات SSL/TLS."
+            6379 -> "ذاكرة Redis المؤقتة. اربط بـ 127.0.0.1، وعيّن requirepass قوي، وعطّل الأوامر الخطيرة."
+            5900 -> "خدمة التحكم عن بعد VNC. عيّن كلمة مرور قوية واشترط الاتصال عبر نفق SSH أو VPN."
+            8080, 8443 -> "خدمة ويب بديلة أو وكيل. افحص نقاط النهاية المعرضة وكلمات المرور الافتراضية."
+            27017 -> "قاعدة بيانات MongoDB. تأكد من تفعيل المصادقة والتشفير عبر TLS."
+            else -> "تحقق مما إذا كانت الخدمة تتطلب وصولاً عاماً. طبّق مبدأ الامتياز الأقل وتصفية جدار الحماية."
+        }
+    }
     return when (port) {
         21 -> "Unencrypted FTP transmits credentials in plaintext. Migrate to SFTP (Port 22) or FTPS (TLS). Block external access at perimeter firewall."
         22 -> "Enforce SSH public key authentication only, disable root login (PermitRootLogin no), and implement rate-limiting or Fail2ban."
@@ -1657,6 +1741,7 @@ fun getPortSecurityAdvisory(port: Int): String {
         3389 -> "Remote Desktop Protocol (RDP). High-risk target for brute-force ransomware attacks. Require VPN connection and enable NLA."
         5432 -> "PostgreSQL database port. Restrict access in pg_hba.conf to trusted IP ranges and require SSL/TLS connections."
         6379 -> "Redis in-memory store. By default lacks authentication or encryption. Bind to 127.0.0.1, set strong requirepass, and disable dangerous commands."
+        5900 -> "VNC Remote Display server exposes desktop frames and inputs. Enforce strong authentication and tunnel through SSH or VPN."
         8080, 8443 -> "Alternate HTTP/HTTPS proxy or admin service. Inspect exposed debug endpoints (e.g. Spring Actuator) and default passwords."
         27017 -> "MongoDB database port exposed. Verify authorization is enabled (auth = true) and TLS encryption is active."
         else -> "Verify if this service requires public accessibility. Apply principle of least privilege and strict firewall ingress filtering."
@@ -1676,10 +1761,12 @@ fun PortDetailDialog(
     val isDark = LocalAppSettings.current.theme == "DARK"
     val clipboardManager = LocalClipboardManager.current
     var isCopied by remember { mutableStateOf(false) }
-    val (riskLabel, riskColor, riskIcon) = getPortRiskLevel(port.number)
-    val advisory = getPortSecurityAdvisory(port.number)
+    val (riskLabel, riskColor, riskIcon) = getPortRiskLevel(port.number, lang)
+    val advisory = getPortSecurityAdvisory(port.number, lang)
     val dialogScrollState = rememberScrollState()
     var copiedAction by remember { mutableStateOf<String?>(null) }
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
     LaunchedEffect(copiedAction) {
         if (copiedAction != null) {
             kotlinx.coroutines.delay(2000)
@@ -1720,7 +1807,7 @@ fun PortDetailDialog(
                             color = if (isDark) Color.White else Color.Black
                         )
                         Text(
-                            "\u2066${target}:${port.number}\u2069 • TCP LISTENING",
+                            "\u2066${target}:${port.number}\u2069 • ${LocalizedStrings.get("tcp_listening", lang)}",
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr),
                             color = if (isDark) TextMuted else TextMutedLight
                         )
@@ -1737,7 +1824,7 @@ fun PortDetailDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(dialogScrollState)
-                        .padding(end = 8.dp),
+                        .padding(start = if (isRtl) 12.dp else 0.dp, end = if (isRtl) 0.dp else 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Risk Level & State Badges
@@ -1778,7 +1865,7 @@ fun PortDetailDialog(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TertiaryNeon))
-                                Text("OPEN", color = TertiaryNeon, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                Text(LocalizedStrings.get("port_open", lang), color = TertiaryNeon, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
                             }
                         }
                     }
@@ -1830,7 +1917,7 @@ fun PortDetailDialog(
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                "DETECTED BANNER / SERVICE SIGNATURE",
+                                LocalizedStrings.get("detected_banner", lang),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
                                 color = accent
                             )
@@ -1858,7 +1945,7 @@ fun PortDetailDialog(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Icon(Icons.Default.Security, null, tint = SecondaryNeon, modifier = Modifier.size(14.dp))
                                 Text(
-                                    "SECURITY ADVISORY & HARDENING",
+                                    LocalizedStrings.get("security_advisory", lang),
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
                                     color = SecondaryNeon
                                 )
@@ -1874,7 +1961,7 @@ fun PortDetailDialog(
 
                 PortXScrollStateVerticalScrollbar(
                     scrollState = dialogScrollState,
-                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                    modifier = Modifier.align(if (isRtl) Alignment.CenterStart else Alignment.CenterEnd).fillMaxHeight()
                 )
             }
         },
@@ -1896,13 +1983,17 @@ fun PortDetailDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = accent),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Icon(if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
+                Icon(if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp), tint = Color.Black)
                 Spacer(Modifier.width(6.dp))
-                Text(if (isCopied) LocalizedStrings.get("copied", lang) else LocalizedStrings.get("copy_details", lang), fontWeight = FontWeight.Bold)
+                Text(if (isCopied) LocalizedStrings.get("copied", lang) else LocalizedStrings.get("copy_details", lang), fontWeight = FontWeight.Bold, color = Color.Black)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            OutlinedButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f))
+            ) {
                 Text(LocalizedStrings.get("close", lang), color = if (isDark) Color.White else Color.Black)
             }
         },

@@ -340,35 +340,29 @@ fun DeviceChassis(
 
                 // Realistic Simulated Bezel Details (Camera / Dynamic Island & Home Indicator)
                 if (showFrame && preset.category == DeviceCategory.PHONE && !isLandscape) {
-                    // Top Speaker / Camera Pill
-                    Surface(
+                    // Top Speaker / Camera Pill (Visual only)
+                    Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = 8.dp)
                             .width(88.dp)
-                            .height(20.dp),
-                        shape = CircleShape,
-                        color = Color.Black
+                            .height(20.dp)
+                            .background(Color.Black, CircleShape)
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.CenterEnd
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Box(modifier = Modifier.size(8.dp).background(Color(0xFF1F2937), CircleShape))
-                        }
+                        Box(modifier = Modifier.size(8.dp).background(Color(0xFF1F2937), CircleShape))
                     }
 
-                    // Bottom Home Indicator Line
-                    Surface(
+                    // Bottom Home Indicator Line (Visual only)
+                    Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .padding(bottom = 6.dp)
                             .width(110.dp)
-                            .height(4.dp),
-                        shape = CircleShape,
-                        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.35f)
-                    ) {}
+                            .height(4.dp)
+                            .background((if (isDark) Color.White else Color.Black).copy(alpha = 0.35f), CircleShape)
+                    )
                 }
             }
         }
