@@ -612,6 +612,17 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             }
         }
 
+        val declarativeMatch = com.mrcoder20.portx.domain.DeclarativeSignatureRegistry.findMatch(port, grabbed)
+        if (declarativeMatch != null) {
+            if (service == "unknown" || service.isBlank()) {
+                service = declarativeMatch.id.substringAfter("-")
+            }
+            val extracted = declarativeMatch.extractVersion(grabbed)
+            if (!extracted.isNullOrBlank() && version.isBlank()) {
+                version = extracted
+            }
+        }
+
         return ScanPortResult(
             port = port,
             protocol = "TCP",

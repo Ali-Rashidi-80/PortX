@@ -3,36 +3,37 @@ package com.mrcoder20.portx.presentation.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Primary Cyber-Muted Neon Colors
-val PrimaryNeon = Color(0xFF00B4D8) // Deep Cyber Blue
-val SecondaryNeon = Color(0xFF9D00FF) // Vivid Hacker Purple
-val TertiaryNeon = Color(0xFF00E676) // Toxic Green
+val PrimaryNeon = Color(0xFF00E5FF) // Electric Cyber Cyan (Ultra High-Contrast)
+val SecondaryNeon = Color(0xFFA855F7) // Vivid Cyber Purple
+val TertiaryNeon = Color(0xFF00E676) // Toxic Cyber Green (Success/Safe)
 
-// Dark Backgrounds
-val BackgroundDark = Color(0xFF030303) // Pitch Black
-val SurfaceDark = Color(0xFF0A0A0A) // Near Black
+// Dark Backgrounds (Rich Cyber Slate - Depth & Contrast)
+val BackgroundDark = Color(0xFF070B10) // Cyber Midnight Navy
+val SurfaceDark = Color(0xFF0E141E) // Elevated Slate Surface
+val CardDark = Color(0xFF131B27) // Elevated Card Background
 
-// Light Mode Aesthetics (Muted Cyber Light - Eye Friendly)
-val BackgroundLight = Color(0xFFD1D5DB) // Soft slate grey, much easier on the eyes
-val SurfaceLight = Color(0xFFE5E7EB) // Balanced surface grey
-val GlassLight = Color(0xCCF3F4F6) // Slightly more solid grey-glass
-val GlassBorderLight = Color(0x4D000000) // Defined, professional borders
+// Light Mode Aesthetics (Linear / GitHub Slate - Modern & Clean)
+val BackgroundLight = Color(0xFFF1F5F9) // Clean Slate 100
+val SurfaceLight = Color(0xFFFFFFFF) // Crisp Pure White
+val GlassLight = Color(0xF2FFFFFF) // Frosted White Glass
+val GlassBorderLight = Color(0x260F172A) // Defined Crisp Slate Border
 
 // Glassmorphism Colors
-val GlassBackground = Color(0x14FFFFFF) // Subtle transparent white
-val GlassBorder = Color(0x26FFFFFF) // Muted border
+val GlassBackground = Color(0x1400E5FF) // Subtle Electric Cyan Tint
+val GlassBorder = Color(0x3300E5FF) // Neon Cyan Micro-Border
 val GlassSurface = Color(0x0AFFFFFF) 
 
-// Accent Colors
-val DangerNeon = Color(0xFFFF3D3D) // Sharp Red
-val WarningNeon = Color(0xFFFFD600) // Electric Yellow
-val WarningLight = Color(0xFFC09000) // Darker Yellow for Light Theme
-val DangerLight = Color(0xFFCC0000) // Darker Red for Light Theme
+// Accent & Severity Colors
+val DangerNeon = Color(0xFFFF3B30) // Apple/Cyber Sharp Red (High Risk)
+val WarningNeon = Color(0xFFFFD600) // Electric Cyber Yellow (Medium Risk)
+val WarningLight = Color(0xFFD97706) // Accessible Amber for Light Theme
+val DangerLight = Color(0xFFDC2626) // Accessible Crimson for Light Theme
 
-// Text Colors
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xB3FFFFFF)
-val TextMuted = Color(0x80FFFFFF)
+// Text Colors (WCAG AAA Compliant)
+val TextPrimary = Color(0xFFF8FAFC) // 100% Crisp White
+val TextSecondary = Color(0xCCF8FAFC) // 80% Slate White
+val TextMuted = Color(0x8CF8FAFC) // 55% Muted White
 
-val TextPrimaryLight = Color(0xFF000000)
-val TextSecondaryLight = Color(0xFF2D3748)
-val TextMutedLight = Color(0xFF4A5568)
+val TextPrimaryLight = Color(0xFF0F172A) // Slate 900
+val TextSecondaryLight = Color(0xFF334155) // Slate 700
+val TextMutedLight = Color(0xFF64748B) // Slate 500

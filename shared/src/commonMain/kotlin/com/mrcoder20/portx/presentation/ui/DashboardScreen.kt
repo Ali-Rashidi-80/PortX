@@ -248,77 +248,140 @@ fun DashboardScreen(viewModel: ScanViewModel) {
 
 @Composable
 fun LargeDesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
-    Row(
-        modifier = Modifier.fillMaxSize().padding(48.dp),
-        horizontalArrangement = Arrangement.spacedBy(40.dp)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Column(modifier = Modifier.weight(1.1f), verticalArrangement = Arrangement.spacedBy(32.dp)) {
-            DashboardIpInput(
-                state = state,
-                accent = accent,
-                lang = lang,
-                onIpChange = { viewModel.onIpChange(it) },
-                onStartScan = { viewModel.startScan() },
-                onStopScan = { viewModel.stopScan() }
-            )
-            
-            state.error?.let {
-                Surface(
-                    color = DangerNeon.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, DangerNeon.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        it, color = DangerNeon, modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
+        // --- 1. FULL-WIDTH COMMAND CENTER HUD ---
+        DashboardIpInput(
+            state = state,
+            accent = accent,
+            lang = lang,
+            onIpChange = { viewModel.onIpChange(it) },
+            onStartScan = { viewModel.startScan() },
+            onStopScan = { viewModel.stopScan() }
+        )
+
+        state.error?.let {
+            Surface(
+                color = DangerNeon.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, DangerNeon.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    it, color = DangerNeon, modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        }
+
+        // --- 2. BALANCED 3-COLUMN BENTO GRID ---
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Col 1: Visualizer Radar & Live Engine Activity
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                SecurityVisualizerCard(
+                    state,
+                    modifier = Modifier.fillMaxWidth().height(260.dp),
+                    accent = accent,
+                    lang = lang
+                )
+                EngineLogsCard(
+                    state,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    accent = accent,
+                    lang = lang
+                )
             }
 
-            AdvancedParametersCard(state, viewModel, accent, lang)
-            EngineConfigurationCard(state, viewModel, accent, lang)
-            EngineLogsCard(state, modifier = Modifier.weight(1f), accent = accent, lang = lang)
-        }
+            // Col 2: Concurrency & Engine Parameters
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                AdvancedParametersCard(state, viewModel, accent, lang)
+                EngineConfigurationCard(state, viewModel, accent, lang)
+            }
 
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            SecurityVisualizerCard(state, modifier = Modifier.fillMaxWidth().aspectRatio(1.1f), accent = accent, lang = lang)
-        }
-
-        Column(modifier = Modifier.weight(1.1f)) {
-            ActiveServicesCard(state, modifier = Modifier.fillMaxHeight(), accent = accent, lang = lang)
+            // Col 3: Live Discovered Services & Banners
+            Column(
+                modifier = Modifier.weight(1.15f).fillMaxHeight()
+            ) {
+                ActiveServicesCard(
+                    state,
+                    modifier = Modifier.fillMaxSize(),
+                    accent = accent,
+                    lang = lang
+                )
+            }
         }
     }
 }
 
 @Composable
 fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
-    Row(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(modifier = Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            DashboardIpInput(
-                state = state,
-                accent = accent,
-                lang = lang,
-                onIpChange = { viewModel.onIpChange(it) },
-                onStartScan = { viewModel.startScan() },
-                onStopScan = { viewModel.stopScan() }
-            )
+        // --- 1. FULL-WIDTH COMMAND CENTER HUD ---
+        DashboardIpInput(
+            state = state,
+            accent = accent,
+            lang = lang,
+            onIpChange = { viewModel.onIpChange(it) },
+            onStartScan = { viewModel.startScan() },
+            onStopScan = { viewModel.stopScan() }
+        )
 
-            state.error?.let {
-                Text(it, color = DangerNeon, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
-            }
-
-            SecurityVisualizerCard(state, modifier = Modifier.weight(1.2f), accent = accent, lang = lang)
-            EngineLogsCard(state, modifier = Modifier.weight(0.8f), accent = accent, lang = lang)
+        state.error?.let {
+            Text(it, color = DangerNeon, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
         }
 
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            ActiveServicesCard(state, modifier = Modifier.weight(1f), accent = accent, lang = lang)
-            AdvancedParametersCard(state, viewModel, accent = accent, lang = lang)
-            EngineConfigurationCard(state, viewModel, accent = accent, lang = lang)
+        // --- 2. BALANCED 2-COLUMN GRID ---
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Left: Visualizer & Logs
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                SecurityVisualizerCard(
+                    state,
+                    modifier = Modifier.fillMaxWidth().height(250.dp),
+                    accent = accent,
+                    lang = lang
+                )
+                EngineLogsCard(
+                    state,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    accent = accent,
+                    lang = lang
+                )
+            }
+
+            // Right: Discovered Services & Settings
+            Column(
+                modifier = Modifier.weight(1.1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ActiveServicesCard(
+                    state,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    accent = accent,
+                    lang = lang
+                )
+                AdvancedParametersCard(state, viewModel, accent = accent, lang = lang)
+                EngineConfigurationCard(state, viewModel, accent = accent, lang = lang)
+            }
         }
     }
 }

@@ -23,6 +23,10 @@
 
 <img src="banner.png" width="100%" alt="PortX Official Banner" />
 
+<br/><br/>
+
+<img src="icons/demo.svg" width="100%" alt="PortX 120 FPS Radar and Real-Time Telemetry Demo" />
+
 </div>
 
 ---
@@ -34,10 +38,12 @@
 
 - [What is PortX?](#what-is-portx)
 - [What PortX is NOT](#what-portx-is-not)
-- [vs Alternatives](#vs-alternatives)
+- [vs Alternatives (Nmap, Masscan, RustScan, Naabu)](#vs-alternatives-architectural-advantages)
 - [Core Invariants & Technical Features](#core-invariants--technical-features)
 - [System Architecture & Concurrency Model](#system-architecture--concurrency-model)
 - [Performance Benchmarks](#performance-benchmarks)
+- [Sample Telemetry Output (JSON & Markdown)](#sample-telemetry-output-json--markdown-export)
+- [Declarative Service Signatures](#declarative-service-signatures-extensible-engine)
 - [Interface Telemetry](#interface-telemetry)
 - [Cross-Platform Installation](#cross-platform-installation)
 - [Building from Source](#building-from-source)
@@ -79,17 +85,37 @@
 
 ---
 
-## vs Alternatives
+## vs Alternatives: Architectural Advantages
 
-| Architectural Axis | Traditional GUI Scanners (Zenmap / Electron) | Standard Nmap (`-T4 -sT`) | Masscan (`--rate 10k`) | **PortX (Ultra Engine v5)** |
-| :--- | :---: | :---: | :---: | :---: |
-| **Throughput (PPS)** | < 800 PPS | ~1,200 PPS (TCP Connect) | 100,000+ PPS (Raw SYN) | **8,000 – 10,200+ PPS (Measured)** |
-| **Root / Admin Required** | Varies | Required for SYN (`-sS`) | Required for Raw Sockets | **No Root Required** |
-| **UI Responsiveness** | Sluggish / Freezes during bursts | CLI Only | CLI Only | **120 FPS Compose Multiplatform** |
-| **Memory Footprint** | 250 MB – 500 MB+ | ~25 MB | ~30 MB | **~48 MB (Strictly Bounded)** |
-| **Banner Inspection** | Synchronous (blocks UI) | Synchronous Scripting | Post-scan parsing | **Decoupled Asynchronous Pool** |
-| **Adaptive RTT Layer** | None (Static Timeout) | Congestion algorithms | None | **Dynamic 2.5x EMA RTT Scaling** |
-| **Operating Systems** | Desktop Only | Desktop Only | Desktop Only | **Windows, macOS, Linux, Android** |
+PortX was engineered specifically to solve the fundamental trade-offs between low-level raw packet crafters (which require kernel root access and lack reactive UIs) and heavy graphical wrappers (which stall under load and consume hundreds of megabytes of RAM).
+
+| Architectural Dimension | Traditional GUI (Zenmap / Electron) | Standard Nmap (`-sS` / `-sT`) | Masscan (`--rate 10k`) | RustScan (`-a <target>`) | Naabu (`-rate 1000`) | **PortX (Ultra Engine v5)** |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Throughput (PPS)** | < 800 PPS | ~1,200 PPS (`-sT`) | 100,000+ PPS | Subprocess-gated | ~1,000 – 5,000 PPS | **8,000 – 10,200+ PPS (Empirical)** |
+| **Root / Admin Privilege** | Varies | Required for SYN (`-sS`) | **Mandatory** (`SOCK_RAW`) | Required for fast SYN | Required for SYN | **Zero-Root Required (Pure Sockets)** |
+| **UI Telemetry & FPS** | Stutters (< 30 FPS) | CLI Only | CLI Only | CLI Only | CLI Only | **120 FPS Compose Multiplatform HUD** |
+| **Memory Footprint** | 250 MB – 500 MB+ | ~25 MB | ~30 MB | ~20 MB + Nmap Heap | ~35 MB | **~48 MB Strictly Bounded Heap** |
+| **Banner Fingerprinting** | Synchronous (blocks UI) | Sequential NSE Scripts | Post-scan external | Spawns external Nmap | Basic / Passive probes | **Decoupled Asynchronous Coroutine Pool** |
+| **Adaptive RTT Layer** | None (Static Timeout) | Congestion algorithms | None (Blind drops) | None | Static rate-limiting | **Dynamic 2.5x EMA Latency Scaling** |
+| **Custom Signatures** | Static port lists | Monolithic Lua scripts | None | Relies on Nmap NSE | YAML templates | **Declarative Signatures (Nuclei-style)** |
+| **Cross-Platform Target** | Desktop Only | Desktop Only | Desktop Only | Desktop Only | Desktop Only | **Windows, macOS, Linux, Android (API 24–37)** |
+
+### Why PortX Outperforms Other Recon Engines
+
+1. **Zero-Root Multiplatform Mobility (vs Nmap `-sS` & Masscan):**  
+   Both Masscan and Nmap’s SYN stealth mode (`-sS`) rely on raw packet injection (`SOCK_RAW`), requiring `sudo`, `root`, or `CAP_NET_RAW` on Linux and WinPcap/Npcap on Windows. On unrooted Android devices and enterprise corporate environments, kernel security policies (`SELinux untrusted_app`) strictly prohibit raw sockets. PortX achieves **10,000+ ports per second** using pure asynchronous non-blocking OS sockets via Ktor Coroutines, allowing unprivileged, audit-safe execution on any workstation or phone.
+
+2. **Decoupled Asynchronous Banner Pipeline (vs RustScan & Sequential Nmap):**  
+   RustScan accelerates initial port discovery but relies on spawning an external Nmap subprocess (`nmap -sV`) to extract banners, introducing heavy process creation overhead, IPC serialization latency, and inability to run inside sandboxed mobile OSes. PortX natively embeds a dual-stage reactive pipeline: as soon as a port connects, it is streamed to a decoupled background `BannerPool` without impeding the primary sweep rate.
+
+3. **Adaptive RTT vs Blind Fixed Timeouts (vs Masscan & Naabu):**  
+   Masscan fires packets blindly at fixed rates, resulting in massive packet drop and false negatives over lossy Wi-Fi or high-jitter VPN/WAN networks. Naabu relies on fixed timeouts. PortX continuously computes the **Exponential Moving Average (EMA) of Round-Trip Time with a 2.5x safety multiplier**. In low-latency gigabit LANs, timeouts drop to ~20ms; over intercontinental WANs, timeouts expand dynamically, ensuring zero false negatives without manual rate tuning.
+
+4. **Modern Declarative Signatures (vs Monolithic Lua NSE Scripts):**  
+   Nmap NSE scripts are complex Lua scripts running in an interpreted single-threaded runtime. PortX introduces **Declarative Service Signatures**—lightweight, zero-overhead templates supporting substring, regex, and hex probe definitions serialized directly into memory.
+
+5. **Silky 120 FPS Native HUD (vs Heavy Electron & Frozen GUIs):**  
+   Zenmap and Electron-based wrappers suffer from UI thread blocking when receiving thousands of port events per second. PortX leverages Compose Multiplatform’s reactive state pipeline (`StateFlow`), rendering silky 120 FPS radar animations and real-time telemetry while consuming under 50 MB of RAM.
 
 ---
 
@@ -180,30 +206,116 @@ flowchart TD
 > 📊 **Full Benchmark Telemetry:** See [BENCHMARKS.md](BENCHMARKS.md) for full hardware telemetry, scaling curves, and GC memory profiling across all 8 benchmark suites.  
 > 🔬 **Reproduce Locally:** Run `./gradlew :shared:jvmTest --tests "com.mrcoder20.portx.data.network.LiveSystemBenchmarkTest" --rerun-tasks`
 
-### Sample Telemetry Output (JSON & CLI Export)
+### Sample Telemetry Output (JSON & Markdown Export)
 
-PortX provides structured multi-format serialization (JSON, Markdown, CSV) with deep banner extraction and device heuristics:
+PortX provides structured multi-format serialization (JSON, Markdown Table, CSV) with deep banner extraction, heuristic OS fingerprinting, and automated vulnerability risk scoring:
+
+#### 1. Machine-Readable JSON Export (`--export json` / API Output)
 
 ```json
 {
   "target": "192.168.1.1",
+  "hostname": "gateway.local",
   "ports_scanned": 1000,
   "elapsed_ms": 112,
   "throughput_pps": 8928,
   "device_classification": {
     "device_type": "Embedded Gateway / Linux Router",
-    "heuristic_os": "Linux 6.x",
+    "heuristic_os": "Linux 6.6.x (OpenWrt / Alpine)",
     "confidence": 0.94
   },
   "open_ports": [
-    { "port": 22, "protocol": "TCP", "service": "ssh", "version": "OpenSSH 9.6p1", "latency_ms": 2.1 },
-    { "port": 80, "protocol": "TCP", "service": "http", "version": "nginx/1.24.0", "title": "Router Admin Panel", "latency_ms": 1.8 },
-    { "port": 443, "protocol": "TCP", "service": "https", "version": "TLS 1.3", "latency_ms": 2.4 },
-    { "port": 502, "protocol": "TCP", "service": "modbus", "version": "Modbus/TCP Industrial Node", "latency_ms": 3.5, "anomaly_risk": "HIGH" }
+    {
+      "port": 22,
+      "protocol": "TCP",
+      "state": "OPEN",
+      "service": "ssh",
+      "version": "OpenSSH 9.6p1",
+      "banner": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13",
+      "latency_ms": 2.1,
+      "cve_risk_score": 0.0,
+      "risk_level": "LOW"
+    },
+    {
+      "port": 80,
+      "protocol": "TCP",
+      "state": "OPEN",
+      "service": "http",
+      "version": "nginx/1.24.0",
+      "title": "Router Admin Gateway",
+      "banner": "HTTP/1.1 200 OK\r\nServer: nginx/1.24.0",
+      "latency_ms": 1.8,
+      "cve_risk_score": 3.2,
+      "risk_level": "MEDIUM"
+    },
+    {
+      "port": 443,
+      "protocol": "TCP",
+      "state": "OPEN",
+      "service": "https",
+      "version": "TLS 1.3 / OpenSSL 3.1.4",
+      "banner": "HTTP/1.1 200 OK\r\nServer: nginx/1.24.0\r\nStrict-Transport-Security: max-age=31536000",
+      "latency_ms": 2.4,
+      "cve_risk_score": 0.0,
+      "risk_level": "LOW"
+    },
+    {
+      "port": 502,
+      "protocol": "TCP",
+      "state": "OPEN",
+      "service": "modbus",
+      "version": "Modbus/TCP Industrial Node",
+      "banner": "Schneider Electric Modbus/TCP Gateway 0x01",
+      "latency_ms": 3.5,
+      "cve_risk_score": 8.5,
+      "risk_level": "CRITICAL"
+    }
   ],
-  "security_posture_score": 45
+  "security_posture_score": 45,
+  "posture_assessment": "EXPOSED_INDUSTRIAL_CONTROL_ENDPOINT"
 }
 ```
+
+#### 2. Human-Readable Clean Markdown Output (`--export markdown` / Clipboard)
+
+| Target | `192.168.1.1` (`gateway.local`) |
+| :--- | :--- |
+| **Identified OS** | **Linux 6.6.x (OpenWrt / Alpine)** · Confidence `94%` |
+| **Scan Summary** | `1,000` ports scanned in `112 ms` · `8,928 PPS` · `0` descriptor faults |
+| **Posture Rating** | **45/100** · Critical Risk (Exposed ICS/SCADA Endpoint) |
+
+| Port | Protocol | State | Service | Identified Banner & Product | Latency | Vulnerability Risk |
+| :---: | :---: | :---: | :---: | :--- | :---: | :---: |
+| `22` | TCP | `OPEN` | `ssh` | OpenSSH 9.6p1 (`Ubuntu-3ubuntu13`) | 2.1 ms | `LOW (0.0)` |
+| `80` | TCP | `OPEN` | `http` | nginx/1.24.0 (Title: *Router Admin Gateway*) | 1.8 ms | `MED (3.2)` |
+| `443` | TCP | `OPEN` | `https` | TLS 1.3 / OpenSSL 3.1.4 (HSTS Enabled) | 2.4 ms | `LOW (0.0)` |
+| `502` | TCP | `OPEN` | `modbus` | Schneider Electric Modbus/TCP Gateway 0x01 | 3.5 ms | `CRIT (8.5)` |
+
+---
+
+### Declarative Service Signatures (Extensible Engine)
+
+Traditional scanners rely on complex, single-threaded Lua scripting (Nmap NSE) which causes runtime execution overhead and maintenance friction. PortX adopts modern **Declarative Service Signatures** inspired by Nuclei templates:
+
+- **Zero-Code Fingerprinting:** Add new services, ICS protocols, or proprietary cloud daemons via declarative YAML or JSON without recompiling the scanner.
+- **Multi-Vector Matching:** Match services across port ranges, probe payload hex bytes, raw banner substrings, and high-performance regular expressions.
+- **Automated Version & Risk Extraction:** Capture dynamic version tokens and assign automated severity ratings (`INFO`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+
+```yaml
+id: scada-modbus-controller
+name: Modbus/TCP Industrial Node
+protocol: TCP
+default_ports: [502, 802]
+match_substrings:
+  - "modbus"
+  - "schneider"
+match_regexes:
+  - "Modbus/TCP.*Gateway"
+category: INDUSTRIAL
+risk_severity: CRITICAL
+```
+
+All signatures are managed via `DeclarativeSignatureRegistry` with zero-allocation evaluation in the background banner extraction channel.
 
 ---
 

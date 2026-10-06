@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="100%" height="100%" style="background:#070B10;border-radius:16px;font-family:'JetBrains Mono',monospace,sans-serif;">
+  <defs>
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#00E5FF" stop-opacity="0.0"/>
+    </linearGradient>
+    <radialGradient id="radarCenter" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#070B10" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      @keyframes sweep {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes pulse {
+        0% { r: 4px; opacity: 1; }
+        50% { r: 7px; opacity: 0.6; }
+        100% { r: 4px; opacity: 1; }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+      @keyframes streamLog {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(-40px); }
+      }
+      .radar-beam {
+        transform-origin: 450px 210px;
+        animation: sweep 4s linear infinite;
+      }
+      .port-blip {
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      .live-indicator {
+        animation: blink 1.2s infinite;
+      }
+      .hud-title { font-size: 13px; font-weight: 700; fill: #64748B; letter-spacing: 1.5px; }
+      .hud-val { font-size: 20px; font-weight: 800; fill: #F8FAFC; }
+      .hud-unit { font-size: 11px; font-weight: 500; fill: #00E5FF; }
+      .hud-tag { font-size: 10px; fill: #94A3B8; }
+      .log-txt { font-size: 11px; fill: #00E676; font-family: monospace; }
+    </style>
+  </defs>
+
+  <!-- Background Grid -->
+  <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+    <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#131B27" stroke-width="0.8"/>
+  </pattern>
+  <rect width="900" height="420" fill="url(#grid)" rx="16"/>
+  <rect width="898" height="418" x="1" y="1" fill="none" stroke="#1F2937" stroke-width="1.5" rx="15"/>
+
+  <!-- Top Status Bar -->
+  <rect x="20" y="16" width="860" height="42" rx="8" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
+  <circle cx="42" cy="37" r="5" fill="#00E676" class="live-indicator"/>
+  <text x="56" y="41" fill="#F8FAFC" font-size="13" font-weight="700">PORTX ULTRA ENGINE v5.2.0</text>
+  <text x="280" y="41" fill="#64748B" font-size="12">TARGET: <tspan fill="#00E5FF">192.168.1.1</tspan> | PORTS: <tspan fill="#00E5FF">1 - 65,535</tspan> | PROTOCOL: <tspan fill="#00E676">NON-BLOCKING TCP/UDP</tspan></text>
+  <rect x="750" y="24" width="115" height="26" rx="6" fill="#00E5FF" fill-opacity="0.15" stroke="#00E5FF" stroke-width="1"/>
+  <text x="768" y="41" fill="#00E5FF" font-size="11" font-weight="700">120 FPS LIVE</text>
+
+  <!-- Left Column: Real-Time HUD Metrics -->
+  <g transform="translate(25, 75)">
+    <!-- Metric 1: Throughput -->
+    <rect x="0" y="0" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
+    <text x="16" y="24" class="hud-title">REAL-TIME THROUGHPUT</text>
+    <text x="16" y="52" class="hud-val">10,204 <tspan class="hud-unit">PORTS/SEC</tspan></text>
+    <rect x="180" y="16" width="26" height="26" rx="6" fill="#00E5FF" fill-opacity="0.1"/>
+    <text x="189" y="33" fill="#00E5FF" font-size="12">⚡</text>
+
+    <!-- Metric 2: Latency -->
+    <rect x="0" y="82" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
+    <text x="16" y="106" class="hud-title">ADAPTIVE RTT TIMING</text>
+    <text x="16" y="134" class="hud-val">1.8 <tspan class="hud-unit">MS JITTER EMA</tspan></text>
+    <rect x="180" y="98" width="26" height="26" rx="6" fill="#A855F7" fill-opacity="0.1"/>
+    <text x="189" y="115" fill="#A855F7" font-size="12">⏱</text>
+
+    <!-- Metric 3: Memory Footprint -->
+    <rect x="0" y="164" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
+    <text x="16" y="188" class="hud-title">BOUNDED MEMORY HEAP</text>
+    <text x="16" y="216" class="hud-val">16 <tspan class="hud-unit">MB DELTA (BOUNDED)</tspan></text>
+    <rect x="180" y="180" width="26" height="26" rx="6" fill="#00E676" fill-opacity="0.1"/>
+    <text x="189" y="197" fill="#00E676" font-size="12">🛡</text>
+
+    <!-- Metric 4: Target Classification -->
+    <rect x="0" y="246" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
+    <text x="16" y="270" class="hud-title">DEVICE HEURISTICS</text>
+    <text x="16" y="296" font-size="14" font-weight="700" fill="#F8FAFC">Linux Gateway / PLC</text>
+    <text x="16" y="310" class="hud-tag">CONFIDENCE: 94% (SCADA NODE)</text>
+  </g>
+
+  <!-- Center: Radar Sonar Visualizer -->
+  <g transform="translate(0, 0)">
+    <circle cx="450" cy="235" r="145" fill="url(#radarCenter)"/>
+    <circle cx="450" cy="235" r="145" fill="none" stroke="#1F2937" stroke-width="1"/>
+    <circle cx="450" cy="235" r="105" fill="none" stroke="#1F2937" stroke-width="1" stroke-dasharray="3,3"/>
+    <circle cx="450" cy="235" r="65" fill="none" stroke="#1F2937" stroke-width="1"/>
+    <circle cx="450" cy="235" r="25" fill="none" stroke="#00E5FF" stroke-width="0.8" stroke-opacity="0.5"/>
+
+    <!-- Crosshairs -->
+    <line x1="300" y1="235" x2="600" y2="235" stroke="#1E293B" stroke-width="1"/>
+    <line x1="450" y1="85" x2="450" y2="385" stroke="#1E293B" stroke-width="1"/>
+
+    <!-- Rotating Radar Beam -->
+    <g class="radar-beam">
+      <path d="M 450 235 L 595 235 A 145 145 0 0 0 540 120 Z" fill="url(#beamGrad)"/>
+      <line x1="450" y1="235" x2="595" y2="235" stroke="#00E5FF" stroke-width="2"/>
+    </g>
+
+    <!-- Discovered Open Port Blips -->
+    <!-- Port 22 SSH -->
+    <circle cx="490" cy="190" r="4" fill="#00E5FF" class="port-blip"/>
+    <text x="500" y="193" fill="#00E5FF" font-size="9" font-weight="700">22:SSH</text>
+
+    <!-- Port 80 HTTP -->
+    <circle cx="410" cy="160" r="4" fill="#00E676" class="port-blip"/>
+    <text x="365" y="163" fill="#00E676" font-size="9" font-weight="700">80:HTTP</text>
+
+    <!-- Port 443 HTTPS -->
+    <circle cx="530" cy="265" r="4" fill="#00E676" class="port-blip"/>
+    <text x="540" y="268" fill="#00E676" font-size="9" font-weight="700">443:HTTPS</text>
+
+    <!-- Port 502 Modbus (High Risk) -->
+    <circle cx="400" cy="300" r="5" fill="#FF3B30" class="port-blip"/>
+    <text x="340" y="303" fill="#FF3B30" font-size="9" font-weight="700">502:MODBUS</text>
+
+    <!-- Port 3306 MySQL -->
+    <circle cx="465" cy="130" r="4" fill="#A855F7" class="port-blip"/>
+    <text x="475" y="133" fill="#A855F7" font-size="9" font-weight="700">3306:DB</text>
+  </g>
+
+  <!-- Right Column: Discovered Service Inventory & Telemetry Feed -->
+  <g transform="translate(640, 75)">
+    <rect x="0" y="0" width="235" height="318" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
+    <text x="16" y="24" class="hud-title">ACTIVE SERVICES (DISCOVERED)</text>
+
+    <!-- Service 1: SSH -->
+    <rect x="14" y="38" width="207" height="48" rx="6" fill="#131B27"/>
+    <circle cx="28" cy="62" r="3" fill="#00E5FF"/>
+    <text x="38" y="55" fill="#F8FAFC" font-size="11" font-weight="700">Port 22/tcp — OpenSSH 9.6p1</text>
+    <text x="38" y="70" fill="#64748B" font-size="9">RTT: 2.1 ms | Protocol: SSH-2.0</text>
+
+    <!-- Service 2: HTTP -->
+    <rect x="14" y="92" width="207" height="48" rx="6" fill="#131B27"/>
+    <circle cx="28" cy="116" r="3" fill="#00E676"/>
+    <text x="38" y="109" fill="#F8FAFC" font-size="11" font-weight="700">Port 80/tcp — nginx/1.24.0</text>
+    <text x="38" y="124" fill="#64748B" font-size="9">RTT: 1.8 ms | Title: Router Gateway</text>
+
+    <!-- Service 3: HTTPS -->
+    <rect x="14" y="146" width="207" height="48" rx="6" fill="#131B27"/>
+    <circle cx="28" cy="170" r="3" fill="#00E676"/>
+    <text x="38" y="163" fill="#F8FAFC" font-size="11" font-weight="700">Port 443/tcp — TLS 1.3</text>
+    <text x="38" y="178" fill="#64748B" font-size="9">RTT: 2.4 ms | Cert: Valid</text>
+
+    <!-- Service 4: Modbus Industrial (Risk) -->
+    <rect x="14" y="200" width="207" height="48" rx="6" fill="#1F1517" stroke="#FF3B30" stroke-opacity="0.4" stroke-width="0.8"/>
+    <circle cx="28" cy="224" r="3" fill="#FF3B30"/>
+    <text x="38" y="217" fill="#FF3B30" font-size="11" font-weight="700">Port 502/tcp — Modbus ICS</text>
+    <text x="38" y="232" fill="#FCA5A5" font-size="9">RISK: HIGH | Unencrypted PLC</text>
+
+    <!-- Security Posture Clamp -->
+    <rect x="14" y="258" width="207" height="48" rx="6" fill="#131B27"/>
+    <text x="24" y="278" fill="#94A3B8" font-size="10" font-weight="600">SECURITY POSTURE SCORE</text>
+    <text x="24" y="296" fill="#FF3B30" font-size="16" font-weight="800">45 / 100 <tspan fill="#64748B" font-size="10">(EXPOSURE WARNING)</tspan></text>
+  </g>
+</svg>
