@@ -80,6 +80,6 @@ PortX is built using **Kotlin Multiplatform (KMP)** and **Compose Multiplatform*
    ```bash
    git commit -m "feat(engine): add adaptive RTT jitter mitigation"
    ```
-4. Push to your fork and submit a PR to `mr-coder20/PortX` branch `main`.
+4. Push to your fork and submit a PR to [`Ali-Rashidi-80/PortX`](https://github.com/Ali-Rashidi-80/PortX) (or upstream `mr-coder20/PortX`) branch `main`.
 
 Thank you for building high-performance network tools with us!

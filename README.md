@@ -8,8 +8,8 @@
 
 **Ultra-Fast, Non-Blocking Multiplatform Network Port Scanner Powered by Kotlin Multiplatform (KMP) & Compose — 10,000+ Ports/sec (Empirical) / Up to 50,000 (Theoretical Peak), Zero-Root Required, Adaptive RTT Timing, Bounded Channels.**
 
-[![CI](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/mr-coder20/PortX?color=blue&logo=github)](https://github.com/mr-coder20/PortX/releases)
+[![CI](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Ali-Rashidi-80/PortX?color=blue&logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
 [![Version](https://img.shields.io/badge/version-5.2.0-3fb950.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
@@ -180,6 +180,31 @@ flowchart TD
 > 📊 **Full Benchmark Telemetry:** See [BENCHMARKS.md](BENCHMARKS.md) for full hardware telemetry, scaling curves, and GC memory profiling across all 8 benchmark suites.  
 > 🔬 **Reproduce Locally:** Run `./gradlew :shared:jvmTest --tests "com.mrcoder20.portx.data.network.LiveSystemBenchmarkTest" --rerun-tasks`
 
+### Sample Telemetry Output (JSON & CLI Export)
+
+PortX provides structured multi-format serialization (JSON, Markdown, CSV) with deep banner extraction and device heuristics:
+
+```json
+{
+  "target": "192.168.1.1",
+  "ports_scanned": 1000,
+  "elapsed_ms": 112,
+  "throughput_pps": 8928,
+  "device_classification": {
+    "device_type": "Embedded Gateway / Linux Router",
+    "heuristic_os": "Linux 6.x",
+    "confidence": 0.94
+  },
+  "open_ports": [
+    { "port": 22, "protocol": "TCP", "service": "ssh", "version": "OpenSSH 9.6p1", "latency_ms": 2.1 },
+    { "port": 80, "protocol": "TCP", "service": "http", "version": "nginx/1.24.0", "title": "Router Admin Panel", "latency_ms": 1.8 },
+    { "port": 443, "protocol": "TCP", "service": "https", "version": "TLS 1.3", "latency_ms": 2.4 },
+    { "port": 502, "protocol": "TCP", "service": "modbus", "version": "Modbus/TCP Industrial Node", "latency_ms": 3.5, "anomaly_risk": "HIGH" }
+  ],
+  "security_posture_score": 45
+}
+```
+
 ---
 
 ## Interface Telemetry
@@ -242,7 +267,7 @@ flowchart TD
 
 ```bash
 # Clone repository
-git clone https://github.com/mr-coder20/PortX.git
+git clone https://github.com/Ali-Rashidi-80/PortX.git
 cd PortX
 
 # 1. Run Desktop Application (Windows / macOS / Linux)
@@ -294,5 +319,5 @@ Contributions following our zero-trust engineering standards are welcome. See [C
 Licensed under the [**Apache License, Version 2.0**](LICENSE).
 
 <div align="center">
-  <b>PortX</b> · Engineered with high-concurrency multiplatform precision by <a href="https://github.com/mr-coder20">Amirhossein Ghaffari (mr-coder20)</a>.
+  <b>PortX</b> · Maintained & Hardened by <a href="https://github.com/Ali-Rashidi-80">Ali Rashidi</a> (<a href="https://github.com/Ali-Rashidi-80/PortX">Ali-Rashidi-80/PortX</a>) · Upstream Engine: <a href="https://github.com/mr-coder20/PortX">mr-coder20/PortX</a>.
 </div>

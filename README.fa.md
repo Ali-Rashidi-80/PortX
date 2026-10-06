@@ -8,8 +8,8 @@
 
 **اسکنر شبکه پیشرفته، فوق‌سریع و غیرمسدودکننده چندسکویی مبتنی بر <bdi>Kotlin Multiplatform (KMP)</bdi> و <bdi>Compose</bdi> — سرعت بیش از ۱۰,۰۰۰ پورت در ثانیه (تجربی) / تا ۵۰,۰۰۰ پورت (سقف تئوری)، بدون نیاز به دسترسی روت، با زمان‌بندی تطبیقی <bdi>RTT</bdi> و کنترل مصرف منابع سیستم‌عامل.**
 
-[![بیلد](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml)
-[![انتشار](https://img.shields.io/github/v/release/mr-coder20/PortX?color=blue&logo=github&label=%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1)](https://github.com/mr-coder20/PortX/releases)
+[![بیلد](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml)
+[![انتشار](https://img.shields.io/github/v/release/Ali-Rashidi-80/PortX?color=blue&logo=github&label=%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1)](https://github.com/Ali-Rashidi-80/PortX/releases)
 [![نسخه](https://img.shields.io/badge/%D9%86%D8%B3%D8%AE%D9%87-5.2.0-3fb950.svg)](CHANGELOG.md)
 [![مجوز](https://img.shields.io/badge/%D9%85%D8%AC%D9%88%D8%B2-Apache--2.0-blue.svg)](LICENSE)
 [![کاتلین](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
@@ -183,6 +183,31 @@ flowchart TD
 > 🔬 **دستور بازتولید مستقیم روی سیستم:**  
 > `./gradlew :shared:jvmTest --tests "com.mrcoder20.portx.data.network.LiveSystemBenchmarkTest" --rerun-tasks`
 
+### نمونه خروجی تله‌متری اسکن (<bdi>JSON & CLI Export</bdi>)
+
+پورت‌ایکس خروجی ساختاریافته چندگانه (<bdi>JSON</bdi>، <bdi>Markdown</bdi>، <bdi>CSV</bdi>) را همراه با بنرگرابینگ عمیق و شناسایی خودکار نوع تجهیزات ارائه می‌دهد:
+
+```json
+{
+  "target": "192.168.1.1",
+  "ports_scanned": 1000,
+  "elapsed_ms": 112,
+  "throughput_pps": 8928,
+  "device_classification": {
+    "device_type": "Embedded Gateway / Linux Router",
+    "heuristic_os": "Linux 6.x",
+    "confidence": 0.94
+  },
+  "open_ports": [
+    { "port": 22, "protocol": "TCP", "service": "ssh", "version": "OpenSSH 9.6p1", "latency_ms": 2.1 },
+    { "port": 80, "protocol": "TCP", "service": "http", "version": "nginx/1.24.0", "title": "Router Admin Panel", "latency_ms": 1.8 },
+    { "port": 443, "protocol": "TCP", "service": "https", "version": "TLS 1.3", "latency_ms": 2.4 },
+    { "port": 502, "protocol": "TCP", "service": "modbus", "version": "Modbus/TCP Industrial Node", "latency_ms": 3.5, "anomaly_risk": "HIGH" }
+  ],
+  "security_posture_score": 45
+}
+```
+
 ---
 
 ## تصویر رابط کاربری
@@ -245,7 +270,7 @@ flowchart TD
 
 ```bash
 # دریافت مخزن
-git clone https://github.com/mr-coder20/PortX.git
+git clone https://github.com/Ali-Rashidi-80/PortX.git
 cd PortX
 
 # ۱. اجرای برنامه روی دسکتاپ (ویندوز / مک / لینوکس)
@@ -299,5 +324,5 @@ cd PortX
 </div>
 
 <div align="center">
-  <b>PortX</b> · توسعه‌داده‌شده با افتخار و دقت مهندسی بالا توسط <a href="https://github.com/mr-coder20">امیرحسین غفاری (mr-coder20)</a>.
+  <b>PortX</b> · نگهداری، ارتقا و بهینه‌سازی مهندسی توسط <a href="https://github.com/Ali-Rashidi-80">علی رشیدی</a> (<a href="https://github.com/Ali-Rashidi-80/PortX">Ali-Rashidi-80/PortX</a>) · هسته بالادست: <a href="https://github.com/mr-coder20/PortX">mr-coder20/PortX</a>.
 </div>
