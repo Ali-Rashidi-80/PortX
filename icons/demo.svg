@@ -1,170 +1,363 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="100%" height="100%" style="background:#070B10;border-radius:16px;font-family:'JetBrains Mono',monospace,sans-serif;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 580" width="100%" height="100%" style="background:#070B10;border-radius:16px;font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;">
   <defs>
-    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#A855F7" stop-opacity="0.8"/>
+    <linearGradient id="cyberCyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#0284C7"/>
     </linearGradient>
-    <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.4"/>
-      <stop offset="100%" stop-color="#00E5FF" stop-opacity="0.0"/>
+    <linearGradient id="pulseLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#00E5FF" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
     </linearGradient>
-    <radialGradient id="radarCenter" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="#070B10" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="60%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#EF4444"/>
+    </linearGradient>
+    <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
     <style>
-      @keyframes sweep {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      @keyframes pulse {
-        0% { r: 4px; opacity: 1; }
-        50% { r: 7px; opacity: 0.6; }
-        100% { r: 4px; opacity: 1; }
-      }
-      @keyframes blink {
+      @keyframes blinkDot {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.3; }
       }
-      @keyframes streamLog {
+      @keyframes sweepScan {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      @keyframes streamLogs {
         0% { transform: translateY(0); }
-        100% { transform: translateY(-40px); }
+        50% { transform: translateY(-16px); }
+        100% { transform: translateY(-32px); }
       }
-      .radar-beam {
-        transform-origin: 450px 210px;
-        animation: sweep 4s linear infinite;
+      @keyframes progressPulse {
+        0% { stroke-dashoffset: 260; }
+        50% { stroke-dashoffset: 140; }
+        100% { stroke-dashoffset: 260; }
       }
-      .port-blip {
-        animation: pulse 1.8s ease-in-out infinite;
+      .live-dot { animation: blinkDot 1.4s ease-in-out infinite; }
+      .scan-sweep { animation: sweepScan 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+      .gauge-ring {
+        stroke-dasharray: 264;
+        stroke-dashoffset: 145;
+        animation: progressPulse 5s ease-in-out infinite;
       }
-      .live-indicator {
-        animation: blink 1.2s infinite;
-      }
-      .hud-title { font-size: 13px; font-weight: 700; fill: #64748B; letter-spacing: 1.5px; }
-      .hud-val { font-size: 20px; font-weight: 800; fill: #F8FAFC; }
-      .hud-unit { font-size: 11px; font-weight: 500; fill: #00E5FF; }
-      .hud-tag { font-size: 10px; fill: #94A3B8; }
-      .log-txt { font-size: 11px; fill: #00E676; font-family: monospace; }
+      .log-stream { animation: streamLogs 6s ease-in-out infinite; }
+      .title-font { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 700; }
+      .mono-font { font-family: 'JetBrains Mono', Consolas, monospace; }
     </style>
   </defs>
 
-  <!-- Background Grid -->
-  <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-    <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#131B27" stroke-width="0.8"/>
-  </pattern>
-  <rect width="900" height="420" fill="url(#grid)" rx="16"/>
-  <rect width="898" height="418" x="1" y="1" fill="none" stroke="#1F2937" stroke-width="1.5" rx="15"/>
+  <!-- ==================== WINDOW FRAME & BACKGROUND ==================== -->
+  <rect width="1000" height="580" rx="16" fill="#070B10" stroke="#1E293B" stroke-width="1.5"/>
 
-  <!-- Top Status Bar -->
-  <rect x="20" y="16" width="860" height="42" rx="8" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
-  <circle cx="42" cy="37" r="5" fill="#00E676" class="live-indicator"/>
-  <text x="56" y="41" fill="#F8FAFC" font-size="13" font-weight="700">PORTX ULTRA ENGINE v5.2.0</text>
-  <text x="280" y="41" fill="#64748B" font-size="12">TARGET: <tspan fill="#00E5FF">192.168.1.1</tspan> | PORTS: <tspan fill="#00E5FF">1 - 65,535</tspan> | PROTOCOL: <tspan fill="#00E676">NON-BLOCKING TCP/UDP</tspan></text>
-  <rect x="750" y="24" width="115" height="26" rx="6" fill="#00E5FF" fill-opacity="0.15" stroke="#00E5FF" stroke-width="1"/>
-  <text x="768" y="41" fill="#00E5FF" font-size="11" font-weight="700">120 FPS LIVE</text>
+  <!-- ==================== TOP WINDOW TITLE BAR (40px) ==================== -->
+  <path d="M 0 16 Q 0 0 16 0 L 984 0 Q 1000 0 1000 16 L 1000 40 L 0 40 Z" fill="#0C121D"/>
+  <line x1="0" y1="40" x2="1000" y2="40" stroke="#1E293B" stroke-width="1"/>
 
-  <!-- Left Column: Real-Time HUD Metrics -->
-  <g transform="translate(25, 75)">
-    <!-- Metric 1: Throughput -->
-    <rect x="0" y="0" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
-    <text x="16" y="24" class="hud-title">REAL-TIME THROUGHPUT</text>
-    <text x="16" y="52" class="hud-val">10,204 <tspan class="hud-unit">PORTS/SEC</tspan></text>
-    <rect x="180" y="16" width="26" height="26" rx="6" fill="#00E5FF" fill-opacity="0.1"/>
-    <text x="189" y="33" fill="#00E5FF" font-size="12">⚡</text>
+  <!-- Title & App Icon -->
+  <circle cx="24" cy="20" r="7" fill="none" stroke="#00E5FF" stroke-width="2"/>
+  <circle cx="24" cy="20" r="2.5" fill="#00E5FF"/>
+  <text x="38" y="24" fill="#E2E8F0" font-size="12" class="title-font" letter-spacing="0.5">PortX Professional</text>
+  <rect x="156" y="12" width="60" height="16" rx="4" fill="#00E5FF" fill-opacity="0.15" stroke="#00E5FF" stroke-width="0.8"/>
+  <text x="163" y="23" fill="#00E5FF" font-size="9" class="mono-font" font-weight="700">v5.2.0 KMP</text>
 
-    <!-- Metric 2: Latency -->
-    <rect x="0" y="82" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
-    <text x="16" y="106" class="hud-title">ADAPTIVE RTT TIMING</text>
-    <text x="16" y="134" class="hud-val">1.8 <tspan class="hud-unit">MS JITTER EMA</tspan></text>
-    <rect x="180" y="98" width="26" height="26" rx="6" fill="#A855F7" fill-opacity="0.1"/>
-    <text x="189" y="115" fill="#A855F7" font-size="12">⏱</text>
+  <!-- Top Right Window Controls -->
+  <circle cx="925" cy="20" r="5" fill="#64748B"/>
+  <rect x="948" y="15" width="10" height="10" fill="none" stroke="#64748B" stroke-width="1.5" rx="1.5"/>
+  <path d="M 975 15 L 985 25 M 985 15 L 975 25" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/>
 
-    <!-- Metric 3: Memory Footprint -->
-    <rect x="0" y="164" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
-    <text x="16" y="188" class="hud-title">BOUNDED MEMORY HEAP</text>
-    <text x="16" y="216" class="hud-val">16 <tspan class="hud-unit">MB DELTA (BOUNDED)</tspan></text>
-    <rect x="180" y="180" width="26" height="26" rx="6" fill="#00E676" fill-opacity="0.1"/>
-    <text x="189" y="197" fill="#00E676" font-size="12">🛡</text>
+  <!-- ==================== LEFT NAVIGATION SIDEBAR (210px) ==================== -->
+  <rect x="14" y="52" width="206" height="514" rx="16" fill="#0C1320" stroke="#1E293B" stroke-width="1"/>
 
-    <!-- Metric 4: Target Classification -->
-    <rect x="0" y="246" width="220" height="72" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
-    <text x="16" y="270" class="hud-title">DEVICE HEURISTICS</text>
-    <text x="16" y="296" font-size="14" font-weight="700" fill="#F8FAFC">Linux Gateway / PLC</text>
-    <text x="16" y="310" class="hud-tag">CONFIDENCE: 94% (SCADA NODE)</text>
+  <!-- Brand Heading -->
+  <text x="32" y="86" fill="#FFFFFF" font-size="22" class="title-font" font-weight="900" letter-spacing="0.5" filter="url(#cyanGlow)">PortX</text>
+  <text x="32" y="103" fill="#00E5FF" font-size="10" class="mono-font" font-weight="600">ULTRA ENGINE v5</text>
+
+  <!-- Navigation Items -->
+  <!-- 1. Dashboard (Active) -->
+  <g transform="translate(24, 124)">
+    <rect width="186" height="40" rx="10" fill="#00E5FF" fill-opacity="0.12" stroke="#00E5FF" stroke-width="1"/>
+    <path d="M 14 26 L 14 18 L 22 12 L 30 18 L 30 26 Z" fill="none" stroke="#00E5FF" stroke-width="1.8"/>
+    <text x="40" y="25" fill="#00E5FF" font-size="12" class="title-font" font-weight="700">Dashboard</text>
+    <circle cx="170" cy="20" r="3" fill="#00E5FF"/>
   </g>
 
-  <!-- Center: Radar Sonar Visualizer -->
-  <g transform="translate(0, 0)">
-    <circle cx="450" cy="235" r="145" fill="url(#radarCenter)"/>
-    <circle cx="450" cy="235" r="145" fill="none" stroke="#1F2937" stroke-width="1"/>
-    <circle cx="450" cy="235" r="105" fill="none" stroke="#1F2937" stroke-width="1" stroke-dasharray="3,3"/>
-    <circle cx="450" cy="235" r="65" fill="none" stroke="#1F2937" stroke-width="1"/>
-    <circle cx="450" cy="235" r="25" fill="none" stroke="#00E5FF" stroke-width="0.8" stroke-opacity="0.5"/>
+  <!-- 2. Network Tools -->
+  <g transform="translate(24, 174)">
+    <rect width="186" height="40" rx="10" fill="transparent"/>
+    <path d="M 16 26 L 28 14 M 20 14 L 28 14 L 28 22" fill="none" stroke="#64748B" stroke-width="1.8"/>
+    <text x="40" y="25" fill="#94A3B8" font-size="12" class="title-font">Network Tools</text>
+  </g>
 
-    <!-- Crosshairs -->
-    <line x1="300" y1="235" x2="600" y2="235" stroke="#1E293B" stroke-width="1"/>
-    <line x1="450" y1="85" x2="450" y2="385" stroke="#1E293B" stroke-width="1"/>
+  <!-- 3. Reports -->
+  <g transform="translate(24, 224)">
+    <rect width="186" height="40" rx="10" fill="transparent"/>
+    <rect x="15" y="14" width="14" height="14" rx="2" fill="none" stroke="#64748B" stroke-width="1.8"/>
+    <line x1="18" y1="18" x2="25" y2="18" stroke="#64748B" stroke-width="1.5"/>
+    <line x1="18" y1="22" x2="25" y2="22" stroke="#64748B" stroke-width="1.5"/>
+    <text x="40" y="25" fill="#94A3B8" font-size="12" class="title-font">Scan Reports</text>
+  </g>
 
-    <!-- Rotating Radar Beam -->
-    <g class="radar-beam">
-      <path d="M 450 235 L 595 235 A 145 145 0 0 0 540 120 Z" fill="url(#beamGrad)"/>
-      <line x1="450" y1="235" x2="595" y2="235" stroke="#00E5FF" stroke-width="2"/>
+  <!-- 4. Settings -->
+  <g transform="translate(24, 274)">
+    <rect width="186" height="40" rx="10" fill="transparent"/>
+    <circle cx="22" cy="20" r="6" fill="none" stroke="#64748B" stroke-width="1.8"/>
+    <text x="40" y="25" fill="#94A3B8" font-size="12" class="title-font">Settings</text>
+  </g>
+
+  <!-- Sidebar Telemetry Footer -->
+  <g transform="translate(24, 460)">
+    <rect width="186" height="92" rx="10" fill="#070B11" stroke="#1E293B" stroke-width="1"/>
+    <circle cx="20" cy="22" r="4" fill="#00E676" class="live-dot"/>
+    <text x="32" y="25" fill="#F8FAFC" font-size="11" class="mono-font" font-weight="700">120 FPS FLUID</text>
+    <text x="16" y="46" fill="#64748B" font-size="10">Workers:</text>
+    <text x="75" y="46" fill="#00E5FF" font-size="10" class="mono-font" font-weight="600">1,000 / 2,500</text>
+    <text x="16" y="64" fill="#64748B" font-size="10">Architecture:</text>
+    <text x="86" y="64" fill="#A855F7" font-size="10" class="mono-font" font-weight="600">Zero-Root Sockets</text>
+    <text x="16" y="80" fill="#64748B" font-size="9">Platform: Compose KMP</text>
+  </g>
+
+  <!-- ==================== MAIN CONTENT AREA ==================== -->
+
+  <!-- --- 1. COMMAND CENTER HUD (Top Bar) --- -->
+  <g transform="translate(234, 52)">
+    <rect width="752" height="54" rx="14" fill="#0E1624" stroke="#1E293B" stroke-width="1"/>
+
+    <!-- Target Host Input -->
+    <rect x="12" y="9" width="220" height="36" rx="8" fill="#080D16" stroke="#00E5FF" stroke-width="1.2"/>
+    <circle cx="28" cy="27" r="5" fill="none" stroke="#00E5FF" stroke-width="1.5"/>
+    <text x="42" y="31" fill="#F8FAFC" font-size="12" class="mono-font" font-weight="700">192.168.1.1</text>
+    <text x="175" y="31" fill="#64748B" font-size="9" class="mono-font">IPv4</text>
+
+    <!-- Port Range Input -->
+    <rect x="242" y="9" width="160" height="36" rx="8" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+    <text x="254" y="31" fill="#94A3B8" font-size="11">Ports: </text>
+    <text x="296" y="31" fill="#00E5FF" font-size="11" class="mono-font" font-weight="700">1 - 1,000</text>
+
+    <!-- Scan Protocol Mode -->
+    <rect x="412" y="9" width="150" height="36" rx="8" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+    <text x="424" y="31" fill="#94A3B8" font-size="11">TCP Connect</text>
+    <text x="502" y="31" fill="#00E676" font-size="10" class="mono-font">● Safe</text>
+
+    <!-- Big Scan Button -->
+    <rect x="572" y="9" width="168" height="36" rx="8" fill="url(#cyberCyanGrad)" filter="url(#cyanGlow)"/>
+    <path d="M 590 27 L 598 17 L 596 26 L 604 26 L 594 37 L 596 28 Z" fill="#070B10"/>
+    <text x="612" y="31" fill="#070B10" font-size="12" class="title-font" font-weight="900" letter-spacing="0.5">SCANNING...</text>
+    <circle cx="725" cy="27" r="4" fill="#070B10" class="live-dot"/>
+  </g>
+
+  <!-- Glowing Sweep Line Under HUD -->
+  <g transform="translate(234, 108)" overflow="hidden">
+    <rect width="752" height="2" fill="#1E293B"/>
+    <rect width="240" height="2" fill="url(#pulseLineGrad)" class="scan-sweep"/>
+  </g>
+
+  <!-- --- 2. THREE-COLUMN BENTO GRID --- -->
+
+  <!-- ==================== COLUMN 1: Visualizer & Logs (Width: 236px) ==================== -->
+  <!-- Card 1A: Security Posture Visualizer -->
+  <g transform="translate(234, 118)">
+    <rect width="236" height="210" rx="14" fill="#0C1320" stroke="#1E293B" stroke-width="1"/>
+    <text x="14" y="24" fill="#94A3B8" font-size="10" class="title-font" font-weight="700" letter-spacing="1">SECURITY POSTURE</text>
+    <text x="178" y="24" fill="#00E5FF" font-size="9" class="mono-font">HEURISTIC</text>
+
+    <!-- Circular Gauge Ring -->
+    <g transform="translate(118, 96)">
+      <!-- Track -->
+      <circle cx="0" cy="0" r="42" fill="none" stroke="#131C2C" stroke-width="8"/>
+      <!-- Animated Arc -->
+      <circle cx="0" cy="0" r="42" fill="none" stroke="url(#gaugeGrad)" stroke-width="8" stroke-linecap="round" class="gauge-ring" transform="rotate(-90)"/>
+      <!-- Center Text -->
+      <text x="0" y="5" text-anchor="middle" fill="#F8FAFC" font-size="22" class="title-font" font-weight="900">45%</text>
+      <text x="0" y="20" text-anchor="middle" fill="#94A3B8" font-size="9" class="mono-font">SCORE</text>
     </g>
 
-    <!-- Discovered Open Port Blips -->
-    <!-- Port 22 SSH -->
-    <circle cx="490" cy="190" r="4" fill="#00E5FF" class="port-blip"/>
-    <text x="500" y="193" fill="#00E5FF" font-size="9" font-weight="700">22:SSH</text>
+    <!-- Status Warning Badge -->
+    <rect x="42" y="148" width="152" height="22" rx="11" fill="#EF4444" fill-opacity="0.15" stroke="#EF4444" stroke-width="1"/>
+    <circle cx="56" cy="159" r="3.5" fill="#EF4444" class="live-dot"/>
+    <text x="68" y="163" fill="#EF4444" font-size="9" class="title-font" font-weight="800">EXPOSURE DETECTED</text>
 
-    <!-- Port 80 HTTP -->
-    <circle cx="410" cy="160" r="4" fill="#00E676" class="port-blip"/>
-    <text x="365" y="163" fill="#00E676" font-size="9" font-weight="700">80:HTTP</text>
-
-    <!-- Port 443 HTTPS -->
-    <circle cx="530" cy="265" r="4" fill="#00E676" class="port-blip"/>
-    <text x="540" y="268" fill="#00E676" font-size="9" font-weight="700">443:HTTPS</text>
-
-    <!-- Port 502 Modbus (High Risk) -->
-    <circle cx="400" cy="300" r="5" fill="#FF3B30" class="port-blip"/>
-    <text x="340" y="303" fill="#FF3B30" font-size="9" font-weight="700">502:MODBUS</text>
-
-    <!-- Port 3306 MySQL -->
-    <circle cx="465" cy="130" r="4" fill="#A855F7" class="port-blip"/>
-    <text x="475" y="133" fill="#A855F7" font-size="9" font-weight="700">3306:DB</text>
+    <!-- OS Discovery Tag -->
+    <text x="118" y="192" text-anchor="middle" fill="#CBD5E1" font-size="10" class="mono-font">Linux 6.6.x (OpenWrt Router)</text>
   </g>
 
-  <!-- Right Column: Discovered Service Inventory & Telemetry Feed -->
-  <g transform="translate(640, 75)">
-    <rect x="0" y="0" width="235" height="318" rx="10" fill="#0E141E" stroke="#1F2937" stroke-width="1"/>
-    <text x="16" y="24" class="hud-title">ACTIVE SERVICES (DISCOVERED)</text>
+  <!-- Card 1B: Live Engine Logs -->
+  <g transform="translate(234, 338)">
+    <rect width="236" height="228" rx="14" fill="#080C14" stroke="#1E293B" stroke-width="1"/>
+    <rect x="0" y="0" width="236" height="28" rx="14" fill="#0D1522"/>
+    <circle cx="16" cy="14" r="3.5" fill="#00E676" class="live-dot"/>
+    <text x="26" y="18" fill="#F8FAFC" font-size="10" class="mono-font" font-weight="700">ENGINE EVENT LOGS</text>
+    <text x="180" y="18" fill="#64748B" font-size="9" class="mono-font">120 Hz</text>
 
-    <!-- Service 1: SSH -->
-    <rect x="14" y="38" width="207" height="48" rx="6" fill="#131B27"/>
-    <circle cx="28" cy="62" r="3" fill="#00E5FF"/>
-    <text x="38" y="55" fill="#F8FAFC" font-size="11" font-weight="700">Port 22/tcp — OpenSSH 9.6p1</text>
-    <text x="38" y="70" fill="#64748B" font-size="9">RTT: 2.1 ms | Protocol: SSH-2.0</text>
-
-    <!-- Service 2: HTTP -->
-    <rect x="14" y="92" width="207" height="48" rx="6" fill="#131B27"/>
-    <circle cx="28" cy="116" r="3" fill="#00E676"/>
-    <text x="38" y="109" fill="#F8FAFC" font-size="11" font-weight="700">Port 80/tcp — nginx/1.24.0</text>
-    <text x="38" y="124" fill="#64748B" font-size="9">RTT: 1.8 ms | Title: Router Gateway</text>
-
-    <!-- Service 3: HTTPS -->
-    <rect x="14" y="146" width="207" height="48" rx="6" fill="#131B27"/>
-    <circle cx="28" cy="170" r="3" fill="#00E676"/>
-    <text x="38" y="163" fill="#F8FAFC" font-size="11" font-weight="700">Port 443/tcp — TLS 1.3</text>
-    <text x="38" y="178" fill="#64748B" font-size="9">RTT: 2.4 ms | Cert: Valid</text>
-
-    <!-- Service 4: Modbus Industrial (Risk) -->
-    <rect x="14" y="200" width="207" height="48" rx="6" fill="#1F1517" stroke="#FF3B30" stroke-opacity="0.4" stroke-width="0.8"/>
-    <circle cx="28" cy="224" r="3" fill="#FF3B30"/>
-    <text x="38" y="217" fill="#FF3B30" font-size="11" font-weight="700">Port 502/tcp — Modbus ICS</text>
-    <text x="38" y="232" fill="#FCA5A5" font-size="9">RISK: HIGH | Unencrypted PLC</text>
-
-    <!-- Security Posture Clamp -->
-    <rect x="14" y="258" width="207" height="48" rx="6" fill="#131B27"/>
-    <text x="24" y="278" fill="#94A3B8" font-size="10" font-weight="600">SECURITY POSTURE SCORE</text>
-    <text x="24" y="296" fill="#FF3B30" font-size="16" font-weight="800">45 / 100 <tspan fill="#64748B" font-size="10">(EXPOSURE WARNING)</tspan></text>
+    <!-- Terminal Text Stream -->
+    <g transform="translate(12, 44)" class="mono-font">
+      <text y="0" fill="#64748B" font-size="9.5">[INIT] 1,000 worker channels</text>
+      <text y="18" fill="#00E676" font-size="9.5">[+] :22 OPEN &gt; OpenSSH 9.6</text>
+      <text y="36" fill="#00E5FF" font-size="9.5">[+] :80 OPEN &gt; nginx/1.24</text>
+      <text y="54" fill="#00E5FF" font-size="9.5">[+] :443 OPEN &gt; TLS 1.3</text>
+      <text y="72" fill="#EF4444" font-size="9.5">[!] :502 OPEN &gt; Modbus ICS</text>
+      <text y="90" fill="#A855F7" font-size="9.5">[RTT] 1.8ms EMA adaptive</text>
+      <text y="108" fill="#00E676" font-size="9.5">[SYS] 8,928 PPS sustained</text>
+      <text y="126" fill="#64748B" font-size="9.5">[OK] 0 descriptor faults</text>
+      <text y="144" fill="#00E5FF" font-size="9.5">[DONE] Sweep: 112ms</text>
+    </g>
   </g>
+
+  <!-- ==================== COLUMN 2: Parameters & Tuning (Width: 236px) ==================== -->
+  <!-- Card 2A: Advanced Parameters -->
+  <g transform="translate(480, 118)">
+    <rect width="236" height="185" rx="14" fill="#0C1320" stroke="#1E293B" stroke-width="1"/>
+    <text x="14" y="24" fill="#94A3B8" font-size="10" class="title-font" font-weight="700" letter-spacing="1">ADVANCED PARAMETERS</text>
+
+    <!-- Chips Grid -->
+    <!-- Chip 1: Banner Grab -->
+    <g transform="translate(14, 38)">
+      <rect width="208" height="28" rx="6" fill="#00E5FF" fill-opacity="0.12" stroke="#00E5FF" stroke-width="1"/>
+      <circle cx="16" cy="14" r="5" fill="#00E5FF"/>
+      <path d="M 13 14 L 15 16 L 19 12" stroke="#070B10" stroke-width="1.5" fill="none"/>
+      <text x="28" y="18" fill="#F8FAFC" font-size="10" class="title-font">Banner Grabbing</text>
+      <text x="165" y="18" fill="#00E5FF" font-size="9" class="mono-font">ACTIVE</text>
+    </g>
+
+    <!-- Chip 2: Full Port Scan -->
+    <g transform="translate(14, 72)">
+      <rect width="208" height="28" rx="6" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="16" cy="14" r="5" fill="#00E676"/>
+      <path d="M 13 14 L 15 16 L 19 12" stroke="#070B10" stroke-width="1.5" fill="none"/>
+      <text x="28" y="18" fill="#F8FAFC" font-size="10" class="title-font">Adaptive RTT EMA</text>
+      <text x="162" y="18" fill="#00E676" font-size="9" class="mono-font">2.5x ON</text>
+    </g>
+
+    <!-- Chip 3: Multi-Protocol -->
+    <g transform="translate(14, 106)">
+      <rect width="208" height="28" rx="6" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="16" cy="14" r="5" fill="#A855F7"/>
+      <path d="M 13 14 L 15 16 L 19 12" stroke="#070B10" stroke-width="1.5" fill="none"/>
+      <text x="28" y="18" fill="#F8FAFC" font-size="10" class="title-font">Heuristic OS Fingerprint</text>
+      <text x="175" y="18" fill="#A855F7" font-size="9" class="mono-font">94%</text>
+    </g>
+
+    <!-- Chip 4: Declarative Signatures -->
+    <g transform="translate(14, 140)">
+      <rect width="208" height="28" rx="6" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <circle cx="16" cy="14" r="5" fill="#00E5FF"/>
+      <path d="M 13 14 L 15 16 L 19 12" stroke="#070B10" stroke-width="1.5" fill="none"/>
+      <text x="28" y="18" fill="#F8FAFC" font-size="10" class="title-font">Declarative Signatures</text>
+      <text x="168" y="18" fill="#00E5FF" font-size="9" class="mono-font">NUCLEI</text>
+    </g>
+  </g>
+
+  <!-- Card 2B: Concurrency & Engine Telemetry -->
+  <g transform="translate(480, 313)">
+    <rect width="236" height="253" rx="14" fill="#0C1320" stroke="#1E293B" stroke-width="1"/>
+    <text x="14" y="24" fill="#94A3B8" font-size="10" class="title-font" font-weight="700" letter-spacing="1">ENGINE TELEMETRY</text>
+
+    <!-- Metric 1: Throughput -->
+    <g transform="translate(14, 38)">
+      <text y="10" fill="#64748B" font-size="9.5" class="title-font">PEAK THROUGHPUT</text>
+      <text x="145" y="10" fill="#00E5FF" font-size="11" class="mono-font" font-weight="700">8,928 PPS</text>
+      <rect y="16" width="208" height="6" rx="3" fill="#131C2C"/>
+      <rect y="16" width="176" height="6" rx="3" fill="url(#cyberCyanGrad)"/>
+    </g>
+
+    <!-- Metric 2: RTT Latency -->
+    <g transform="translate(14, 82)">
+      <text y="10" fill="#64748B" font-size="9.5" class="title-font">ADAPTIVE RTT JITTER</text>
+      <text x="156" y="10" fill="#00E676" font-size="11" class="mono-font" font-weight="700">1.8 ms</text>
+      <rect y="16" width="208" height="6" rx="3" fill="#131C2C"/>
+      <rect y="16" width="82" height="6" rx="3" fill="#00E676"/>
+    </g>
+
+    <!-- Metric 3: Concurrency Workers -->
+    <g transform="translate(14, 126)">
+      <text y="10" fill="#64748B" font-size="9.5" class="title-font">PARALLEL WORKERS</text>
+      <text x="135" y="10" fill="#A855F7" font-size="11" class="mono-font" font-weight="700">1,000 CLAMP</text>
+      <rect y="16" width="208" height="6" rx="3" fill="#131C2C"/>
+      <rect y="16" width="115" height="6" rx="3" fill="#A855F7"/>
+    </g>
+
+    <!-- Metric 4: Memory Bounded -->
+    <g transform="translate(14, 170)">
+      <text y="10" fill="#64748B" font-size="9.5" class="title-font">BOUNDED HEAP DELTA</text>
+      <text x="142" y="10" fill="#F8FAFC" font-size="11" class="mono-font" font-weight="700">18.4 MB</text>
+      <rect y="16" width="208" height="6" rx="3" fill="#131C2C"/>
+      <rect y="16" width="46" height="6" rx="3" fill="#38BDF8"/>
+    </g>
+
+    <text x="14" y="232" fill="#64748B" font-size="9" class="mono-font">Ktor Non-Blocking IO · Kotlin Coroutines</text>
+  </g>
+
+  <!-- ==================== COLUMN 3: Active Discovered Services (Width: 260px) ==================== -->
+  <g transform="translate(726, 118)">
+    <rect width="260" height="448" rx="14" fill="#0C1320" stroke="#1E293B" stroke-width="1"/>
+    <text x="16" y="24" fill="#94A3B8" font-size="10" class="title-font" font-weight="700" letter-spacing="1">ACTIVE SERVICES</text>
+    <rect x="180" y="12" width="66" height="16" rx="4" fill="#00E676" fill-opacity="0.15"/>
+    <text x="186" y="23" fill="#00E676" font-size="9" class="mono-font" font-weight="700">4 FOUND</text>
+
+    <!-- Service Card 1: Port 22 SSH -->
+    <g transform="translate(12, 38)">
+      <rect width="236" height="68" rx="10" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <!-- Badge -->
+      <rect x="10" y="12" width="36" height="24" rx="6" fill="#00E676" fill-opacity="0.2"/>
+      <text x="21" y="28" fill="#00E676" font-size="12" class="mono-font" font-weight="800">22</text>
+      <!-- Title & Sub -->
+      <text x="54" y="23" fill="#F8FAFC" font-size="11" class="title-font" font-weight="700">SSH Secure Shell</text>
+      <text x="54" y="38" fill="#94A3B8" font-size="9" class="mono-font">OpenSSH 9.6p1 (Ubuntu)</text>
+      <text x="54" y="54" fill="#00E5FF" font-size="9" class="mono-font">2.1 ms · Low Risk</text>
+      <path d="M 220 34 L 225 38 L 220 42" stroke="#64748B" stroke-width="1.5" fill="none"/>
+    </g>
+
+    <!-- Service Card 2: Port 80 HTTP -->
+    <g transform="translate(12, 114)">
+      <rect width="236" height="68" rx="10" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <!-- Badge -->
+      <rect x="10" y="12" width="36" height="24" rx="6" fill="#00E5FF" fill-opacity="0.2"/>
+      <text x="21" y="28" fill="#00E5FF" font-size="12" class="mono-font" font-weight="800">80</text>
+      <!-- Title & Sub -->
+      <text x="54" y="23" fill="#F8FAFC" font-size="11" class="title-font" font-weight="700">HTTP Web Server</text>
+      <text x="54" y="38" fill="#94A3B8" font-size="9" class="mono-font">nginx/1.24.0 (Router Admin)</text>
+      <text x="54" y="54" fill="#00E5FF" font-size="9" class="mono-font">1.8 ms · Medium (3.2)</text>
+      <path d="M 220 34 L 225 38 L 220 42" stroke="#64748B" stroke-width="1.5" fill="none"/>
+    </g>
+
+    <!-- Service Card 3: Port 443 HTTPS -->
+    <g transform="translate(12, 190)">
+      <rect width="236" height="68" rx="10" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <!-- Badge -->
+      <rect x="10" y="12" width="36" height="24" rx="6" fill="#00E5FF" fill-opacity="0.2"/>
+      <text x="16" y="28" fill="#00E5FF" font-size="11" class="mono-font" font-weight="800">443</text>
+      <!-- Title & Sub -->
+      <text x="54" y="23" fill="#F8FAFC" font-size="11" class="title-font" font-weight="700">HTTPS Secure Web</text>
+      <text x="54" y="38" fill="#94A3B8" font-size="9" class="mono-font">TLS 1.3 / OpenSSL 3.1.4</text>
+      <text x="54" y="54" fill="#00E5FF" font-size="9" class="mono-font">2.4 ms · Low Risk</text>
+      <path d="M 220 34 L 225 38 L 220 42" stroke="#64748B" stroke-width="1.5" fill="none"/>
+    </g>
+
+    <!-- Service Card 4: Port 502 Modbus (Critical Danger) -->
+    <g transform="translate(12, 266)">
+      <rect width="236" height="68" rx="10" fill="#1C0F14" stroke="#EF4444" stroke-width="1.2"/>
+      <!-- Badge -->
+      <rect x="10" y="12" width="36" height="24" rx="6" fill="#EF4444" fill-opacity="0.25"/>
+      <text x="16" y="28" fill="#EF4444" font-size="11" class="mono-font" font-weight="800">502</text>
+      <!-- Title & Sub -->
+      <text x="54" y="23" fill="#EF4444" font-size="11" class="title-font" font-weight="800">Modbus Industrial ICS</text>
+      <text x="54" y="38" fill="#FCA5A5" font-size="9" class="mono-font">Schneider Gateway 0x01</text>
+      <text x="54" y="54" fill="#EF4444" font-size="9" class="mono-font" font-weight="700">3.5 ms · CRITICAL (8.5)</text>
+      <path d="M 220 34 L 225 38 L 220 42" stroke="#EF4444" stroke-width="1.5" fill="none"/>
+    </g>
+
+    <!-- Quick Export Bar at bottom of Col 3 -->
+    <g transform="translate(12, 396)">
+      <rect width="236" height="38" rx="8" fill="#080D16" stroke="#1E293B" stroke-width="1"/>
+      <text x="24" y="23" fill="#94A3B8" font-size="10" class="title-font">Copy Output:</text>
+      <rect x="96" y="8" width="46" height="22" rx="4" fill="#1E293B"/>
+      <text x="104" y="22" fill="#00E5FF" font-size="9" class="mono-font" font-weight="700">JSON</text>
+      <rect x="148" y="8" width="76" height="22" rx="4" fill="#1E293B"/>
+      <text x="154" y="22" fill="#00E676" font-size="9" class="mono-font" font-weight="700">MARKDOWN</text>
+    </g>
+  </g>
+
 </svg>
