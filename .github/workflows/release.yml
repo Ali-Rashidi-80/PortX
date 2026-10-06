@@ -1,37 +1,30 @@
-name: Release Build
+name: Production Release
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g. v5.2.0)'
+        required: false
+        default: 'v5.2.0'
 
 permissions:
   contents: write
 
-jobs:
-  build-desktop:
-    name: Build Desktop (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            task: :desktopApp:packageDeb
-            artifact-path: desktopApp/build/compose/binaries/**/*.deb
-            artifact-name: PortX-Linux-deb
-          - os: macos-latest
-            task: :desktopApp:packageDmg
-            artifact-path: desktopApp/build/compose/binaries/**/*.dmg
-            artifact-name: PortX-macOS-dmg
-          - os: windows-latest
-            task: :desktopApp:packageReleaseMsi
-            artifact-path: desktopApp/build/compose/binaries/**/*.msi
-            artifact-name: PortX-Windows-msi
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
+  build-windows:
+    name: Build Windows MSI Installer
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -40,34 +33,33 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Grant execute permission for gradlew
-        run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            chmod +x gradlew
-          fi
-        shell: bash
+      - name: Build Windows MSI Package
+        run: ./gradlew.bat :desktopApp:packageMsi --stacktrace
 
-      - name: Build Desktop Package
+      - name: Locate and Stage Windows MSI
+        shell: pwsh
         run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            ./gradlew.bat ${{ matrix.task }} --stacktrace
-          else
-            ./gradlew ${{ matrix.task }} --stacktrace
-          fi
-        shell: bash
+          New-Item -ItemType Directory -Force -Path staged-artifacts
+          $msi = Get-ChildItem -Path desktopApp/build/compose/binaries/main/msi/*.msi -Recurse | Select-Object -First 1
+          if ($msi) {
+            Copy-Item -Path $msi.FullName -Destination staged-artifacts/
+            Write-Host "Staged MSI: $($msi.FullName)"
+          } else {
+            Write-Error "Windows MSI installer was not found in expected output directory."
+          }
 
-      - name: Upload Binary Artifact
+      - name: Upload Windows MSI Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact-name }}
-          path: ${{ matrix.artifact-path }}
-          if-no-files-found: warn
+          name: windows-msi
+          path: staged-artifacts/*.msi
 
-  build-android:
-    name: Build Android APK
+  build-linux:
+    name: Build Linux DEB Package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -78,7 +70,37 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-        shell: bash
+
+      - name: Build Linux DEB Package
+        run: ./gradlew :desktopApp:packageDeb --stacktrace
+
+      - name: Locate and Stage Linux DEB
+        run: |
+          mkdir -p staged-artifacts
+          find desktopApp/build/compose/binaries/main/deb -name "*.deb" -exec cp {} staged-artifacts/ \;
+
+      - name: Upload Linux DEB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: staged-artifacts/*.deb
+
+  build-android:
+    name: Build Android Release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Set up Android SDK Platform 37 and licenses
         run: |
@@ -91,42 +113,62 @@ jobs:
 
       - name: Build Android Release APK
         run: ./gradlew :androidApp:assembleRelease --stacktrace
-        shell: bash
 
-      - name: Upload Android APK
+      - name: Locate and Stage Android APK
+        run: |
+          mkdir -p staged-artifacts
+          find androidApp/build/outputs/apk/release -name "*.apk" -exec cp {} staged-artifacts/ \;
+
+      - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PortX-Android-apk
-          path: androidApp/build/outputs/apk/**/*.apk
-          if-no-files-found: warn
+          name: android-apk
+          path: staged-artifacts/*.apk
 
   publish-release:
-    name: Publish GitHub Release
-    needs: [build-desktop, build-android]
+    name: Publish GitHub Release with Multiplatform Binaries
+    needs: [build-windows, build-linux, build-android]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Download all build artifacts
+      - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          path: release-assets
+          name: windows-msi
+          path: release-binaries/
 
-      - name: Flatten release assets
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-deb
+          path: release-binaries/
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: release-binaries/
+
+      - name: Display Release Binaries
+        run: ls -la release-binaries/
+
+      - name: Extract Release Notes from CHANGELOG
+        id: release_notes
         run: |
-          mkdir -p dist
-          find release-assets -type f \( -name "*.msi" -o -name "*.dmg" -o -name "*.deb" -o -name "*.apk" \) -exec cp {} dist/ \;
-          ls -la dist/
-        shell: bash
+          if [ -f CHANGELOG.md ]; then
+            echo "CHANGELOG_FOUND=true" >> $GITHUB_OUTPUT
+          else
+            echo "CHANGELOG_FOUND=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Create Official GitHub Release
+      - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v5.1.0' }}
-          generate_release_notes: true
+          tag_name: ${{ github.ref_name || inputs.tag_name }}
+          name: "PortX ${{ github.ref_name || inputs.tag_name }} — Ultra Engine v5 & Declarative Signatures"
+          body_path: CHANGELOG.md
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: release-binaries/*
