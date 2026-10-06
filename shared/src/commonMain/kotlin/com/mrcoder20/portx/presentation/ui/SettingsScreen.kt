@@ -37,8 +37,6 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
     val scrollState = rememberScrollState()
     val isRtl = state.language == "fa" || state.language == "ar"
 
-    var showUninstallConfirm by remember { mutableStateOf(false) }
-    var lifecycleNotice by remember { mutableStateOf<String?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -344,113 +342,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                 }
             }
 
-            // 5. APPLICATION LIFECYCLE & MAINTENANCE (Autodesk Enterprise style)
-            SettingsSectionTitle(LocalizedStrings.get("app_lifecycle", state.language))
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                "PortX Cyber Suite v5.2.1",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = if (isDark) Color.White else Color.Black
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                "Integrated Windows Installer Lifecycle",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 10.sp),
-                                color = if (isDark) TextMuted else TextMutedLight
-                            )
-                        }
-                        CyberBadge(text = "ACTIVE", color = TertiaryNeon, hasPulseDot = true)
-                    }
-
-                    lifecycleNotice?.let { msg ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = accent.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, accent.copy(alpha = 0.35f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                msg,
-                                color = accent,
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                modifier = Modifier.padding(10.dp)
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                lifecycleNotice = "PortX v5.2.1 is currently the latest verified production build. Auto-Upgrade enabled."
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = accent),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            Icon(Icons.Default.SystemUpdateAlt, null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                LocalizedStrings.get("check_updates", state.language),
-                                color = Color.Black,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                maxLines = 1
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                lifecycleNotice = "Integrity check passed: Database schema aligned, async socket reactor pools flushed."
-                            },
-                            border = BorderStroke(1.dp, SecondaryNeon.copy(alpha = 0.6f)),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            Icon(Icons.Default.Build, null, tint = SecondaryNeon, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                LocalizedStrings.get("repair_app", state.language),
-                                color = if (isDark) Color.White else Color.Black,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp,
-                                maxLines = 1
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = { showUninstallConfirm = true },
-                            border = BorderStroke(1.dp, DangerNeon.copy(alpha = 0.6f)),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            Icon(Icons.Default.DeleteForever, null, tint = DangerNeon, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                LocalizedStrings.get("uninstall_app", state.language),
-                                color = DangerNeon,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 6. COMMUNICATION & COMMUNITY
+            // 5. COMMUNICATION & COMMUNITY
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CommunicationGlassButton(
                     label = LocalizedStrings.get("about", state.language),
@@ -502,43 +394,6 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                 .fillMaxHeight()
         )
 
-        if (showUninstallConfirm) {
-            AlertDialog(
-                onDismissRequest = { showUninstallConfirm = false },
-                containerColor = if (isDark) SurfaceDark else SurfaceLight,
-                titleContentColor = if (isDark) Color.White else Color.Black,
-                textContentColor = if (isDark) TextSecondary else TextSecondaryLight,
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.DeleteForever, null, tint = DangerNeon, modifier = Modifier.size(22.dp))
-                        Text(LocalizedStrings.get("uninstall_confirm_title", state.language), fontWeight = FontWeight.Bold)
-                    }
-                },
-                text = {
-                    Text(LocalizedStrings.get("uninstall_confirm_desc", state.language))
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showUninstallConfirm = false
-                            try {
-                                uriHandler.openUri("ms-settings:appsfeatures")
-                            } catch (_: Exception) {}
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = DangerNeon),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(LocalizedStrings.get("launch_uninstaller", state.language), color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showUninstallConfirm = false }) {
-                        Text(LocalizedStrings.get("cancel", state.language), color = if (isDark) Color.White else Color.Black)
-                    }
-                },
-                modifier = Modifier.padding(24.dp)
-            )
-        }
     }
 }
 

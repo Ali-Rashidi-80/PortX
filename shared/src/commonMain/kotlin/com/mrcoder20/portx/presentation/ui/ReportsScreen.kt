@@ -615,8 +615,11 @@ fun ReportDetailDialog(
         else {
             val q = portFilterQuery.trim().lowercase()
             sortedPorts.filter { port ->
+                val rawService = scan.portServices[port]?.trim()
+                val resolvedService = getServiceTitle(port, if (rawService.isNullOrBlank() || rawService.equals("unknown", ignoreCase = true)) null else rawService)
                 port.toString().contains(q) ||
-                (scan.portServices[port]?.lowercase()?.contains(q) == true) ||
+                resolvedService.lowercase().contains(q) ||
+                (rawService?.lowercase()?.contains(q) == true) ||
                 (scan.portBanners[port]?.lowercase()?.contains(q) == true)
             }
         }
@@ -673,7 +676,7 @@ fun ReportDetailDialog(
                             border = BorderStroke(1.dp, grade.second.copy(alpha = 0.4f))
                         ) {
                             Text(
-                                "GRADE ${grade.first}",
+                                "${LocalizedStrings.get("grade", lang)} ${grade.first}",
                                 color = grade.second,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 12.sp,
@@ -682,7 +685,7 @@ fun ReportDetailDialog(
                         }
 
                         IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = if (isDark) TextMuted else TextMutedLight)
+                            Icon(Icons.Default.Close, contentDescription = LocalizedStrings.get("close", lang), tint = if (isDark) TextMuted else TextMutedLight)
                         }
                     }
                 }
@@ -750,12 +753,12 @@ fun ReportDetailDialog(
                                     }
                                     scan.osFingerprint?.let {
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("OS Fingerprint", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                            Text(LocalizedStrings.get("os_fingerprint", lang), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
                                             Text(it, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = SecondaryNeon)
                                         }
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Scan Protocol", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                        Text(LocalizedStrings.get("scan_protocol", lang), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
                                         Text("${scan.scanType ?: "TCP"} • ${scan.concurrentScans} conns", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = TertiaryNeon)
                                     }
                                 }
@@ -842,7 +845,8 @@ fun ReportDetailDialog(
                         } else {
                             items(displayedPorts, key = { it }) { port ->
                                 val banner = scan.portBanners[port]
-                                val service = scan.portServices[port] ?: "Service"
+                                val rawService = scan.portServices[port]?.trim()
+                                val service = getServiceTitle(port, if (rawService.isNullOrBlank() || rawService.equals("unknown", ignoreCase = true)) null else rawService)
                                 val isHighRisk = port in listOf(21, 23, 445, 3389)
 
                                 Surface(
@@ -962,7 +966,7 @@ fun ReportDetailDialog(
                     ) {
                         Icon(Icons.Default.Download, null, tint = Color.Black, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Download", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(LocalizedStrings.get("download_report", lang), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
 
                     Button(
@@ -973,7 +977,7 @@ fun ReportDetailDialog(
                     ) {
                         Icon(Icons.Default.Share, null, tint = Color.Black, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Share", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(LocalizedStrings.get("share_report", lang), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
 
                     OutlinedButton(

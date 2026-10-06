@@ -179,7 +179,11 @@ object LocalizedStrings {
             "device_responsive" to "Responsive",
             "rotate_device" to "Rotate Screen",
             "snap_window" to "Snap Window to Device",
-            "device_frame" to "Device Bezel Frame"
+            "device_frame" to "Device Bezel Frame",
+            "os_fingerprint" to "OS Fingerprint",
+            "scan_protocol" to "Scan Protocol",
+            "download_report" to "Download",
+            "share_report" to "Share"
         ),
         "fa" to mapOf(
             "dashboard" to "داشبورد",
@@ -343,7 +347,11 @@ object LocalizedStrings {
             "device_responsive" to "ریسپانسیو خودکار",
             "rotate_device" to "چرخش صفحه",
             "snap_window" to "تطبیق ابعاد پنجره با دستگاه",
-            "device_frame" to "قاب فیزیکی دستگاه"
+            "device_frame" to "قاب فیزیکی دستگاه",
+            "os_fingerprint" to "اثر انگشت سیستم‌عامل",
+            "scan_protocol" to "پروتکل اسکن",
+            "download_report" to "دریافت گزارش",
+            "share_report" to "اشتراک‌گذاری"
         ),
         "ar" to mapOf(
             "dashboard" to "لوحة القيادة",
@@ -438,7 +446,11 @@ object LocalizedStrings {
             "device_responsive" to "تفاعلي",
             "rotate_device" to "تدوير الشاشة",
             "snap_window" to "محاذاة النافذة مع الجهاز",
-            "device_frame" to "إطار الجهاز"
+            "device_frame" to "إطار الجهاز",
+            "os_fingerprint" to "بصمة نظام التشغيل",
+            "scan_protocol" to "بروتوكول المسح",
+            "download_report" to "تنزيل التقرير",
+            "share_report" to "مشاركة"
         ),
         "es" to mapOf(
             "dashboard" to "Panel",
