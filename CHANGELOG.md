@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.2.0] - 2026-10-06
+
+### 🔬 Empirical Benchmarking & Performance Telemetry
+- **8-Suite Live Benchmark Harness:** Implemented and executed automated real-time test suite (`LiveSystemBenchmarkTest.kt`) covering Concurrency Saturation (up to 2,500 workers), 10,000-port sustained sweep (8,143+ ports/sec with 17 MB RAM delta), Q-Learning adaptive timing, IPv4/IPv6 dual-stack efficiency, banner grabbing latency profiling, security posture evaluation (56,000+ ops/sec), multi-format report serialization (CSV, Markdown, JSON), and non-blocking UDP probe dispatch.
+- **Official Benchmark Publication:** Authored and published [BENCHMARKS.md](BENCHMARKS.md) providing full hardware telemetry, scaling curves, and deterministic CLI reproducibility instructions.
+
+### 🛡️ Core Engine, Security & Android Hardening
+- **False-Positive Root Detection Elimination:** Replaced naive process output checks with strict exit code validation (`exitValue == 0`) and filtered out error messages like `which: no su in ...`, expanding binary search paths to Magisk/SuperSU.
+- **Android 13+ Notification Safety:** Guarded all notification channel updates in `ScannerService` against `SecurityException` when `POST_NOTIFICATIONS` permission is revoked.
+- **Exhaustive Private Network Classification:** Implemented `isTargetLocalOrPrivate` covering RFC 1122 (127.0.0.0/8), RFC 1918 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), RFC 3927 (169.254.0.0/16), RFC 6598 (CGNAT 100.64.0.0/10), RFC 4193/4291 (IPv6 ULA/Link-local), and local domain suffixes (.local, .lan, .internal, .home.arpa).
+- **Report Markdown Table Sanitization:** Sanitized extracted HTML `<title>` tags by replacing pipe `|` characters with `/` and clamping strings to 120 chars to eliminate Markdown table disruption.
+- **Cloud & Industrial Threat Signatures:** Added port signatures for Docker Daemon (2375), Elasticsearch (9200), Kubernetes Kubelet (10250), Memcached (11211), Modbus/TCP (502), Siemens S7comm (102), and BACnet (47808) into `SecurityScoreUseCase` and `AnomalyDetectionUseCase`.
+- **Database Schema Migration:** Added automated SQLite user version tracking (`PRAGMA user_version`) and forward-compatible column migrations in desktop runtime initialization.
+
+### 📦 Desktop Packaging & CI/CD
+- **Native Desktop Shortcuts:** Configured Compose desktop packaging to automatically generate desktop icons and start-menu shortcuts on Windows (`.msi`), Linux (`.deb`), and macOS (`.dmg`).
+- **Comprehensive Unit Test Suites:** Added dedicated test suites for `DatabaseAdaptersTest.kt` (custom SQLite column adapters), `ScanManagerTest.kt` (flow state and UI event dispatcher), and `SecurityHardenTest.kt` (encryption involution and client factory).
+- **Continuous Integration Workflow:** Created `.github/workflows/ci.yml` for automated multiplatform JVM testing, desktop compilation, and Android APK builds on pull requests and pushes.
+
+---
+
 ## [5.1.0] - 2026-10-05
 
 ### 🛡️ Enterprise Hardening & Resilience

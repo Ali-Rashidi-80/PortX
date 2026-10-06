@@ -8,9 +8,9 @@
 
 **Ultra-Fast, Non-Blocking Multiplatform Network Port Scanner Powered by Kotlin Multiplatform (KMP) & Compose — 50,000+ Ports/sec, Zero-Root Required, Adaptive RTT Timing, Bounded Channels.**
 
-[![CI](https://github.com/mr-coder20/PortX/actions/workflows/release.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/release.yml)
+[![CI](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/mr-coder20/PortX?color=blue&logo=github)](https://github.com/mr-coder20/PortX/releases)
-[![Version](https://img.shields.io/badge/version-5.1.0-3fb950.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.2.0-3fb950.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4.svg?logo=jetpackcompose&logoColor=white)](https://github.com/JetBrains/compose-multiplatform)

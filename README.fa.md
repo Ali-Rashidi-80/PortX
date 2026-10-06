@@ -8,9 +8,9 @@
 
 **اسکنر شبکه پیشرفته، فوق‌سریع و غیرمسدودکننده چندسکویی مبتنی بر <bdi>Kotlin Multiplatform (KMP)</bdi> و <bdi>Compose</bdi> — سرعت بیش از ۵۰,۰۰۰ پورت در ثانیه، بدون نیاز به دسترسی روت، با زمان‌بندی تطبیقی <bdi>RTT</bdi> و کنترل مصرف منابع سیستم‌عامل.**
 
-[![بیلد](https://github.com/mr-coder20/PortX/actions/workflows/release.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/release.yml)
+[![بیلد](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/mr-coder20/PortX/actions/workflows/ci.yml)
 [![انتشار](https://img.shields.io/github/v/release/mr-coder20/PortX?color=blue&logo=github&label=%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1)](https://github.com/mr-coder20/PortX/releases)
-[![نسخه](https://img.shields.io/badge/%D9%86%D8%B3%D8%AE%D9%87-5.1.0-3fb950.svg)](CHANGELOG.md)
+[![نسخه](https://img.shields.io/badge/%D9%86%D8%B3%D8%AE%D9%87-5.2.0-3fb950.svg)](CHANGELOG.md)
 [![مجوز](https://img.shields.io/badge/%D9%85%D8%AC%D9%88%D8%B2-Apache--2.0-blue.svg)](LICENSE)
 [![کاتلین](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![کامپوز](https://img.shields.io/badge/Compose-Multiplatform-4285F4.svg?logo=jetpackcompose&logoColor=white)](https://github.com/JetBrains/compose-multiplatform)
