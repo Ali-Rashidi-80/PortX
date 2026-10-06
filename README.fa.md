@@ -9,7 +9,7 @@
 **اسکنر شبکه پیشرفته، فوق‌سریع و غیرمسدودکننده چندسکویی مبتنی بر <bdi>Kotlin Multiplatform (KMP)</bdi> و <bdi>Compose</bdi> — سرعت بیش از ۱۰,۰۰۰ پورت در ثانیه (تجربی) / تا ۵۰,۰۰۰ پورت (سقف تئوری)، بدون نیاز به دسترسی روت، با زمان‌بندی تطبیقی <bdi>RTT</bdi> و کنترل مصرف منابع سیستم‌عامل.**
 
 [![بیلد](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml)
-[![انتشار](https://img.shields.io/github/v/release/Ali-Rashidi-80/PortX?color=blue&logo=github&label=%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1)](https://github.com/Ali-Rashidi-80/PortX/releases)
+[![انتشار](https://img.shields.io/badge/%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1-v5.2.0-blue.svg?logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
 [![نسخه](https://img.shields.io/badge/%D9%86%D8%B3%D8%AE%D9%87-5.2.0-3fb950.svg)](CHANGELOG.md)
 [![مجوز](https://img.shields.io/badge/%D9%85%D8%AC%D9%88%D8%B2-Apache--2.0-blue.svg)](LICENSE)
 [![کاتلین](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
@@ -436,5 +436,5 @@ cd PortX
 </div>
 
 <div align="center">
-  <b>PortX</b> · نگهداری، ارتقا و بهینه‌سازی مهندسی توسط <a href="https://github.com/Ali-Rashidi-80">علی رشیدی</a> (<a href="https://github.com/Ali-Rashidi-80/PortX">Ali-Rashidi-80/PortX</a>) · هسته بالادست: <a href="https://github.com/mr-coder20/PortX">mr-coder20/PortX</a>.
+  <b>PortX</b> · نگهداری و توسعه توسط مخزن <a href="https://github.com/Ali-Rashidi-80/PortX">Ali-Rashidi-80/PortX</a> · پروژه بالادست: <a href="https://github.com/mr-coder20/PortX">mr-coder20/PortX</a>.
 </div>

@@ -122,7 +122,7 @@
 
   <!-- ==================== MAIN CONTENT AREA ==================== -->
 
-  <!-- --- 1. COMMAND CENTER HUD (Top Bar) --- -->
+  <!-- 1. COMMAND CENTER HUD (Top Bar) -->
   <g transform="translate(234, 52)">
     <rect width="752" height="54" rx="14" fill="#0E1624" stroke="#1E293B" stroke-width="1"/>
 
@@ -155,7 +155,7 @@
     <rect width="240" height="2" fill="url(#pulseLineGrad)" class="scan-sweep"/>
   </g>
 
-  <!-- --- 2. THREE-COLUMN BENTO GRID --- -->
+  <!-- 2. THREE-COLUMN BENTO GRID -->
 
   <!-- ==================== COLUMN 1: Visualizer & Logs (Width: 236px) ==================== -->
   <!-- Card 1A: Security Posture Visualizer -->

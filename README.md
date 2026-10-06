@@ -9,7 +9,7 @@
 **Ultra-Fast, Non-Blocking Multiplatform Network Port Scanner Powered by Kotlin Multiplatform (KMP) & Compose — 10,000+ Ports/sec (Empirical) / Up to 50,000 (Theoretical Peak), Zero-Root Required, Adaptive RTT Timing, Bounded Channels.**
 
 [![CI](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Ali-Rashidi-80/PortX?color=blue&logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
+[![Release](https://img.shields.io/badge/release-v5.2.0-blue.svg?logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
 [![Version](https://img.shields.io/badge/version-5.2.0-3fb950.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
@@ -431,5 +431,5 @@ Contributions following our zero-trust engineering standards are welcome. See [C
 Licensed under the [**Apache License, Version 2.0**](LICENSE).
 
 <div align="center">
-  <b>PortX</b> · Maintained & Hardened by <a href="https://github.com/Ali-Rashidi-80">Ali Rashidi</a> (<a href="https://github.com/Ali-Rashidi-80/PortX">Ali-Rashidi-80/PortX</a>) · Upstream Engine: <a href="https://github.com/mr-coder20/PortX">mr-coder20/PortX</a>.
+  <b>PortX</b> · Maintained & Hardened by <a href="https://github.com/Ali-Rashidi-80/PortX">Ali-Rashidi-80/PortX</a> · Upstream Engine: <a href="https://github.com/mr-coder20/PortX">mr-coder20/PortX</a>.
 </div>
