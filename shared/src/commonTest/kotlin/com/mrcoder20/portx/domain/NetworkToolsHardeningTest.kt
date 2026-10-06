@@ -1220,5 +1220,56 @@ class NetworkToolsHardeningTest {
         val encoded = adapter.encode(listOf(8080, 80, 443, 80))
         assertEquals("80,443,8080", encoded)
     }
+
+    @Test
+    fun testIPv6HopLimitParsing() {
+        val outputLinuxIpv6 = "64 bytes from 2607:f8b0:4005:808::200e: icmp_seq=1 hlim=64 time=14.2 ms"
+        val outputAndroidIpv6 = "64 bytes from ::1: icmp_seq=1 hlim=117 time=0.8 ms"
+        val outputStandardTtl = "Reply from 192.168.1.1: bytes=32 time=2ms TTL=128"
+
+        assertEquals(64, com.mrcoder20.portx.domain.parseTtlFromPingOutput(outputLinuxIpv6))
+        assertEquals(117, com.mrcoder20.portx.domain.parseTtlFromPingOutput(outputAndroidIpv6))
+        assertEquals(128, com.mrcoder20.portx.domain.parseTtlFromPingOutput(outputStandardTtl))
+    }
+
+    @Test
+    fun testSanitizeHostUserInfoAndFragment() {
+        // Userinfo credential stripping (RFC 3986)
+        assertEquals("myserver.com", com.mrcoder20.portx.domain.sanitizeHost("https://admin:secret@myserver.com:8443/dashboard"))
+        assertEquals("10.0.0.1", com.mrcoder20.portx.domain.sanitizeHost("http://user@10.0.0.1:80/status"))
+
+        // Fragment and query stripping
+        assertEquals("example.com", com.mrcoder20.portx.domain.sanitizeHost("example.com#section"))
+        assertEquals("example.com", com.mrcoder20.portx.domain.sanitizeHost("https://example.com/api?q=1#hash"))
+
+        // IPv6 bracketed host
+        assertEquals("2001:db8::1", com.mrcoder20.portx.domain.sanitizeHost("http://[2001:db8::1]:8080/"))
+    }
+
+    @Test
+    fun testPrivateAddressExtensionsRFC() {
+        // RFC 7686 Special-Use Domain .onion
+        assertTrue(com.mrcoder20.portx.domain.isTargetLocalOrPrivate("expyuzz5wqqfdgah56etrrwxjqwbfqxzqn65euga4mtbvuk2xnqiugqid.onion"))
+
+        // RFC 6761 Special-Use Domains (.test, .example, .invalid)
+        assertTrue(com.mrcoder20.portx.domain.isTargetLocalOrPrivate("test.example"))
+        assertTrue(com.mrcoder20.portx.domain.isTargetLocalOrPrivate("router.test"))
+        assertTrue(com.mrcoder20.portx.domain.isTargetLocalOrPrivate("node.invalid"))
+
+        // RFC 6666 IPv6 Discard Prefix 100::/64
+        assertTrue(com.mrcoder20.portx.domain.isTargetLocalOrPrivate("100::1"))
+
+        // RFC 5180 / RFC 7343 IPv6 Benchmark Prefix 2001:2::/48
+        assertTrue(com.mrcoder20.portx.domain.isTargetLocalOrPrivate("2001:2::beef"))
+    }
+
+    @Test
+    fun testValidTargetTrailingDotFQDN() {
+        // Trailing root dot in FQDNs (RFC 1035 / RFC 1123)
+        assertTrue(com.mrcoder20.portx.domain.isValidTarget("example.com."))
+        assertTrue(com.mrcoder20.portx.domain.isValidTarget("sub.domain.co.uk."))
+        assertTrue(com.mrcoder20.portx.domain.isValidTarget("google.com"))
+    }
 }
+
 

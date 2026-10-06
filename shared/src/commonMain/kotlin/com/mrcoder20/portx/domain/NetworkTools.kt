@@ -42,7 +42,12 @@ fun sanitizeHost(input: String): String {
     } else if (host.startsWith("https://", ignoreCase = true)) {
         host = host.substring(8)
     }
-    // Remove query or path if user pasted full URL (e.g. example.com/test or example.com?q=1)
+    // Remove userinfo if present in URI authority (RFC 3986 e.g. user:pass@example.com or user@10.0.0.1)
+    val atIdx = host.indexOf('@')
+    if (atIdx != -1) {
+        host = host.substring(atIdx + 1)
+    }
+    // Remove query, fragment or path if user pasted full URL (e.g. example.com/test, example.com?q=1, example.com#hash)
     val slashIdx = host.indexOf('/')
     if (slashIdx != -1) {
         host = host.substring(0, slashIdx)
@@ -50,6 +55,10 @@ fun sanitizeHost(input: String): String {
     val questionIdx = host.indexOf('?')
     if (questionIdx != -1) {
         host = host.substring(0, questionIdx)
+    }
+    val hashIdx = host.indexOf('#')
+    if (hashIdx != -1) {
+        host = host.substring(0, hashIdx)
     }
     // Handle port if present, while avoiding stripping colons from IPv6 addresses (e.g. 2001:db8::1)
     if (host.startsWith("[") && host.contains("]:")) {
@@ -80,10 +89,10 @@ fun parseTimeFromPingOutput(output: String): Long? {
 }
 
 /**
- * Extracts Time-To-Live (TTL) integer from native ping output.
+ * Extracts Time-To-Live (TTL) integer or IPv6 Hop Limit (hlim) from native ping output (RFC 8200).
  */
 fun parseTtlFromPingOutput(output: String): Int? {
-    val regex = Regex("""ttl[=:]\s*(\d+)""", RegexOption.IGNORE_CASE)
+    val regex = Regex("""(?:ttl|hlim)[=:]\s*(\d+)""", RegexOption.IGNORE_CASE)
     val match = regex.find(output) ?: return null
     return match.groupValues[1].toIntOrNull()
 }
@@ -144,10 +153,16 @@ fun isTargetLocalOrPrivate(target: String): Boolean {
         if (clean.startsWith("fc") || clean.startsWith("fd")) return true
         // RFC 3849: Documentation Prefix 2001:db8::/32
         if (clean.startsWith("2001:db8:") || clean.startsWith("2001:0db8:")) return true
+        // RFC 5180 / RFC 7343: IPv6 Benchmark Testing 2001:2::/48
+        if (clean.startsWith("2001:2:") || clean.startsWith("2001:0002:")) return true
+        // RFC 6666: Discard Prefix 100::/64
+        if (clean.startsWith("100::") || clean.startsWith("0100::")) return true
     }
 
-    // Standard local/private domain name suffixes (RFC 6762, RFC 8375, RFC 6761)
-    if (clean.endsWith(".local") || clean.endsWith(".lan") || clean.endsWith(".internal") || clean.endsWith(".home.arpa") || clean.endsWith(".localhost")) {
+    // Standard local/private/special-use domain name suffixes (RFC 6762, RFC 8375, RFC 6761, RFC 7686)
+    if (clean.endsWith(".local") || clean.endsWith(".lan") || clean.endsWith(".internal") || 
+        clean.endsWith(".home.arpa") || clean.endsWith(".localhost") || clean.endsWith(".test") || 
+        clean.endsWith(".invalid") || clean.endsWith(".example") || clean.endsWith(".onion")) {
         return true
     }
 
@@ -161,7 +176,8 @@ val HOSTNAME_REGEX = Regex("""^([a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?\
  * Enforces RFC 1035 max domain length (253 characters) to eliminate ReDoS risks.
  */
 fun isValidTarget(target: String): Boolean {
-    val clean = target.trim()
+    val raw = target.trim()
+    val clean = if (raw.endsWith(".") && raw.length > 1 && !raw.endsWith("..")) raw.dropLast(1) else raw
     if (clean.isBlank() || clean.length > 253) return false
     val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(clean)
     return when {
