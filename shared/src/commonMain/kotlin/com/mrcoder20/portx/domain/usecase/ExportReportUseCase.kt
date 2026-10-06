@@ -88,6 +88,7 @@ class ExportReportUseCase {
 
     private fun sanitizeCsvField(value: String): String {
         var clean = value.replace(",", ";")
+            .replace("\"", "'")
             .replace("\n", " ")
             .replace("\r", "")
             .trim()

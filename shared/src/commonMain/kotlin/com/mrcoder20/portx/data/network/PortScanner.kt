@@ -494,6 +494,20 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             port == 4840 -> {
                 service = "opcua"
             }
+            port in setOf(2379, 2380) || lowBanner.contains("etcd") -> {
+                service = "etcd"
+            }
+            port == 8123 || lowBanner.contains("clickhouse") -> {
+                service = "clickhouse-http"
+                val verMatch = Regex("""ClickHouse\s*([\d.]+)""", RegexOption.IGNORE_CASE).find(grabbed)
+                if (verMatch != null) version = verMatch.groupValues[1]
+            }
+            port == 9042 || lowBanner.contains("cql") || lowBanner.contains("cassandra") -> {
+                service = "cassandra"
+            }
+            port == 9092 || lowBanner.contains("kafka") -> {
+                service = "kafka"
+            }
         }
 
         return ScanPortResult(
@@ -512,7 +526,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             val receiveChannel = socket.openReadChannel()
             val sendChannel = socket.openWriteChannel(autoFlush = true)
 
-            val httpPorts = setOf(80, 8080, 443, 8000, 8081, 8088, 8443, 8888, 9090, 3000, 5000)
+            val httpPorts = setOf(80, 8080, 443, 8000, 8081, 8088, 8123, 8443, 8888, 9090, 2379, 3000, 5000)
             if (httpPorts.contains(port)) {
                 val hostHeader = if (target.contains(":") && !target.startsWith("[")) "[$target]" else target
                 val hostWithPort = if (port == 80 || port == 443) hostHeader else "$hostHeader:$port"
@@ -556,6 +570,9 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         val regex = Regex("""<title\b[^>]*>(.*?)</title>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         var raw = regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: return ""
         
+        // Strip nested HTML tags and comments inside title
+        raw = Regex("""<[^>]*>""").replace(raw, "")
+
         // Decode decimal and hex numeric character references (e.g. &#65; -> A, &#x41; -> A)
         raw = Regex("""&#(\d+);""").replace(raw) { match ->
             val code = match.groupValues[1].toIntOrNull()
@@ -573,6 +590,12 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&nbsp;", " ")
+            .replace("&copy;", "©")
+            .replace("&reg;", "®")
+            .replace("&trade;", "™")
+            .replace("&mdash;", "—")
+            .replace("&ndash;", "–")
+            .replace("&bull;", "•")
             .replace("|", "/")
             .replace(Regex("""\s+"""), " ")
             .trim()

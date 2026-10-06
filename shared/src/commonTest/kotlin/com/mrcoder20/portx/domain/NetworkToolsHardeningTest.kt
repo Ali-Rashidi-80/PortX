@@ -889,7 +889,7 @@ class NetworkToolsHardeningTest {
     }
 
     @Test
-    fun testMysqlVersionParsingRegex() {
+    fun testMariaDbVersionParsingRegex() {
         val banner = "5.7.34-log\u0000\u0000\u0000\u0002"
         val verMatch = Regex("""(\d+\.\d+\.\d+[\w.-]*)""").find(banner)
         assertEquals("5.7.34-log", verMatch?.value)
@@ -1141,5 +1141,31 @@ class NetworkToolsHardeningTest {
         val vpnResult = useCase(listOf(1194), emptyMap())
         assertEquals("Network Gateway", vpnResult.deviceName)
         assertEquals("OpenVPN Server", vpnResult.osFingerprint)
+    }
+
+    @Test
+    fun testExtractTitleNestedTagsAndExtendedEntities() {
+        val scanner = com.mrcoder20.portx.data.network.PortScanner()
+        val bannerWithTags = "HTTP/1.1 200 OK\r\n\r\n<html><head><title><b>Admin</b> <!-- hidden -->Dashboard &mdash; PortX &copy; 2026</title></head></html>"
+        val title = scanner.extractTitle(bannerWithTags)
+        assertEquals("Admin Dashboard — PortX © 2026", title)
+    }
+
+    @Test
+    fun testCsvSanitizationQuotesAndFormulaInjection() {
+        val exportUseCase = com.mrcoder20.portx.domain.usecase.ExportReportUseCase()
+        val scan = com.mrcoder20.portx.domain.model.ScanResult(
+            target = "10.0.0.1",
+            openPorts = listOf(80),
+            portServices = mapOf(80 to "=cmd|' /C calc'!A0"),
+            portBanners = mapOf(80 to "nginx \"1.24.0\", gzip"),
+            securityScore = 90,
+            timestamp = 1700000000000L
+        )
+        val csv = exportUseCase(scan, "CSV")
+        // Formula injection neutralized with leading apostrophe
+        assertTrue(csv.contains("'=cmd/ ' /C calc'!A0") || csv.contains("'=cmd"))
+        // Double quotes converted to single quotes to preserve unquoted CSV syntax
+        assertTrue(csv.contains("nginx '1.24.0'; gzip"))
     }
 }
