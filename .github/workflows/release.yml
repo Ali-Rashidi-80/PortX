@@ -40,12 +40,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path staged-artifacts
-          $msi = Get-ChildItem -Path desktopApp/build/compose/binaries/main/msi/*.msi -Recurse | Select-Object -First 1
+          $msi = Get-ChildItem -Path desktopApp/build -Recurse -Filter "*.msi" | Select-Object -First 1
           if ($msi) {
             Copy-Item -Path $msi.FullName -Destination staged-artifacts/
             Write-Host "Staged MSI: $($msi.FullName)"
           } else {
-            Write-Error "Windows MSI installer was not found in expected output directory."
+            Write-Error "Windows MSI installer was not found in desktopApp/build directory."
           }
 
       - name: Upload Windows MSI Artifact
@@ -77,7 +77,7 @@ jobs:
       - name: Locate and Stage Linux DEB
         run: |
           mkdir -p staged-artifacts
-          find desktopApp/build/compose/binaries/main/deb -name "*.deb" -exec cp {} staged-artifacts/ \;
+          find desktopApp/build -name "*.deb" -exec cp {} staged-artifacts/ \;
 
       - name: Upload Linux DEB Artifact
         uses: actions/upload-artifact@v4
@@ -117,7 +117,7 @@ jobs:
       - name: Locate and Stage Android APK
         run: |
           mkdir -p staged-artifacts
-          find androidApp/build/outputs/apk/release -name "*.apk" -exec cp {} staged-artifacts/ \;
+          find androidApp/build/outputs/apk -name "*.apk" -exec cp {} staged-artifacts/ \;
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
@@ -166,8 +166,9 @@ jobs:
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref_name || inputs.tag_name }}
-          name: "PortX ${{ github.ref_name || inputs.tag_name }} — Ultra Engine v5 & Declarative Signatures"
+          name: "PortX ${{ github.ref_name || inputs.tag_name }} - Ultra Engine v5 & Declarative Signatures"
           body_path: CHANGELOG.md
           draft: false
           prerelease: false
