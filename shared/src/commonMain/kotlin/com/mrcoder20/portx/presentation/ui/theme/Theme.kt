@@ -41,10 +41,17 @@ fun PortXTheme(
         )
     }
 
-    // Update global neon colors for the rest of the app to use
+    val layoutDirection = if (settingsState.language == "fa" || settingsState.language == "ar") {
+        androidx.compose.ui.unit.LayoutDirection.Rtl
+    } else {
+        androidx.compose.ui.unit.LayoutDirection.Ltr
+    }
+
+    // Update global neon colors and layout direction for the rest of the app to use
     CompositionLocalProvider(
         LocalAccentColor provides accent,
-        LocalAppSettings provides settingsState
+        LocalAppSettings provides settingsState,
+        androidx.compose.ui.platform.LocalLayoutDirection provides layoutDirection
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

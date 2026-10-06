@@ -18,14 +18,18 @@ class SecurityScoreUseCase {
             135 to 10, // RPC endpoint mapper
             139 to 10, // NetBIOS
             161 to 10, // SNMP unauthenticated community string
+            389 to 10, // LDAP cleartext directory exposure
             445 to 20, // SMB / EternalBlue
             502 to 20, // Modbus/TCP unauthenticated ICS/SCADA vector
             1883 to 10,// MQTT unencrypted IoT broker
             1900 to 10,// SSDP / UPnP amplification
+            2049 to 15,// NFS unauthenticated share exposure
             2375 to 20,// Docker daemon unauthenticated API
+            2379 to 20,// etcd unauthenticated cluster datastore
             3389 to 15,// RDP exposed
             4840 to 10,// OPC UA industrial server exposure
             5555 to 15,// ADB remote debugging
+            5683 to 10,// CoAP unencrypted IoT vector
             5900 to 10,// VNC remote access
             6379 to 15,// Redis unauthenticated
             9200 to 15,// Elasticsearch unauthenticated cluster API

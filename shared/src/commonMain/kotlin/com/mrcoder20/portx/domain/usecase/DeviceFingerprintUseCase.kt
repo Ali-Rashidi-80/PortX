@@ -40,15 +40,18 @@ class DeviceFingerprintUseCase {
             return FingerprintResult("Network Printer", printerModel)
         }
 
-        // 4. Network Gateway / Router / Firewall
+        // 4. Network Gateway / Router / Firewall / VPN
         if (allBannersLower.contains("openwrt") || allBannersLower.contains("dd-wrt") || allBannersLower.contains("routeros") ||
             allBannersLower.contains("mikrotik") || allBannersLower.contains("pfsense") || allBannersLower.contains("opnsense") ||
             allBannersLower.contains("cisco") || allBannersLower.contains("ubiquiti") || allBannersLower.contains("unifi") ||
             allBannersLower.contains("tp-link") || allBannersLower.contains("tplink") || allBannersLower.contains("netgear") ||
             allBannersLower.contains("d-link") || allBannersLower.contains("dlink") || allBannersLower.contains("asuswrt") ||
-            allBannersLower.contains("fritz!box") || allBannersLower.contains("avm") || allBannersLower.contains("fortigate")
+            allBannersLower.contains("fritz!box") || allBannersLower.contains("avm") || allBannersLower.contains("fortigate") ||
+            ports.contains(51820) || ports.contains(1194)
         ) {
             val os = when {
+                ports.contains(51820) -> "WireGuard VPN Gateway"
+                ports.contains(1194) -> "OpenVPN Server"
                 allBannersLower.contains("openwrt") -> "OpenWrt Linux"
                 allBannersLower.contains("routeros") || allBannersLower.contains("mikrotik") -> "MikroTik RouterOS"
                 allBannersLower.contains("pfsense") -> "pfSense FreeBSD"
@@ -78,7 +81,32 @@ class DeviceFingerprintUseCase {
             return FingerprintResult("Network Storage (NAS)", nasOs)
         }
 
-        // 6. Windows Systems (Ports 135, 139, 445, 3389 or banner keywords)
+        // 6. Cloud & Container Infrastructure
+        if (ports.contains(2375) || ports.contains(2376) || ports.contains(6443) || ports.contains(10250) ||
+            ports.contains(2379) || ports.contains(2380) || ports.contains(9092) || ports.contains(8200) || ports.contains(8500)
+        ) {
+            val (name, os) = when {
+                ports.contains(6443) || ports.contains(10250) -> "Kubernetes Node" to "Kubernetes Cluster Node"
+                ports.contains(2375) || ports.contains(2376) -> "Container Host" to "Docker Engine Daemon"
+                ports.contains(2379) || ports.contains(2380) -> "Key-Value Store" to "etcd Distributed Datastore"
+                ports.contains(9092) -> "Message Streaming" to "Apache Kafka Broker"
+                ports.contains(8200) -> "Secrets Vault" to "HashiCorp Vault Server"
+                ports.contains(8500) -> "Service Mesh" to "HashiCorp Consul Node"
+                else -> "Infrastructure Host" to "Cloud Native Platform"
+            }
+            return FingerprintResult(name, os)
+        }
+
+        // 7. IoT & Sensor Nodes (CoAP RFC 7252, MQTT)
+        if (ports.contains(5683) || ports.contains(5684) || ports.contains(1883) || ports.contains(8883) || ports.contains(1884)) {
+            val (name, os) = when {
+                ports.contains(5683) || ports.contains(5684) -> "IoT Constrained Node" to "CoAP Sensor Node (RFC 7252)"
+                else -> "IoT Message Broker" to "MQTT Broker"
+            }
+            return FingerprintResult(name, os)
+        }
+
+        // 8. Windows Systems (Ports 135, 139, 445, 3389 or banner keywords)
         if (ports.contains(445) || (ports.contains(135) && ports.contains(139)) || ports.contains(3389) ||
             allBannersLower.contains("microsoft") || allBannersLower.contains("iis") || allBannersLower.contains("ms-wbt-server")
         ) {
@@ -91,15 +119,15 @@ class DeviceFingerprintUseCase {
             return FingerprintResult("Windows Host", os)
         }
 
-        // 7. Apple / macOS
+        // 9. Apple / macOS
         if (ports.contains(548) || (ports.contains(5000) && allBannersLower.contains("airplay")) ||
             allBannersLower.contains("darwin") || allBannersLower.contains("macos")
         ) {
             return FingerprintResult("Apple Device", "macOS / iOS (Darwin)")
         }
 
-        // 8. Dedicated Database Server (Prioritized before generic Web Server)
-        if (ports.contains(3306) || ports.contains(5432) || ports.contains(27017) || ports.contains(6379) || ports.contains(1433) || ports.contains(1521)) {
+        // 10. Dedicated Database Server (Prioritized before generic Web Server)
+        if (ports.contains(3306) || ports.contains(5432) || ports.contains(27017) || ports.contains(6379) || ports.contains(1433) || ports.contains(1521) || ports.contains(9042) || ports.contains(8123)) {
             val dbType = when {
                 ports.contains(5432) -> "PostgreSQL Database Server"
                 ports.contains(3306) -> "MySQL / MariaDB Server"
@@ -107,12 +135,14 @@ class DeviceFingerprintUseCase {
                 ports.contains(1521) -> "Oracle Database Server"
                 ports.contains(27017) -> "MongoDB NoSQL Server"
                 ports.contains(6379) -> "Redis Cache/Datastore"
+                ports.contains(9042) -> "Apache Cassandra Server"
+                ports.contains(8123) -> "ClickHouse Analytical Database"
                 else -> "Database Server"
             }
             return FingerprintResult("Database Server", dbType)
         }
 
-        // 9. Linux / Unix
+        // 11. Linux / Unix
         if (ports.contains(22) || allBannersLower.contains("ubuntu") || allBannersLower.contains("debian") ||
             allBannersLower.contains("centos") || allBannersLower.contains("alpine") || allBannersLower.contains("linux")
         ) {
@@ -128,7 +158,7 @@ class DeviceFingerprintUseCase {
             return FingerprintResult("Linux Host", os)
         }
 
-        // 10. General Web Server
+        // 12. General Web Server
         if (ports.contains(80) || ports.contains(443) || ports.contains(8080) || ports.contains(8443)) {
             val server = when {
                 allBannersLower.contains("nginx") -> "Nginx Web Server"

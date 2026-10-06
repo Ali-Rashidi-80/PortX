@@ -177,6 +177,9 @@ flowchart TD
 | **UI Rendering Rate** | **120 FPS** | Non-blocking coroutine dispatchers keep Compose desktop main thread fluid |
 | **False Negative Rate** | **< 0.01%** | Verified via dynamic 2.5x EMA latency scaling and retry pass on filtered ports |
 
+> 📊 **Full Benchmark Telemetry:** See [BENCHMARKS.md](BENCHMARKS.md) for full hardware telemetry, scaling curves, and GC memory profiling.  
+> 🔬 **Reproduce Locally:** Run `./gradlew :shared:jvmTest --tests "com.mrcoder20.portx.data.network.LiveSystemBenchmarkTest"`
+
 ---
 
 ## Interface Telemetry

@@ -15,7 +15,7 @@ class ExportReportUseCase {
     operator fun invoke(scanResult: ScanResult, format: String = "JSON"): String {
         return when (format.uppercase()) {
             "CSV" -> {
-                val sb = StringBuilder()
+                val sb = StringBuilder(maxOf(256, scanResult.openPorts.size * 64 + 128))
                 sb.append("Port,Protocol,Service,Banner,State\n")
                 val proto = scanResult.scanType ?: "TCP"
                 scanResult.openPorts.distinct().sorted().forEach { port ->
@@ -38,7 +38,7 @@ class ExportReportUseCase {
                 val firewallStatus = FirewallDetectionUseCase()(scanResult)
                 val anomalies = AnomalyDetectionUseCase()(scanResult)
 
-                val sb = StringBuilder()
+                val sb = StringBuilder(maxOf(512, scanResult.openPorts.size * 96 + 1024))
                 sb.append("# PortX Scan Report\n\n")
                 sb.append("## Summary\n")
                 sb.append("- **Target:** `${scanResult.target}`\n")
@@ -91,8 +91,8 @@ class ExportReportUseCase {
             .replace("\n", " ")
             .replace("\r", "")
             .trim()
-        // Neutralize CSV / formula injection (OWASP: =, +, -, @)
-        if (clean.isNotEmpty() && (clean.startsWith("=") || clean.startsWith("+") || clean.startsWith("-") || clean.startsWith("@"))) {
+        // Neutralize CSV / formula injection (OWASP: =, +, -, @, \t, |)
+        if (clean.isNotEmpty() && (clean.startsWith("=") || clean.startsWith("+") || clean.startsWith("-") || clean.startsWith("@") || clean.startsWith("\t") || clean.startsWith("|"))) {
             clean = "'$clean"
         }
         return clean

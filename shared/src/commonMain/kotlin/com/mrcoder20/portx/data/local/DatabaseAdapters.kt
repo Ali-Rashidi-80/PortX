@@ -21,7 +21,8 @@ val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
         val cleanValue = databaseValue.trim().removePrefix("{").removeSuffix("}")
         if (cleanValue.isEmpty()) return emptyMap()
         return try {
-            cleanValue.split("|").mapNotNull { entry ->
+            val delimiter = if (cleanValue.contains("|")) "|" else if (cleanValue.contains(",")) "," else "|"
+            cleanValue.split(delimiter).mapNotNull { entry ->
                 if (!entry.contains(":")) return@mapNotNull null
                 val rawPort = entry.substringBefore(":").trim().removeSurrounding("\"")
                 val port = rawPort.toIntOrNull()

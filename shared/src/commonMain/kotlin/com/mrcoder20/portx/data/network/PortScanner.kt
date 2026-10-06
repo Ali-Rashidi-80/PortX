@@ -378,6 +378,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 0x05, 0x2b, 0x06, 0x01, 0x02, 0x01, 0x05, 0x00
             )
             1900 -> "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n".encodeToByteArray()
+            5683 -> byteArrayOf(0x40, 0x00, 0x00, 0x01) // RFC 7252 CoAP Ping (Empty Confirmable message)
             else -> "PROBE\r\n".encodeToByteArray()
         }
     }
@@ -448,7 +449,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             }
             lowBanner.contains("redis") || lowBanner.contains("+pong") || lowBanner.contains("-noauth") || lowBanner.contains("-err") || port == 6379 -> {
                 service = "redis"
-                version = if (lowBanner.contains("noauth")) "Auth Protected" else if (lowBanner.contains("+pong")) "Unauthenticated" else ""
+                version = if (lowBanner.contains("noauth") || lowBanner.contains("auth required")) "Auth Protected" else if (lowBanner.contains("+pong")) "Unauthenticated" else ""
             }
             lowBanner.contains("docker") || port in setOf(2375, 2376) -> {
                 service = "docker"
@@ -611,41 +612,52 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             636 -> "ldaps"
             993 -> "imaps"
             995 -> "pop3s"
+            1194 -> "openvpn"
             1433 -> "mssql"
             1521 -> "oracle"
+            1700 -> "lorawan"
             1723 -> "pptp"
             1812, 1813 -> "radius"
             1883, 8883 -> "mqtt"
+            1884 -> "mqtt-sn"
             1900 -> "ssdp"
             2049 -> "nfs"
             2375, 2376 -> "docker"
+            2379, 2380 -> "etcd"
             3000 -> "http-alt"
             3306 -> "mysql"
             3389 -> "rdp"
+            4222 -> "nats"
             4840 -> "opcua"
             5000 -> "http-alt"
             5060, 5061 -> "sip"
             5432 -> "postgres"
             5555 -> "adb"
             5672 -> "rabbitmq"
+            5683, 5684 -> "coap"
             5900 -> "vnc"
             6379 -> "redis"
             6443 -> "kubernetes-api"
             8000 -> "http-alt"
             8080 -> "http-proxy"
             8081, 8088 -> "http-alt"
+            8123 -> "clickhouse-http"
             8200 -> "vault"
             8443 -> "https-alt"
             8500 -> "consul"
             8888, 9090 -> "http-alt"
             9000 -> "sonarqube"
+            9042 -> "cassandra"
             9092 -> "kafka"
             9100 -> "jetdirect"
             9200, 9300 -> "elasticsearch"
             10250 -> "kubelet"
             11211 -> "memcached"
+            11311 -> "ros"
             27017 -> "mongodb"
             47808 -> "bacnet"
+            50051 -> "grpc"
+            51820 -> "wireguard"
             else -> "unknown"
         }
     }

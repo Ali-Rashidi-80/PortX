@@ -103,14 +103,20 @@ fun isTargetLocalOrPrivate(target: String): Boolean {
         return isTargetLocalOrPrivate(mappedIpv4)
     }
 
-    // RFC 1122: Loopback 127.0.0.0/8
-    if (clean.startsWith("127.")) return true
+    // RFC 1122: Loopback 127.0.0.0/8 & Current Network 0.0.0.0/8
+    if (clean.startsWith("127.") || clean.startsWith("0.")) return true
     
     // RFC 1918: 10.0.0.0/8 & 192.168.0.0/16
     if (clean.startsWith("10.") || clean.startsWith("192.168.")) return true
     
     // RFC 3927: IPv4 Link-Local 169.254.0.0/16
     if (clean.startsWith("169.254.")) return true
+
+    // RFC 5737: Documentation and Examples (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24)
+    if (clean.startsWith("192.0.2.") || clean.startsWith("198.51.100.") || clean.startsWith("203.0.113.")) return true
+
+    // RFC 2544 / RFC 6815: Benchmark Testing (198.18.0.0/15)
+    if (clean.startsWith("198.18.") || clean.startsWith("198.19.")) return true
     
     // RFC 1918: 172.16.0.0 - 172.31.255.255
     if (clean.startsWith("172.")) {
@@ -124,9 +130,9 @@ fun isTargetLocalOrPrivate(target: String): Boolean {
         if (secondOctet != null && secondOctet in 64..127) return true
     }
 
-    // RFC 1112: IPv4 Multicast 224.0.0.0/4 (224.0.0.0 - 239.255.255.255)
+    // RFC 1112 / RFC 6890: IPv4 Multicast 224.0.0.0/4 & Reserved 240.0.0.0/4
     val firstOctet = clean.substringBefore(".").toIntOrNull()
-    if (firstOctet != null && firstOctet in 224..239) return true
+    if (firstOctet != null && firstOctet in 224..255) return true
 
     // IPv6 checks (ensure presence of ':')
     if (clean.contains(":")) {
@@ -136,6 +142,8 @@ fun isTargetLocalOrPrivate(target: String): Boolean {
         if (clean.startsWith("fe8") || clean.startsWith("fe9") || clean.startsWith("fea") || clean.startsWith("feb")) return true
         // RFC 4193: Unique Local Address (ULA) fc00::/7 (fc00 - fdff)
         if (clean.startsWith("fc") || clean.startsWith("fd")) return true
+        // RFC 3849: Documentation Prefix 2001:db8::/32
+        if (clean.startsWith("2001:db8:") || clean.startsWith("2001:0db8:")) return true
     }
 
     // Standard local/private domain name suffixes (RFC 6762, RFC 8375, RFC 6761)
@@ -150,10 +158,11 @@ val HOSTNAME_REGEX = Regex("""^([a-zA-Z0-9_]([a-zA-Z0-9_\-]{0,61}[a-zA-Z0-9_])?\
 
 /**
  * Validates whether an input target is a compliant IPv4, IPv6, or valid Hostname/FQDN.
+ * Enforces RFC 1035 max domain length (253 characters) to eliminate ReDoS risks.
  */
 fun isValidTarget(target: String): Boolean {
     val clean = target.trim()
-    if (clean.isBlank()) return false
+    if (clean.isBlank() || clean.length > 253) return false
     val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(clean)
     return when {
         isAllNumericDotted || clean.contains(":") -> isValidIpAddress(clean)
@@ -181,11 +190,12 @@ fun isValidIpAddress(ip: String): Boolean {
         return isValidIpAddress(pseudoIpv6)
     }
 
-    // IPv4 check: 4 decimal octets 0..255 without malformed leading zeros
+    // IPv4 check: 4 decimal octets 0..255 strictly containing only digits 0..9 without leading zeros
     val parts = clean.split(".")
     if (parts.size == 4) {
         return parts.all { part ->
-            part.toIntOrNull()?.let { it in 0..255 && (part == "0" || !part.startsWith("0")) } ?: false
+            part.isNotEmpty() && part.all { it in '0'..'9' } &&
+                part.toIntOrNull()?.let { it in 0..255 && (part == "0" || !part.startsWith("0")) } ?: false
         }
     }
 
