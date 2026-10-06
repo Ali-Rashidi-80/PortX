@@ -37,6 +37,15 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
     val accent = LocalAccentColor.current
     val lang = appSettings.language
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var filterQuery by remember { mutableStateOf("") }
+    val filteredScans = remember(state.scans, filterQuery) {
+        if (filterQuery.isBlank()) state.scans
+        else state.scans.filter { 
+            it.target.contains(filterQuery.trim(), ignoreCase = true) || 
+            (it.deviceName?.contains(filterQuery.trim(), ignoreCase = true) == true) ||
+            (it.osFingerprint?.contains(filterQuery.trim(), ignoreCase = true) == true)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -78,7 +87,34 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                         modifier = Modifier.fillMaxWidth().height(120.dp)
                     )
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (state.scans.isNotEmpty()) {
+                        OutlinedTextField(
+                            value = filterQuery,
+                            onValueChange = { filterQuery = it },
+                            placeholder = { Text(LocalizedStrings.get("search_reports", lang), color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, fontSize = 12.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, null, tint = accent, modifier = Modifier.size(18.dp)) },
+                            trailingIcon = {
+                                if (filterQuery.isNotEmpty()) {
+                                    IconButton(onClick = { filterQuery = "" }, modifier = Modifier.size(36.dp)) {
+                                        Icon(Icons.Default.Clear, null, tint = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = accent,
+                                unfocusedBorderColor = (if (appSettings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.4f),
+                                focusedTextColor = if (appSettings.theme == "DARK") Color.White else Color.Black,
+                                unfocusedTextColor = if (appSettings.theme == "DARK") Color.White else Color.Black
+                            ),
+                            textStyle = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     if (state.isLoading) {
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -88,9 +124,13 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(LocalizedStrings.get("no_reports", lang), color = TextMuted, fontSize = 12.sp)
                         }
+                    } else if (filteredScans.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(LocalizedStrings.get("no_matching_reports", lang), color = TextMuted, fontSize = 12.sp)
+                        }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(state.scans, key = { it.id ?: it.timestamp }) { scan ->
+                            items(filteredScans, key = { it.id ?: it.timestamp }) { scan ->
                                 ReportHistoryItem(
                                     scan = scan,
                                     accent = accent,

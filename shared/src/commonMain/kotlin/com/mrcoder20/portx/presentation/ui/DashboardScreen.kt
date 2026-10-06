@@ -425,6 +425,7 @@ fun DashboardIpInput(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Text(LocalizedStrings.get("advanced", lang), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = accent, fontWeight = FontWeight.Bold)
@@ -434,6 +435,70 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
                 ScanChip(LocalizedStrings.get("full_port_scan", lang), state.allPorts, accent) { viewModel.toggleAllPorts(it) }
                 ScanChip(LocalizedStrings.get("multi_protocol", lang), state.allProtocols, accent) { viewModel.toggleAllProtocols(it) }
                 ScanChip(LocalizedStrings.get("stealth_mode", lang), state.scanType == "SYN", accent) { viewModel.onScanTypeChange(if(it) "SYN" else "TCP") }
+            }
+
+            if (!state.allPorts) {
+                Spacer(Modifier.height(16.dp))
+                Text(LocalizedStrings.get("port_range", lang), style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = if (isDark) TextMuted else TextMutedLight, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(10.dp))
+                
+                val currentRange = "${state.startPort}-${state.endPort}"
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ScanChip(LocalizedStrings.get("top_100", lang), currentRange == "1-100", accent) {
+                        viewModel.onStartPortChange("1")
+                        viewModel.onEndPortChange("100")
+                    }
+                    ScanChip(LocalizedStrings.get("standard_ports", lang), currentRange == "1-1024", accent) {
+                        viewModel.onStartPortChange("1")
+                        viewModel.onEndPortChange("1024")
+                    }
+                    ScanChip(LocalizedStrings.get("web_ports", lang), currentRange == "80-8443", accent) {
+                        viewModel.onStartPortChange("80")
+                        viewModel.onEndPortChange("8443")
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = state.startPort,
+                        onValueChange = { if (it.all { ch -> ch.isDigit() } && it.length <= 5) viewModel.onStartPortChange(it) },
+                        label = { Text(LocalizedStrings.get("start_port", lang), fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = if (isDark) GlassBorder else GlassBorderLight,
+                            focusedTextColor = if (isDark) Color.White else Color.Black,
+                            unfocusedTextColor = if (isDark) Color.White else Color.Black
+                        ),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    )
+                    OutlinedTextField(
+                        value = state.endPort,
+                        onValueChange = { if (it.all { ch -> ch.isDigit() } && it.length <= 5) viewModel.onEndPortChange(it) },
+                        label = { Text(LocalizedStrings.get("end_port", lang), fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = if (isDark) GlassBorder else GlassBorderLight,
+                            focusedTextColor = if (isDark) Color.White else Color.Black,
+                            unfocusedTextColor = if (isDark) Color.White else Color.Black
+                        ),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    )
+                }
             }
         }
     }

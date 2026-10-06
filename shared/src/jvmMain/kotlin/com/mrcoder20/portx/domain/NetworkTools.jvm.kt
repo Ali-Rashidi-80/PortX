@@ -131,64 +131,107 @@ class JvmNetworkTools : NetworkTools {
     }
 
     override suspend fun whois(host: String): String = withContext(Dispatchers.IO) {
-        try {
-            val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
-            if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
+        val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
+        if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
 
-            val socket = java.net.Socket()
-            val result = try {
-                socket.connect(java.net.InetSocketAddress("whois.iana.org", 43), 7000)
-                socket.soTimeout = 7000
-                val out = socket.getOutputStream()
-                out.write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
-                out.flush()
-                
-                val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
-                val sb = StringBuilder()
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    sb.append(line).append("\n")
-                }
-                sb.toString()
-            } finally {
-                try { socket.close() } catch (_: Exception) {}
+        // Primary: Native WHOIS Port 43 Socket with iterative referral follow
+        val socketResult = tryQueryWhoisSocket(cleanHost)
+        if (socketResult != null && socketResult.isNotBlank()) {
+            return@withContext socketResult
+        }
+
+        // Secondary: RDAP Fallback over HTTPS (resilient to Port 43 ISP / Firewall blocks)
+        val rdapResult = tryQueryRdap(cleanHost)
+        if (rdapResult != null && rdapResult.isNotBlank()) {
+            return@withContext rdapResult
+        }
+
+        "WHOIS Resolution Error: Port 43 socket and RDAP queries were unavailable for $cleanHost."
+    }
+
+    private fun tryQueryWhoisSocket(cleanHost: String): String? {
+        val visited = mutableSetOf<String>()
+        var currentServer = if (isValidIpAddress(cleanHost)) "whois.arin.net" else "whois.iana.org"
+        var bestResult: String? = null
+
+        repeat(3) {
+            if (visited.contains(currentServer)) return bestResult
+            visited.add(currentServer)
+
+            val raw = tryQuerySingleWhoisServer(currentServer, cleanHost) ?: return bestResult
+            bestResult = raw
+
+            val nextServer = extractNextWhoisServer(raw, currentServer)
+            if (nextServer.isNullOrBlank() || visited.contains(nextServer)) {
+                return bestResult
             }
-            
-            if (result.contains("whois:", true)) {
-                val nextServer = result.lines()
-                    .find { it.contains("whois:", true) && !it.contains("iana.org") }
-                    ?.substringAfter(":")?.trim() ?: return@withContext result
-                
-                if (nextServer.isBlank()) return@withContext result
+            currentServer = nextServer
+        }
+        return bestResult
+    }
 
-                try {
-                    val socket2 = java.net.Socket()
-                    val redirectedResult = try {
-                        socket2.connect(java.net.InetSocketAddress(nextServer, 43), 7000)
-                        socket2.soTimeout = 7000
-                        socket2.getOutputStream().write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
-                        socket2.getOutputStream().flush()
-                        val reader2 = socket2.getInputStream().bufferedReader(Charsets.UTF_8)
-                        val sb2 = StringBuilder()
-                        var line2: String?
-                        while (reader2.readLine().also { line2 = it } != null) {
-                            sb2.append(line2).append("\n")
-                        }
-                        sb2.toString()
-                    } finally {
-                        try { socket2.close() } catch (_: Exception) {}
-                    }
-                    redirectedResult
-                } catch (e: Exception) {
-                    result + "\n\n[Authority Redirect to $nextServer failed: ${e.message}]"
+    private fun tryQuerySingleWhoisServer(server: String, query: String, timeoutMs: Int = 6000): String? {
+        val socket = java.net.Socket()
+        return try {
+            socket.connect(java.net.InetSocketAddress(server, 43), timeoutMs)
+            socket.soTimeout = timeoutMs
+            val out = socket.getOutputStream()
+            out.write((query + "\r\n").toByteArray(Charsets.UTF_8))
+            out.flush()
+            val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
+            val sb = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                sb.append(line).append("\n")
+            }
+            val content = sb.toString()
+            if (content.isNotBlank()) content else null
+        } catch (_: Exception) {
+            null
+        } finally {
+            try { socket.close() } catch (_: Exception) {}
+        }
+    }
+
+    internal fun extractNextWhoisServer(response: String, currentServer: String): String? {
+        val lines = response.lines()
+        for (line in lines) {
+            val trimmed = line.trim()
+            val lower = trimmed.lowercase()
+            if (lower.startsWith("whois:") || lower.startsWith("refer:") || lower.startsWith("registrar whois server:") || lower.startsWith("referralserver:")) {
+                val candidate = trimmed.substringAfter(":")
+                    .trim()
+                    .removePrefix("whois://")
+                    .removePrefix("rwhois://")
+                    .substringBefore("/")
+                    .substringBefore(":")
+                    .trim()
+                if (candidate.isNotBlank() && !candidate.equals(currentServer, ignoreCase = true) && !candidate.contains("iana.org", ignoreCase = true)) {
+                    return candidate
                 }
+            }
+        }
+        return null
+    }
+
+    private suspend fun tryQueryRdap(cleanHost: String): String? {
+        val client = SecurityHarden.createSecureClient()
+        return try {
+            val rdapUrl = if (isValidIpAddress(cleanHost)) {
+                "https://rdap.org/ip/$cleanHost"
             } else {
-                result
+                "https://rdap.org/domain/$cleanHost"
             }
+            val response = client.get(rdapUrl)
+            if (response.status.value in 200..299) {
+                "[RDAP Record via HTTPS]\n\n" + response.bodyAsText().take(6000)
+            } else null
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
-            "WHOIS Resolution Error: ${e.localizedMessage}. Ensure you are entering a valid domain (e.g. google.com)."
+        } catch (_: Exception) {
+            null
+        } finally {
+            try { client.close() } catch (_: Exception) {}
         }
     }
 

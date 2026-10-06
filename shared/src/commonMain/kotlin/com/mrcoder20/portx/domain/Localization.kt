@@ -80,7 +80,16 @@ object LocalizedStrings {
             "device_profile" to "Device Profile",
             "firewall_perimeter" to "Perimeter",
             "socket_timeout" to "Socket Timeout",
-            "ms" to "ms"
+            "ms" to "ms",
+            "port_range" to "Port Range",
+            "top_100" to "Top 100",
+            "standard_ports" to "1-1024",
+            "web_ports" to "Web Ports",
+            "custom_range" to "Custom",
+            "start_port" to "Start Port",
+            "end_port" to "End Port",
+            "search_reports" to "Filter by target or device...",
+            "no_matching_reports" to "No matching reports found"
         ),
         "fa" to mapOf(
             "dashboard" to "داشبورد",
@@ -145,7 +154,16 @@ object LocalizedStrings {
             "device_profile" to "مشخصات دستگاه",
             "firewall_perimeter" to "محدوده شبکه",
             "socket_timeout" to "مهلت زمانی اتصال",
-            "ms" to "میلی‌ثانیه"
+            "ms" to "میلی‌ثانیه",
+            "port_range" to "محدوده پورت‌ها",
+            "top_100" to "۱۰۰ پورت اصلی",
+            "standard_ports" to "۱ تا ۱۰۲۴",
+            "web_ports" to "پورت‌های وب",
+            "custom_range" to "سفارشی",
+            "start_port" to "پورت شروع",
+            "end_port" to "پورت پایان",
+            "search_reports" to "جستجو بر اساس هدف یا دستگاه...",
+            "no_matching_reports" to "گزارشی مطابق جستجو یافت نشد"
         ),
         "ar" to mapOf(
             "dashboard" to "لوحة القيادة",

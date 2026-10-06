@@ -879,4 +879,53 @@ class NetworkToolsHardeningTest {
         val md = exporter(emptyScan, "MD")
         assertTrue(md.contains("| - | No Open Services Found | - |"), "Empty scan report must contain placeholder row in table")
     }
+
+    @Test
+    fun testExtractTitleNumericHtmlEntities() {
+        val scanner = com.mrcoder20.portx.data.network.PortScanner()
+        val banner = "HTTP/1.1 200 OK\r\n\r\n<html><head><title>&#80;&#111;&#114;&#116;&#88; &#x26; Security &#x3C;&#x3E;</title></head></html>"
+        val title = scanner.extractTitle(banner)
+        assertEquals("PortX & Security <>", title)
+    }
+
+    @Test
+    fun testMysqlVersionParsingRegex() {
+        val banner = "5.7.34-log\u0000\u0000\u0000\u0002"
+        val verMatch = Regex("""(\d+\.\d+\.\d+[\w.-]*)""").find(banner)
+        assertEquals("5.7.34-log", verMatch?.value)
+
+        val mariaBanner = "10.11.4-MariaDB-1:10.11.4+maria~deb12"
+        val mariaMatch = Regex("""(\d+\.\d+\.\d+[\w.-]*)""").find(mariaBanner)
+        assertEquals("10.11.4-MariaDB-1", mariaMatch?.value)
+    }
+
+    @Test
+    fun testReportFilteringLogic() {
+        val scans = listOf(
+            com.mrcoder20.portx.domain.model.ScanResult(
+                target = "192.168.1.1",
+                openPorts = listOf(80),
+                timestamp = 100L,
+                securityScore = 90,
+                deviceName = "Gateway Router",
+                osFingerprint = "OpenWrt Linux"
+            ),
+            com.mrcoder20.portx.domain.model.ScanResult(
+                target = "10.0.0.50",
+                openPorts = listOf(9100),
+                timestamp = 200L,
+                securityScore = 80,
+                deviceName = "Office Printer",
+                osFingerprint = "HP LaserJet"
+            )
+        )
+
+        val filteredByIp = scans.filter { it.target.contains("192.168") }
+        assertEquals(1, filteredByIp.size)
+        assertEquals("Gateway Router", filteredByIp.first().deviceName)
+
+        val filteredByDevice = scans.filter { it.deviceName?.contains("Printer", ignoreCase = true) == true }
+        assertEquals(1, filteredByDevice.size)
+        assertEquals("10.0.0.50", filteredByDevice.first().target)
+    }
 }

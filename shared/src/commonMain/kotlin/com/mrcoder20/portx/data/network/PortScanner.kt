@@ -429,6 +429,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 val title = extractTitle(grabbed)
                 val server = grabbed.lines().find { it.startsWith("Server:", true) }?.removePrefix("Server:")?.trim() ?: ""
                 httpInfo = HttpInfo(title = title, server = server)
+                if (server.isNotEmpty()) version = server
             }
             lowBanner.contains("ftp") -> {
                 service = "ftp"
@@ -436,7 +437,8 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             }
             lowBanner.contains("mariadb") || lowBanner.contains("mysql") || (port == 3306 && grabbed.isNotEmpty()) -> {
                 service = "mysql"
-                version = if (lowBanner.contains("mariadb")) "MariaDB" else "MySQL"
+                val verMatch = Regex("""(\d+\.\d+\.\d+[\w.-]*)""").find(grabbed)
+                version = verMatch?.value ?: (if (lowBanner.contains("mariadb")) "MariaDB" else "MySQL")
             }
             lowBanner.contains("esmtp") || lowBanner.contains("smtp") || (port in setOf(25, 465, 587) && grabbed.startsWith("220")) -> {
                 service = "smtp"
@@ -444,6 +446,15 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             }
             lowBanner.contains("redis") || lowBanner.contains("+pong") || lowBanner.contains("-noauth") || lowBanner.contains("-err") || port == 6379 -> {
                 service = "redis"
+                version = if (lowBanner.contains("noauth")) "Auth Protected" else if (lowBanner.contains("+pong")) "Unauthenticated" else ""
+            }
+            lowBanner.contains("docker") || port in setOf(2375, 2376) -> {
+                service = "docker"
+            }
+            lowBanner.contains("elasticsearch") || (port in setOf(9200, 9300) && (lowBanner.contains("cluster_name") || lowBanner.contains("tagline"))) -> {
+                service = "elasticsearch"
+                val verMatch = Regex(""""number"\s*:\s*"([^"]+)"""").find(grabbed)
+                if (verMatch != null) version = verMatch.groupValues[1]
             }
             lowBanner.contains("version ") && port == 11211 -> {
                 service = "memcached"
@@ -540,7 +551,18 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
 
     internal fun extractTitle(banner: String): String {
         val regex = Regex("""<title\b[^>]*>(.*?)</title>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-        val raw = regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: return ""
+        var raw = regex.find(banner)?.groupValues?.get(1)?.trim()?.replace("\n", " ")?.replace("\r", "") ?: return ""
+        
+        // Decode decimal and hex numeric character references (e.g. &#65; -> A, &#x41; -> A)
+        raw = Regex("""&#(\d+);""").replace(raw) { match ->
+            val code = match.groupValues[1].toIntOrNull()
+            if (code != null && code in 32..65535) code.toChar().toString() else match.value
+        }
+        raw = Regex("""&#x([0-9a-fA-F]+);""").replace(raw) { match ->
+            val code = match.groupValues[1].toIntOrNull(16)
+            if (code != null && code in 32..65535) code.toChar().toString() else match.value
+        }
+
         return raw.replace("&amp;", "&")
             .replace("&quot;", "\"")
             .replace("&#39;", "'")

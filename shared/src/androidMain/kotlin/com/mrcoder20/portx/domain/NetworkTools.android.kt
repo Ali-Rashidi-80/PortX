@@ -116,10 +116,12 @@ class AndroidNetworkTools : NetworkTools {
     }
 
     override suspend fun whois(host: String): String = withContext(Dispatchers.IO) {
+        val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
+        if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
+
+        // 1. Primary on Android: RDAP over HTTPS (mobile carrier friendly)
         val client = SecurityHarden.createSecureClient()
         try {
-            val cleanHost = sanitizeHost(host).lowercase().removePrefix("www.")
-            if (cleanHost.isBlank()) return@withContext "Error: Target host is empty"
             val rdapUrl = if (isValidIpAddress(cleanHost)) {
                 "https://rdap.org/ip/$cleanHost"
             } else {
@@ -127,17 +129,42 @@ class AndroidNetworkTools : NetworkTools {
             }
             val response: HttpResponse = client.get(rdapUrl)
             if (response.status.value in 200..299) {
-                response.bodyAsText().take(5000)
-            } else {
-                "WHOIS data not available for $cleanHost via RDAP."
+                val body = response.bodyAsText()
+                if (body.isNotBlank()) return@withContext "[RDAP Mobile]\n\n" + body.take(5000)
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
-            "WHOIS Resolution Error (Mobile): ${e.message}. Domain might be invalid or RDAP is blocked."
+        } catch (_: Exception) {
+            // RDAP failed, proceed to Port 43 fallback
         } finally {
             try { client.close() } catch (_: Exception) {}
         }
+
+        // 2. Secondary fallback: Native Port 43 Socket query
+        try {
+            val server = if (isValidIpAddress(cleanHost)) "whois.arin.net" else "whois.iana.org"
+            val socket = java.net.Socket()
+            try {
+                socket.connect(java.net.InetSocketAddress(server, 43), 6000)
+                socket.soTimeout = 6000
+                socket.getOutputStream().write((cleanHost + "\r\n").toByteArray(Charsets.UTF_8))
+                socket.getOutputStream().flush()
+                val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
+                val sb = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    sb.append(line).append("\n")
+                }
+                val content = sb.toString()
+                if (content.isNotBlank()) return@withContext content
+            } finally {
+                try { socket.close() } catch (_: Exception) {}
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {}
+
+        "WHOIS data not available for $cleanHost via RDAP or Port 43."
     }
 
     override suspend fun getPublicIp(): String? = withContext(Dispatchers.IO) {
