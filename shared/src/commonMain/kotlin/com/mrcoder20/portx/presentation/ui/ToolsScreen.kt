@@ -914,7 +914,7 @@ fun WhoisResultPanel(
             }
 
             // Structured WHOIS Identity Dossier Banner
-            if (whoisSummary != null && (whoisSummary.first != null || whoisSummary.second != null || whoisSummary.third != null)) {
+            if (whoisSummary != null && (whoisSummary.first != null || whoisSummary.second != "—" || whoisSummary.third != "—")) {
                 Spacer(Modifier.height(10.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -956,7 +956,7 @@ fun WhoisResultPanel(
                                     )
                                 }
                             }
-                            whoisSummary.second?.let { crt ->
+                            if (whoisSummary.second != "—") {
                                 Column(modifier = Modifier.weight(1.3f)) {
                                     Text(
                                         LocalizedStrings.get("created_date", lang),
@@ -964,7 +964,7 @@ fun WhoisResultPanel(
                                         color = if (isDark) TextMuted else TextMutedLight
                                     )
                                     Text(
-                                        crt,
+                                        whoisSummary.second,
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
                                         color = if (isDark) Color.White else Color.Black,
                                         maxLines = 2,
@@ -972,7 +972,7 @@ fun WhoisResultPanel(
                                     )
                                 }
                             }
-                            whoisSummary.third?.let { exp ->
+                            if (whoisSummary.third != "—") {
                                 Column(modifier = Modifier.weight(1.3f)) {
                                     Text(
                                         LocalizedStrings.get("expiry_date", lang),
@@ -980,7 +980,7 @@ fun WhoisResultPanel(
                                         color = if (isDark) TextMuted else TextMutedLight
                                     )
                                     Text(
-                                        exp,
+                                        whoisSummary.third,
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
                                         color = WarningNeon,
                                         maxLines = 2,

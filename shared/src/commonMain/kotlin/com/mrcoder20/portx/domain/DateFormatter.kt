@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package com.mrcoder20.portx.domain
 
 import kotlinx.datetime.Instant
