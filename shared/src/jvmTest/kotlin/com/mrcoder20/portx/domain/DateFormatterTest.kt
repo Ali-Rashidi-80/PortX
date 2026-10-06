@@ -51,4 +51,17 @@ class DateFormatterTest {
         assertEquals("—", DateFormatter.formatWhoisDate("", "fa"))
         assertEquals("UnknownDateString", DateFormatter.formatWhoisDate("UnknownDateString", "fa"))
     }
+
+    @Test
+    fun testFormatScanTimestamp() {
+        // Test an epoch millis timestamp
+        val ts = 874306800000L // 1997-09-15
+        val (dateEn, timeEn) = DateFormatter.formatScanTimestamp(ts, "en")
+        assertTrue(dateEn.contains("1997"))
+        assertTrue(timeEn.contains(":"))
+
+        val (dateFa, timeFa) = DateFormatter.formatScanTimestamp(ts, "fa")
+        assertTrue(dateFa.contains("۱۳۷۶"))
+        assertTrue(timeFa.isNotEmpty())
+    }
 }

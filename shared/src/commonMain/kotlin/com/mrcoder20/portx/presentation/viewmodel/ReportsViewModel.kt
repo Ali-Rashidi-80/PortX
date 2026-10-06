@@ -121,6 +121,7 @@ class ReportsViewModel(
         viewModelScope.launch {
             try {
                 scanRepository.deleteScan(id)
+                showSnackbar("Scan report deleted")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -133,6 +134,7 @@ class ReportsViewModel(
         viewModelScope.launch {
             try {
                 scanRepository.deleteAllScans()
+                showSnackbar("All scan reports cleared")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {

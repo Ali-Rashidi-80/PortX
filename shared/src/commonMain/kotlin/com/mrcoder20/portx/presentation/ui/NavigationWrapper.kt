@@ -32,6 +32,7 @@ import com.mrcoder20.portx.domain.AppSettings
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.domain.ScanManager
 import com.mrcoder20.portx.domain.SettingsManager
+import com.mrcoder20.portx.presentation.ui.components.springPress
 import com.mrcoder20.portx.presentation.ui.theme.*
 import org.koin.compose.koinInject
 
@@ -378,7 +379,7 @@ fun TabletRailItem(
     val isDark = LocalAppSettings.current.theme == "DARK"
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier.size(48.dp).springPress(pressedScale = 0.90f),
         shape = RoundedCornerShape(14.dp),
         color = if (isSelected) accent.copy(alpha = 0.18f) else Color.Transparent,
         border = BorderStroke(1.dp, if (isSelected) accent else Color.Transparent)

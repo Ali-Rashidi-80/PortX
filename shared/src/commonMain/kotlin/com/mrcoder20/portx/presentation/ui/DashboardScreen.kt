@@ -23,8 +23,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.mrcoder20.portx.presentation.ui.components.DisintegrationContainer
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.cyberPulse
+import com.mrcoder20.portx.presentation.ui.components.springPress
 import com.mrcoder20.portx.presentation.ui.components.touchDragScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -684,7 +687,10 @@ fun DashboardIpInput(
                                 )
                             }
 
-                            IconButton(onClick = { onIpChange("") }, modifier = Modifier.size(28.dp)) {
+                            IconButton(
+                                onClick = { onIpChange("") },
+                                modifier = Modifier.size(28.dp).springPress()
+                            ) {
                                 Icon(Icons.Default.Close, contentDescription = "Clear", tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(14.dp))
                             }
                         }
@@ -703,7 +709,7 @@ fun DashboardIpInput(
                     onClick = { if (state.isLoading) onStopScan() else onStartScan() },
                     colors = ButtonDefaults.buttonColors(containerColor = if (state.isLoading) DangerNeon.copy(alpha = pulseAlpha) else accent),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.height(46.dp).width(90.dp),
+                    modifier = Modifier.height(46.dp).width(90.dp).springPress(pressedScale = 0.94f),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
                     Icon(if (state.isLoading) Icons.Default.Stop else Icons.Default.FlashOn, null, tint = Color.Black, modifier = Modifier.size(18.dp))
@@ -739,7 +745,8 @@ fun DashboardIpInput(
                         onClick = { onIpChange(targetVal) },
                         shape = RoundedCornerShape(6.dp),
                         color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f)),
-                        border = BorderStroke(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f))
+                        border = BorderStroke(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f)),
+                        modifier = Modifier.springPress(pressedScale = 0.94f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -1060,6 +1067,7 @@ fun EngineLogsCard(
     val logListState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
     var isLogsCopied by remember { mutableStateOf(false) }
+    var isClearingLogs by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.logs.size) { if (state.logs.isNotEmpty()) logListState.animateScrollToItem(state.logs.size - 1) }
     LaunchedEffect(isLogsCopied) {
@@ -1111,7 +1119,7 @@ fun EngineLogsCard(
                                 clipboardManager.setText(AnnotatedString(state.logs.joinToString("\n")))
                                 isLogsCopied = true
                             },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(28.dp).springPress()
                         ) {
                             Icon(
                                 if (isLogsCopied) Icons.Default.Check else Icons.Default.ContentCopy,
@@ -1124,13 +1132,13 @@ fun EngineLogsCard(
 
                     if (onClearLogs != null && state.logs.isNotEmpty()) {
                         IconButton(
-                            onClick = onClearLogs,
-                            modifier = Modifier.size(28.dp)
+                            onClick = { isClearingLogs = true },
+                            modifier = Modifier.size(28.dp).springPress(pressedScale = 0.90f)
                         ) {
                             Icon(
                                 Icons.Default.DeleteOutline,
                                 contentDescription = LocalizedStrings.get("clear_logs", lang),
-                                tint = if (isDark) TextMuted else TextMutedLight,
+                                tint = DangerNeon.copy(alpha = 0.85f),
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -1138,61 +1146,71 @@ fun EngineLogsCard(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .background(if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
-                    .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
-                    .padding(8.dp)
+            DisintegrationContainer(
+                isDisintegrating = isClearingLogs,
+                accent = DangerNeon,
+                particleCount = 180,
+                onDisintegrated = {
+                    onClearLogs?.invoke()
+                    isClearingLogs = false
+                },
+                modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
-                if (state.logs.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
-                        contentAlignment = if (isRtl) Alignment.TopEnd else Alignment.TopStart
-                    ) {
-                        Text(
-                            LocalizedStrings.get("waiting_engine_activity", lang),
-                            color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.6f),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 11.sp,
-                                textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
-                                textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
-                            )
-                        )
-                    }
-                } else {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        LazyColumn(
-                            state = logListState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .touchDragScroll(logListState, isVertical = true)
-                                .padding(end = 12.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                        .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .padding(8.dp)
+                ) {
+                    if (state.logs.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
+                            contentAlignment = if (isRtl) Alignment.TopEnd else Alignment.TopStart
                         ) {
-                            itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
-                                val logColor = when {
-                                    log.contains("completed", ignoreCase = true) || log.contains("found", ignoreCase = true) || log.contains("active", ignoreCase = true) -> TertiaryNeon
-                                    log.contains("error", ignoreCase = true) || log.contains("failed", ignoreCase = true) || log.contains("refused", ignoreCase = true) -> DangerNeon
-                                    log.contains("warning", ignoreCase = true) || log.contains("timeout", ignoreCase = true) -> WarningNeon
-                                    log.contains("probing", ignoreCase = true) || log.contains("scan", ignoreCase = true) -> accent
-                                    else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.85f)
-                                }
-                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
-                                    Text(
-                                        log,
-                                        color = logColor,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                                        textAlign = TextAlign.Start
-                                    )
+                            Text(
+                                LocalizedStrings.get("waiting_engine_activity", lang),
+                                color = (if (isDark) TextMuted else TextMutedLight).copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                                    textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
+                                )
+                            )
+                        }
+                    } else {
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            LazyColumn(
+                                state = logListState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .touchDragScroll(logListState, isVertical = true)
+                                    .padding(end = 12.dp)
+                            ) {
+                                itemsIndexed(state.logs, key = { index, log -> "${index}_$log" }) { _, log ->
+                                    val logColor = when {
+                                        log.contains("completed", ignoreCase = true) || log.contains("found", ignoreCase = true) || log.contains("active", ignoreCase = true) -> TertiaryNeon
+                                        log.contains("error", ignoreCase = true) || log.contains("failed", ignoreCase = true) || log.contains("refused", ignoreCase = true) -> DangerNeon
+                                        log.contains("warning", ignoreCase = true) || log.contains("timeout", ignoreCase = true) -> WarningNeon
+                                        log.contains("probing", ignoreCase = true) || log.contains("scan", ignoreCase = true) -> accent
+                                        else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.85f)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("> ", color = accent, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold))
+                                        Text(
+                                            log,
+                                            color = logColor,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                            textAlign = TextAlign.Start
+                                        )
+                                    }
                                 }
                             }
+                            PortXVerticalScrollbar(
+                                listState = logListState,
+                                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                            )
                         }
-                        PortXVerticalScrollbar(
-                            listState = logListState,
-                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
-                        )
                     }
                 }
             }
@@ -1216,7 +1234,7 @@ fun FilterChipMini(
         shape = RoundedCornerShape(8.dp),
         color = if (isSelected) chipColor.copy(alpha = 0.18f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.04f)),
         border = BorderStroke(1.dp, if (isSelected) chipColor else (if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))),
-        modifier = Modifier.requiredHeight(28.dp)
+        modifier = Modifier.requiredHeight(28.dp).springPress(pressedScale = 0.94f)
     ) {
         Row(
             modifier = Modifier.fillMaxHeight().padding(horizontal = 8.dp),
@@ -1256,6 +1274,7 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
     var selectedPortForDetail by remember { mutableStateOf<DisplayPort?>(null) }
     var portSearchQuery by remember { mutableStateOf("") }
     var selectedCategoryFilter by remember { mutableStateOf("ALL") }
+    var showExportModal by remember { mutableStateOf(false) }
 
     val allPortsToShow = remember(result, accent) {
         result?.openPorts?.distinct()?.sorted()?.map { portNumber ->
@@ -1301,6 +1320,33 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     if (allPortsToShow.isNotEmpty()) {
                         val countText = if (filteredPorts.size != allPortsToShow.size) "${filteredPorts.size} / ${allPortsToShow.size}" else "${allPortsToShow.size}"
                         Text("$countText ${LocalizedStrings.get("found", lang)}", style = MaterialTheme.typography.labelSmall, color = accent, modifier = Modifier.background(accent.copy(alpha = 0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+                    }
+                    if (result != null) {
+                        Surface(
+                            onClick = { showExportModal = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = accent.copy(alpha = if (isDark) 0.14f else 0.10f),
+                            border = BorderStroke(1.dp, accent.copy(alpha = if (isDark) 0.45f else 0.35f)),
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.FileDownload,
+                                    contentDescription = LocalizedStrings.get("export_report", lang),
+                                    tint = accent,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    LocalizedStrings.get("export_report", lang),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
+                                    color = if (isDark) Color.White else Color.Black
+                                )
+                            }
+                        }
                     }
                     Row(modifier = Modifier.background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f), CircleShape).border(1.dp, if (isDark) GlassBorder else GlassBorderLight, CircleShape)) {
                         IconButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (isDark) Color.White else Color.Black, modifier = Modifier.size(18.dp)) }
@@ -1526,6 +1572,16 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                     accent = accent,
                     lang = lang,
                     onDismiss = { selectedPortForDetail = null }
+                )
+            }
+
+            if (showExportModal && result != null) {
+                ReportExportDialog(
+                    scan = result,
+                    accent = accent,
+                    lang = lang,
+                    isDark = isDark,
+                    onDismiss = { showExportModal = false }
                 )
             }
         }

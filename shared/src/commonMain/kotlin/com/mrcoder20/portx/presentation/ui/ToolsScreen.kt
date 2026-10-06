@@ -35,6 +35,7 @@ import com.mrcoder20.portx.domain.DateFormatter
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.springPress
 import com.mrcoder20.portx.presentation.ui.components.touchDragScroll
 import com.mrcoder20.portx.presentation.ui.theme.*
 import com.mrcoder20.portx.presentation.viewmodel.ToolsViewModel
@@ -161,7 +162,7 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                             if (state.target.isNotEmpty()) {
                                 IconButton(
                                     onClick = { viewModel.onTargetChange("") },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(36.dp).springPress()
                                 ) {
                                     Icon(
                                         Icons.Default.Clear,
@@ -181,6 +182,7 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                                     onClick = { viewModel.copyResultsToClipboard() },
                                     modifier = Modifier
                                         .size(44.dp)
+                                        .springPress()
                                         .background(
                                             if (isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f),
                                             CircleShape
@@ -219,7 +221,8 @@ fun ToolsScreen(viewModel: ToolsViewModel = koinInject()) {
                                     shape = RoundedCornerShape(14.dp),
                                     modifier = Modifier
                                         .height(44.dp)
-                                        .width(84.dp),
+                                        .width(84.dp)
+                                        .springPress(pressedScale = 0.94f),
                                     contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) {
                                     Icon(
@@ -1099,7 +1102,7 @@ fun LocalInfoPanel(
                     if (isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = accent, strokeWidth = 2.dp)
                     } else {
-                        IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
+                        IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp).springPress()) {
                             Icon(Icons.Default.Refresh, "Refresh", tint = accent, modifier = Modifier.size(20.dp))
                         }
                     }
@@ -1173,6 +1176,7 @@ fun LocalInfoPanel(
                             onClick = { onPingSubnet(subnetHint) },
                             colors = ButtonDefaults.buttonColors(containerColor = accent),
                             shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.springPress(pressedScale = 0.94f),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.Default.NetworkPing, null, tint = Color.Black, modifier = Modifier.size(16.dp))
@@ -1188,7 +1192,8 @@ fun LocalInfoPanel(
                             onClick = onRefresh,
                             colors = ButtonDefaults.buttonColors(containerColor = accent.copy(alpha = 0.2f)),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, accent)
+                            border = BorderStroke(1.dp, accent),
+                            modifier = Modifier.springPress(pressedScale = 0.94f)
                         ) {
                             Icon(Icons.Default.Refresh, null, tint = if (isDark) Color.White else Color.Black)
                             Spacer(Modifier.width(8.dp))

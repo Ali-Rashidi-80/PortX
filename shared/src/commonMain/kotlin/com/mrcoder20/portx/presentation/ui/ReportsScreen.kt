@@ -34,10 +34,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.domain.model.ScanResult
+import com.mrcoder20.portx.presentation.ui.components.DisintegrationContainer
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.cyberPulse
+import com.mrcoder20.portx.presentation.ui.components.springPress
 import com.mrcoder20.portx.presentation.ui.components.touchDragScroll
 import com.mrcoder20.portx.presentation.ui.theme.*
+import com.mrcoder20.portx.domain.DateFormatter
 import com.mrcoder20.portx.presentation.viewmodel.ReportsViewModel
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -56,6 +60,8 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
     var filterQuery by remember { mutableStateOf("") }
     var selectedReportForDetail by remember { mutableStateOf<ScanResult?>(null) }
     var selectedReportForExport by remember { mutableStateOf<ScanResult?>(null) }
+    var deletingScanId by remember { mutableStateOf<Long?>(null) }
+    var isClearingAllWithDust by remember { mutableStateOf(false) }
 
     val filteredScans = remember(state.scans, filterQuery) {
         if (filterQuery.isBlank()) state.scans
@@ -108,7 +114,7 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                         if (state.scans.isNotEmpty()) {
                             IconButton(
                                 onClick = { showDeleteConfirm = true },
-                                modifier = Modifier.size(38.dp)
+                                modifier = Modifier.size(38.dp).springPress()
                             ) {
                                 Icon(
                                     Icons.Default.DeleteSweep,
@@ -212,36 +218,75 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                     } else {
                         val reportsListState = rememberLazyListState()
                         val isRtl = lang == "fa" || lang == "ar"
-                        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                            LazyColumn(
-                                state = reportsListState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .touchDragScroll(reportsListState, isVertical = true)
-                                    .padding(
-                                        start = if (isRtl) 12.dp else 0.dp,
-                                        end = if (!isRtl) 12.dp else 0.dp
-                                    ),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(filteredScans, key = { it.id ?: it.timestamp }) { scan ->
-                                    ReportHistoryItem(
-                                        scan = scan,
-                                        accent = accent,
-                                        lang = lang,
-                                        onClick = { selectedReportForDetail = scan },
-                                        onDelete = { scan.id?.let { viewModel.deleteScan(it) } },
-                                        onExport = { selectedReportForExport = scan }
-                                    )
+                        DisintegrationContainer(
+                            isDisintegrating = isClearingAllWithDust,
+                            accent = DangerNeon,
+                            particleCount = 260,
+                            onDisintegrated = {
+                                viewModel.clearAll()
+                                isClearingAllWithDust = false
+                            },
+                            modifier = Modifier.fillMaxWidth().weight(1f)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = reportsListState,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .touchDragScroll(reportsListState, isVertical = true)
+                                        .padding(
+                                            start = if (isRtl) 12.dp else 0.dp,
+                                            end = if (!isRtl) 12.dp else 0.dp
+                                        ),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(filteredScans, key = { it.id ?: it.timestamp }) { scan ->
+                                        val isDeletingThis = deletingScanId == scan.id
+                                        DisintegrationContainer(
+                                            isDisintegrating = isDeletingThis,
+                                            accent = DangerNeon,
+                                            particleCount = 180,
+                                            onDisintegrated = {
+                                                scan.id?.let { viewModel.deleteScan(it) }
+                                                if (deletingScanId == scan.id) {
+                                                    deletingScanId = null
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            ReportHistoryItem(
+                                                scan = scan,
+                                                accent = accent,
+                                                lang = lang,
+                                                onClick = {
+                                                    if (deletingScanId == null && !isClearingAllWithDust) {
+                                                        selectedReportForDetail = scan
+                                                    }
+                                                },
+                                                onDelete = {
+                                                    if (scan.id != null) {
+                                                        deletingScanId = scan.id
+                                                    } else {
+                                                        scan.id?.let { viewModel.deleteScan(it) }
+                                                    }
+                                                },
+                                                onExport = {
+                                                    if (deletingScanId == null && !isClearingAllWithDust) {
+                                                        selectedReportForExport = scan
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
+                                PortXVerticalScrollbar(
+                                    listState = reportsListState,
+                                    modifier = Modifier
+                                        .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+                                        .fillMaxHeight()
+                                        .padding(horizontal = 2.dp)
+                                )
                             }
-                            PortXVerticalScrollbar(
-                                listState = reportsListState,
-                                modifier = Modifier
-                                    .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
-                                    .fillMaxHeight()
-                                    .padding(horizontal = 2.dp)
-                            )
                         }
                     }
                 }
@@ -310,8 +355,13 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                 selectedReportForExport = scan
             },
             onDelete = {
-                scan.id?.let { viewModel.deleteScan(it) }
+                val targetId = scan.id
                 selectedReportForDetail = null
+                if (targetId != null) {
+                    deletingScanId = targetId
+                } else {
+                    scan.id?.let { viewModel.deleteScan(it) }
+                }
             }
         )
     }
@@ -351,17 +401,21 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.clearAll()
                         showDeleteConfirm = false
+                        isClearingAllWithDust = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DangerNeon),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.springPress()
                 ) {
                     Text(LocalizedStrings.get("clear_all", lang), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
+                TextButton(
+                    onClick = { showDeleteConfirm = false },
+                    modifier = Modifier.springPress()
+                ) {
                     Text(LocalizedStrings.get("cancel", lang), color = if (isDarkTheme) Color.White else Color.Black)
                 }
             },
@@ -487,7 +541,8 @@ fun ScanScoreTrendSection(
                 if (scores.isNotEmpty()) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.horizontalScroll(rememberScrollState())
                     ) {
                         CyberBadge(text = "${LocalizedStrings.get("avg_score", lang)} $avgScore%", color = accent, fontSize = 8.5f)
                         CyberBadge(text = "${LocalizedStrings.get("peak_score", lang)} $peakScore%", color = TertiaryNeon, fontSize = 8.5f)
@@ -506,7 +561,7 @@ fun ScanScoreTrendSection(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 6.dp)
                 ) {
                     val filterItems = listOf(
                         TrendFilterMode.ALL to LocalizedStrings.get("trend_all", lang),
@@ -523,7 +578,8 @@ fun ScanScoreTrendSection(
                             border = BorderStroke(
                                 1.dp,
                                 if (isSelected) accent.copy(alpha = 0.6f) else (if (isDark) GlassBorder.copy(alpha = 0.25f) else GlassBorderLight.copy(alpha = 0.25f))
-                            )
+                            ),
+                            modifier = Modifier.springPress(pressedScale = 0.94f)
                         ) {
                             Text(
                                 text = label,
@@ -561,7 +617,7 @@ fun ScanScoreTrendChart(
     onScanClick: (ScanResult) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    if (scans.size < 2) {
+    if (scans.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text(
                 LocalizedStrings.get("not_enough_data", lang),
@@ -569,6 +625,78 @@ fun ScanScoreTrendChart(
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )
+        }
+        return
+    }
+
+    if (scans.size == 1) {
+        val singleScan = scans.first()
+        val (sDate, sTime) = DateFormatter.formatScanTimestamp(singleScan.timestamp, lang)
+        val sColor = when {
+            singleScan.securityScore >= 80 -> TertiaryNeon
+            singleScan.securityScore >= 50 -> WarningNeon
+            else -> DangerNeon
+        }
+        Surface(
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .springPress(pressedScale = 0.98f)
+                .clickable { onScanClick(singleScan) },
+            color = if (isDark) Color.White.copy(alpha = 0.035f) else Color.Black.copy(alpha = 0.025f),
+            border = BorderStroke(1.dp, sColor.copy(alpha = 0.35f)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(sColor.copy(alpha = 0.15f))
+                            .border(1.5.dp, sColor, CircleShape)
+                            .cyberPulse(glowColor = sColor, enabled = true),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "${singleScan.securityScore}%",
+                            color = sColor,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    Column {
+                        val isolatedTarget = "\u2066${singleScan.target}\u2069"
+                        val title = if (!singleScan.deviceName.isNullOrBlank()) "$isolatedTarget (${singleScan.deviceName})" else isolatedTarget
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
+                            color = if (isDark) Color.White else Color.Black,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "\u2066$sDate $sTime\u2069 \u2022 ${singleScan.openPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = if (isDark) TextMuted else TextMutedLight
+                        )
+                    }
+                }
+
+                CyberBadge(
+                    text = LocalizedStrings.get("click_to_view", lang),
+                    color = accent,
+                    fontSize = 8.5f
+                )
+            }
         }
         return
     }
@@ -601,13 +729,7 @@ fun ScanScoreTrendChart(
             hoveredIndex?.let { idx ->
                 if (idx in scans.indices) {
                     val scan = scans[idx]
-                    val (dtDate, dtTime) = try {
-                        val instant = kotlin.time.Instant.fromEpochMilliseconds(scan.timestamp)
-                            .toLocalDateTime(TimeZone.currentSystemDefault())
-                        instant.date.toString() to "${instant.time.hour.toString().padStart(2, '0')}:${instant.time.minute.toString().padStart(2, '0')}"
-                    } catch (_: Exception) {
-                        "N/A" to "N/A"
-                    }
+                    val (dtDate, dtTime) = DateFormatter.formatScanTimestamp(scan.timestamp, lang)
                     val (riskLabel, riskColor) = when {
                         scan.securityScore >= 80 -> LocalizedStrings.get("secure", lang) to TertiaryNeon
                         scan.securityScore >= 50 -> LocalizedStrings.get("warning", lang) to WarningNeon
@@ -658,7 +780,7 @@ fun ScanScoreTrendChart(
                                         maxLines = 1
                                     )
                                     Text(
-                                        text = "\u2066$dtDate $dtTime\u2069 • ${scan.openPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
+                                        text = "\u2066$dtDate $dtTime\u2069 \u2022 ${scan.openPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                         color = if (isDark) TextMuted else TextMutedLight
                                     )
@@ -881,15 +1003,7 @@ fun ReportHistoryItem(
     onExport: () -> Unit
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    val (formattedDate, formattedTime) = try {
-        val dt = kotlin.time.Instant.fromEpochMilliseconds(scan.timestamp)
-            .toLocalDateTime(TimeZone.currentSystemDefault())
-        val d = dt.date.toString()
-        val t = "${dt.time.hour.toString().padStart(2, '0')}:${dt.time.minute.toString().padStart(2, '0')}"
-        d to t
-    } catch (_: Exception) {
-        "N/A" to "N/A"
-    }
+    val (formattedDate, formattedTime) = DateFormatter.formatScanTimestamp(scan.timestamp, lang)
 
     val (riskLabel, riskColor) = when {
         scan.securityScore >= 80 -> LocalizedStrings.get("secure", lang) to TertiaryNeon
@@ -897,15 +1011,25 @@ fun ReportHistoryItem(
         else -> LocalizedStrings.get("high_risk", lang) to DangerNeon
     }
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 86.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        color = if (isDark) Color.White.copy(alpha = 0.045f) else Color.Black.copy(alpha = 0.025f)
+    var isDisintegrating by remember { mutableStateOf(false) }
+
+    DisintegrationContainer(
+        isDisintegrating = isDisintegrating,
+        accent = DangerNeon,
+        particleCount = 180,
+        onDisintegrated = onDelete,
+        modifier = Modifier.fillMaxWidth()
     ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 86.dp)
+                .springPress(pressedScale = 0.98f)
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+            color = if (isDark) Color.White.copy(alpha = 0.045f) else Color.Black.copy(alpha = 0.025f)
+        ) {
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -927,7 +1051,12 @@ fun ReportHistoryItem(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
-                    CyberBadge(text = riskLabel, color = riskColor, fontSize = 9f)
+                    CyberBadge(
+                        text = riskLabel,
+                        color = riskColor,
+                        hasGlowAura = scan.securityScore < 50,
+                        fontSize = 9f
+                    )
                 }
 
                 Spacer(Modifier.height(4.dp))
@@ -939,7 +1068,7 @@ fun ReportHistoryItem(
                 ) {
                     val isolatedDateTime = "\u2066$formattedDate $formattedTime\u2069"
                     Text(
-                        text = if (!scan.osFingerprint.isNullOrBlank()) "$isolatedDateTime • ${scan.osFingerprint}" else isolatedDateTime,
+                        text = if (!scan.osFingerprint.isNullOrBlank()) "$isolatedDateTime \u2022 ${scan.osFingerprint}" else isolatedDateTime,
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = if (isDark) TextMuted else TextMutedLight,
                         maxLines = 1,
@@ -958,7 +1087,9 @@ fun ReportHistoryItem(
                 color = riskColor.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(1.dp, riskColor.copy(alpha = 0.35f)),
-                modifier = Modifier.padding(horizontal = 6.dp)
+                modifier = Modifier
+                    .padding(horizontal = 6.dp)
+                    .cyberPulse(glowColor = riskColor, enabled = scan.securityScore < 50)
             ) {
                 Text(
                     "${scan.securityScore}%",
@@ -976,7 +1107,9 @@ fun ReportHistoryItem(
                 shape = RoundedCornerShape(10.dp),
                 color = accent.copy(alpha = if (isDark) 0.14f else 0.10f),
                 border = BorderStroke(1.dp, accent.copy(alpha = if (isDark) 0.45f else 0.35f)),
-                modifier = Modifier.padding(horizontal = 4.dp)
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .springPress(pressedScale = 0.94f)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -998,31 +1131,37 @@ fun ReportHistoryItem(
                 }
             }
 
-            // Delete Button
-            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+            // Delete Button with Telegram Dust Disintegration Trigger
+            IconButton(
+                onClick = { isDisintegrating = true },
+                modifier = Modifier
+                    .size(36.dp)
+                    .springPress(pressedScale = 0.90f)
+            ) {
                 Icon(
                     Icons.Default.DeleteOutline,
-                    contentDescription = "Delete Report",
-                    tint = if (isDark) TextMuted else TextMutedLight,
+                    contentDescription = LocalizedStrings.get("delete", lang),
+                    tint = DangerNeon.copy(alpha = 0.85f),
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
+    }
     }
 }
 
 @Composable
 fun ReportExportDialog(
     scan: ScanResult,
-    initialFormat: String,
+    initialFormat: String = "JSON",
     accent: Color,
     lang: String,
     isDark: Boolean,
-    viewModel: ReportsViewModel,
-    onFormatSelected: (String) -> Unit,
-    onSaveAs: (String) -> Unit,
-    onQuickSave: (String) -> Unit,
-    onShare: (String) -> Unit,
+    viewModel: ReportsViewModel = koinInject(),
+    onFormatSelected: (String) -> Unit = { viewModel.onFormatChange(it) },
+    onSaveAs: (String) -> Unit = { viewModel.saveScanAs(scan, it) },
+    onQuickSave: (String) -> Unit = { viewModel.quickSaveScan(scan, it) },
+    onShare: (String) -> Unit = { viewModel.shareScan(scan, it) },
     onDismiss: () -> Unit
 ) {
     var selectedFormat by remember { mutableStateOf(initialFormat) }
@@ -1099,7 +1238,7 @@ fun ReportExportDialog(
                             border = BorderStroke(1.dp, gradeColor.copy(alpha = 0.4f))
                         ) {
                             Text(
-                                "${scan.securityScore}% • ${LocalizedStrings.get("grade", lang)} $gradeText",
+                                "${scan.securityScore}% \u2022 ${LocalizedStrings.get("grade", lang)} $gradeText",
                                 color = gradeColor,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 11.sp,
@@ -1176,13 +1315,14 @@ fun ReportExportDialog(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         CyberBadge(text = fileName, color = SecondaryNeon, fontSize = 9f)
-                        CyberBadge(text = "$byteSize • $lineCount ${LocalizedStrings.get("lines_count", lang)}", color = accent, fontSize = 9f)
+                        CyberBadge(text = "$byteSize \u2022 $lineCount ${LocalizedStrings.get("lines_count", lang)}", color = accent, fontSize = 9f)
                     }
                 }
 
                 Spacer(Modifier.height(6.dp))
 
-                // Live Preview Code Container
+                // Live Preview Code Container (Bi-directional scroll for wide CSV/JSON)
+                val previewHScrollState = rememberScrollState()
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1196,6 +1336,7 @@ fun ReportExportDialog(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(previewScrollState)
+                                .horizontalScroll(previewHScrollState)
                                 .padding(12.dp)
                         ) {
                             Text(
@@ -1491,7 +1632,7 @@ fun ReportDetailDialog(
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(LocalizedStrings.get("scan_protocol", lang), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
-                                        Text("${scan.scanType ?: "TCP"} • ${scan.concurrentScans} conns", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = TertiaryNeon)
+                                        Text("${scan.scanType ?: "TCP"} \u2022 ${scan.concurrentScans} conns", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = TertiaryNeon)
                                     }
                                 }
                             }

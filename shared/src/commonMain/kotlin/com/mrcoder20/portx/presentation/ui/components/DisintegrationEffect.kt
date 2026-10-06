@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import com.mrcoder20.portx.presentation.ui.theme.DangerNeon
 import com.mrcoder20.portx.presentation.ui.theme.SecondaryNeon
@@ -127,19 +128,21 @@ fun DisintegrationContainer(
                         val alpha = (1f - localProgress * 1.15f).coerceIn(0f, 1f)
 
                         if (alpha > 0.01f) {
+                            val twinkle = (sin(localProgress * 14f + p.phase) * 0.35f + 0.65f).coerceIn(0.2f, 1f)
+                            val effectiveAlpha = alpha * twinkle
                             val curX = p.relX * w + p.vx * localProgress + sin(localProgress * 7f + p.phase) * p.turbulence
                             val curY = p.relY * h + p.vy * localProgress - (localProgress * localProgress * 70f)
                             val curSize = p.baseSize * (1f - localProgress * 0.65f)
 
                             // 1. Soft atmospheric glow halo
                             drawCircle(
-                                color = p.color.copy(alpha = alpha * 0.32f),
-                                radius = curSize * 2.4f,
+                                color = p.color.copy(alpha = effectiveAlpha * 0.35f),
+                                radius = curSize * 2.5f,
                                 center = Offset(curX, curY)
                             )
                             // 2. Bright core spark
                             drawCircle(
-                                color = p.color.copy(alpha = alpha),
+                                color = p.color.copy(alpha = effectiveAlpha),
                                 radius = curSize,
                                 center = Offset(curX, curY)
                             )
@@ -203,3 +206,42 @@ fun Modifier.cyberPulse(
         spotShadowColor = glowColor.copy(alpha = alpha)
     }
 }
+
+/**
+ * Kinetic Cyber Shimmer wave sweeping across active controls and hero indicators.
+ */
+fun Modifier.cyberShimmer(
+    highlightColor: Color = Color.White.copy(alpha = 0.22f),
+    durationMs: Int = 1800,
+    enabled: Boolean = true
+): Modifier = this.composed {
+    if (!enabled) return@composed this
+
+    val infiniteTransition = rememberInfiniteTransition()
+    val translateAnim by infiniteTransition.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMs, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    this.drawWithContent {
+        drawContent()
+        val w = size.width
+        val h = size.height
+        val startX = translateAnim * w
+        val brush = androidx.compose.ui.graphics.Brush.linearGradient(
+            colors = listOf(
+                Color.Transparent,
+                highlightColor,
+                Color.Transparent
+            ),
+            start = Offset(startX - w * 0.35f, 0f),
+            end = Offset(startX + w * 0.35f, h)
+        )
+        drawRect(brush = brush)
+    }
+}
+

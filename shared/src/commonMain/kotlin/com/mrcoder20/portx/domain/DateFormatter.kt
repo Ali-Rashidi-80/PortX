@@ -1,5 +1,9 @@
 package com.mrcoder20.portx.domain
 
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+
 object DateFormatter {
 
     /**
@@ -71,6 +75,44 @@ object DateFormatter {
     }
 
     /**
+     * Formats an epoch millisecond timestamp into a localized (Date, Time) pair.
+     * When lang is "fa", converts to Solar Hijri (Jalali) with Persian digits.
+     */
+    fun formatScanTimestamp(timestampMs: Long, lang: String): Pair<String, String> {
+        return try {
+            val dt = Instant.fromEpochMilliseconds(timestampMs)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+            val gy = dt.date.year
+            val gm = dt.date.monthNumber
+            val gd = dt.date.dayOfMonth
+            val hour = dt.time.hour.toString().padStart(2, '0')
+            val min = dt.time.minute.toString().padStart(2, '0')
+
+            when (lang) {
+                "fa" -> {
+                    val (jy, jm, jd) = gregorianToJalali(gy, gm, gd)
+                    val dateStr = "$jy/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}"
+                    val timeStr = "$hour:$min"
+                    toPersianDigits(dateStr) to toPersianDigits(timeStr)
+                }
+                "ar" -> {
+                    val (jy, jm, jd) = gregorianToJalali(gy, gm, gd)
+                    val dateStr = "$jy/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}"
+                    val timeStr = "$hour:$min"
+                    dateStr to timeStr
+                }
+                else -> {
+                    val dateStr = "$gy-${gm.toString().padStart(2, '0')}-${gd.toString().padStart(2, '0')}"
+                    val timeStr = "$hour:$min"
+                    dateStr to timeStr
+                }
+            }
+        } catch (_: Exception) {
+            "N/A" to "N/A"
+        }
+    }
+
+    /**
      * Parses a raw WHOIS date string (e.g., ISO-8601 or simple dates)
      * and formats it into a human-readable string with day-of-week, date, and time.
      * When lang is "fa", it converts to Solar Hijri (تاریخ و ساعت شمسی - روز هفته).
@@ -79,7 +121,6 @@ object DateFormatter {
         if (rawDateStr.isNullOrBlank()) return "—"
         val trimmed = rawDateStr.trim()
 
-        // Match date and optional time: e.g. 1997-09-15T07:00:00+0000 or 1997-09-15 07:00:00 or 1997-09-15
         val regex = "(\\d{4})[-/.](\\d{1,2})[-/.](\\d{1,2})(?:[T\\s](\\d{1,2}):(\\d{1,2}))?".toRegex()
         val match = regex.find(trimmed) ?: return trimmed
 

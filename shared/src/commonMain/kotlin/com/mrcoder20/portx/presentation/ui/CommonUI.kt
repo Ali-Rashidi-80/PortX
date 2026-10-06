@@ -33,6 +33,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mrcoder20.portx.presentation.ui.components.cyberPulse
+import com.mrcoder20.portx.presentation.ui.components.springPress
 import com.mrcoder20.portx.presentation.ui.theme.*
 
 @Composable
@@ -208,6 +210,7 @@ fun CyberBadge(
     color: Color,
     modifier: Modifier = Modifier,
     hasPulseDot: Boolean = false,
+    hasGlowAura: Boolean = false,
     fontSize: Float = 10f
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
@@ -218,7 +221,7 @@ fun CyberBadge(
     )
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.cyberPulse(color, enabled = hasGlowAura || hasPulseDot),
         shape = RoundedCornerShape(6.dp),
         color = color.copy(alpha = if (isDark) 0.12f else 0.10f),
         border = BorderStroke(1.dp, color.copy(alpha = if (isDark) 0.45f else 0.35f))
@@ -260,7 +263,9 @@ fun MetricTile(
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     Surface(
-        modifier = modifier.heightIn(min = 60.dp),
+        modifier = modifier
+            .heightIn(min = 60.dp)
+            .springPress(pressedScale = 0.97f),
         shape = RoundedCornerShape(12.dp),
         color = if (isDark) Color.White.copy(alpha = 0.035f) else Color.Black.copy(alpha = 0.025f),
         border = BorderStroke(1.dp, accent.copy(alpha = 0.25f))
@@ -344,7 +349,8 @@ fun CyberSegmentedControl(
                     onClick = { onIndexSelected(index) },
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .fillMaxHeight()
+                        .springPress(pressedScale = 0.95f),
                     shape = RoundedCornerShape(9.dp),
                     color = if (isSelected) accent.copy(alpha = if (isDark) 0.22f else 0.85f) else Color.Transparent,
                     border = BorderStroke(
