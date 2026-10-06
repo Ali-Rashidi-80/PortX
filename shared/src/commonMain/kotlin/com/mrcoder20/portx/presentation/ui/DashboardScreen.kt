@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -644,48 +647,78 @@ fun EngineConfigurationCard(state: ScanUIState, viewModel: ScanViewModel, accent
 @Composable
 fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, smallSize: Boolean = false, accent: Color, lang: String) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    GlassCard(modifier = modifier) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            val displayProgress = if (state.isLoading) state.progress / 100f else {
-                val result = state.result
-                if (result != null) result.securityScore / 100f else 0f
-            }
-            val statusColor = when {
-                state.isLoading -> accent
-                state.result != null -> {
-                    val score = state.result.securityScore
-                    when {
-                        score > 80 -> TertiaryNeon
-                        score > 50 -> if (isDark) WarningNeon else WarningLight
-                        else -> if (isDark) DangerNeon else DangerLight
+    GlassCard(modifier = modifier, contentPadding = PaddingValues(16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
+                contentAlignment = Alignment.Center, 
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) {
+                val displayProgress = if (state.isLoading) state.progress / 100f else {
+                    val result = state.result
+                    if (result != null) result.securityScore / 100f else 0f
+                }
+                val statusColor = when {
+                    state.isLoading -> accent
+                    state.result != null -> {
+                        val score = state.result.securityScore
+                        when {
+                            score > 80 -> TertiaryNeon
+                            score > 50 -> if (isDark) WarningNeon else WarningLight
+                            else -> if (isDark) DangerNeon else DangerLight
+                        }
+                    }
+                    else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.2f)
+                }
+                AdvancedLiquidGauge(progress = displayProgress, isLoading = state.isLoading, color = statusColor, gaugeSize = if (smallSize) 170.dp else 210.dp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (state.isLoading) {
+                        Text("${state.progress}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
+                        Text(LocalizedStrings.get("engine_running", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
+                    } else {
+                        val result = state.result
+                        if (result != null) {
+                            Text("${result.securityScore}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
+                            Text(LocalizedStrings.get("security_score", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
+                        } else {
+                            Icon(Icons.Default.Radar, null, tint = if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f), modifier = Modifier.size(if (smallSize) 32.dp else 48.dp))
+                            Text(LocalizedStrings.get("ready", lang), style = MaterialTheme.typography.titleMedium.copy(color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 2.sp))
+                        }
                     }
                 }
-                else -> (if (isDark) Color.White else Color.Black).copy(alpha = 0.2f)
             }
-            AdvancedLiquidGauge(progress = displayProgress, isLoading = state.isLoading, color = statusColor, gaugeSize = if (smallSize) 180.dp else 220.dp)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (state.isLoading) {
-                    Text("${state.progress}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
-                    Text(LocalizedStrings.get("engine_running", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
-                } else {
-                    val result = state.result
-                    if (result != null) {
-                        Text("${result.securityScore}%", style = (if (smallSize) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontWeight = FontWeight.Black, color = if (isDark) Color.White else Color.Black, shadow = Shadow(color = statusColor, blurRadius = 30f)))
-                        Text(LocalizedStrings.get("security_score", lang), style = MaterialTheme.typography.labelMedium.copy(color = statusColor, letterSpacing = 2.sp))
-                        if (!state.firewallStatus.isNullOrBlank()) {
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = state.firewallStatus,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = if (isDark) TextMuted else TextMutedLight,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                        }
-                    } else {
-                        Icon(Icons.Default.Radar, null, tint = if (isDark) Color.White.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.3f), modifier = Modifier.size(if (smallSize) 32.dp else 48.dp))
-                        Text(LocalizedStrings.get("ready", lang), style = MaterialTheme.typography.titleMedium.copy(color = if (isDark) TextMuted else TextMutedLight, letterSpacing = 2.sp))
+
+            // Bottom Profile / Perimeter Status Container (moved out of gauge to avoid cluttering)
+            if (!state.firewallStatus.isNullOrBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
+                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = state.firewallStatus,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (isDark) TextMuted else TextMutedLight,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -727,6 +760,8 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val result = state.result
+    var selectedPortForDetail by remember { mutableStateOf<DisplayPort?>(null) }
+
     GlassCard(modifier = modifier) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
@@ -808,9 +843,23 @@ fun ActiveServicesCard(state: ScanUIState, modifier: Modifier = Modifier, accent
                                 Text(if (state.isLoading) LocalizedStrings.get("scanning_network", lang) else LocalizedStrings.get("no_services", lang), color = if (isDark) TextMuted else TextMutedLight, style = MaterialTheme.typography.bodySmall)
                             }
                         }
-                    } else items(portsToShow, key = { it.number }) { port -> PortItem(port) }
+                    } else items(portsToShow, key = { it.number }) { port -> 
+                        PortItem(port = port, onClick = { selectedPortForDetail = port }) 
+                    }
                 }
                 Box(modifier = Modifier.fillMaxWidth().height(32.dp).align(Alignment.BottomCenter).background(Brush.verticalGradient(listOf(Color.Transparent, (if (isDark) BackgroundDark else BackgroundLight).copy(alpha = 0.5f)))))
+            }
+
+            if (selectedPortForDetail != null) {
+                PortDetailDialog(
+                    port = selectedPortForDetail!!,
+                    target = result?.target ?: state.ip.ifBlank { "127.0.0.1" },
+                    rawBanner = result?.portBanners?.get(selectedPortForDetail!!.number),
+                    rawService = result?.portServices?.get(selectedPortForDetail!!.number),
+                    accent = accent,
+                    lang = lang,
+                    onDismiss = { selectedPortForDetail = null }
+                )
             }
         }
     }
@@ -877,9 +926,16 @@ fun AdvancedLiquidGauge(progress: Float, isLoading: Boolean, color: Color, gauge
 }
 
 @Composable
-fun PortItem(port: DisplayPort) {
+fun PortItem(port: DisplayPort, onClick: () -> Unit = {}) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    Surface(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(16.dp)).clickable { /* Detail */ }, color = if (isDark) GlassSurface else Color.Black.copy(alpha = 0.02f)) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(16.dp))
+            .clickable { onClick() }, 
+        color = if (isDark) GlassSurface else Color.Black.copy(alpha = 0.02f)
+    ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(44.dp).background(port.color.copy(alpha = 0.1f), RoundedCornerShape(12.dp)).border(1.dp, port.color.copy(alpha = 0.3f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 Text(port.number.toString(), color = port.color, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), fontSize = if (port.number > 9999) 9.sp else 11.sp)
@@ -902,5 +958,203 @@ fun PortItem(port: DisplayPort) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(20.dp))
         }
     }
+}
+
+fun getPortRiskLevel(port: Int): Triple<String, Color, ImageVector> {
+    return when (port) {
+        21, 23, 102, 135, 137, 138, 139, 445, 502, 1883, 2049, 2181, 2375, 2379, 5555, 10250, 11211 -> 
+            Triple("CRITICAL / HIGH RISK", DangerNeon, Icons.Default.Warning)
+        22, 1194, 1433, 1521, 3306, 3389, 4840, 51820, 5432, 5900, 6379, 6443, 8123, 8200, 8500, 9042, 9200, 9300, 27017 -> 
+            Triple("PRIVILEGED / ADMINISTRATIVE", SecondaryNeon, Icons.Default.Lock)
+        80, 443, 8000, 8080, 8081, 8088, 8443, 8888, 9090, 3000, 5000 -> 
+            Triple("STANDARD WEB SERVICE", PrimaryNeon, Icons.Default.Language)
+        else -> 
+            Triple("STANDARD NETWORK SERVICE", TertiaryNeon, Icons.Default.CheckCircle)
+    }
+}
+
+fun getPortSecurityAdvisory(port: Int): String {
+    return when (port) {
+        21 -> "Unencrypted FTP transmits credentials in plaintext. Migrate to SFTP (Port 22) or FTPS (TLS). Block external access at perimeter firewall."
+        22 -> "Enforce SSH public key authentication only, disable root login (PermitRootLogin no), and implement rate-limiting or Fail2ban."
+        23 -> "Telnet is deprecated and completely unencrypted. Terminate this legacy daemon immediately and replace with SSH."
+        53 -> "DNS resolver detected. Ensure open recursion is disabled to prevent DNS amplification and cache poisoning attacks."
+        80 -> "Unencrypted HTTP traffic. Enforce HTTPS redirection with HSTS headers and modern TLS certificates."
+        135 -> "Microsoft RPC Endpoint Mapper is a high-profile vector for lateral movement and privilege escalation. Block port 135 at the network perimeter."
+        137, 138, 139 -> "NetBIOS services expose internal network topology and credentials. Isolate to internal VLAN or disable SMBv1 entirely."
+        443 -> "Secure HTTPS web endpoint. Audit TLS configuration to ensure TLS 1.0/1.1 are disabled and strong cipher suites are enforced."
+        445 -> "SMB / Active Directory file sharing. Primary vector for ransomware propagation (e.g. WannaCry/EternalBlue). Never expose to the public internet."
+        1433 -> "Microsoft SQL Server database. Enforce strong authentication, disable the 'sa' account, and restrict access via VPN or IP whitelist."
+        1883 -> "Unencrypted MQTT IoT broker. Migrate to port 8883 with mutual TLS (mTLS) authentication."
+        3306 -> "MySQL/MariaDB database port exposed. Bind exclusively to localhost (127.0.0.1) or enforce SSH tunneling."
+        3389 -> "Remote Desktop Protocol (RDP). High-risk target for brute-force ransomware attacks. Require VPN connection and enable NLA."
+        5432 -> "PostgreSQL database port. Restrict access in pg_hba.conf to trusted IP ranges and require SSL/TLS connections."
+        6379 -> "Redis in-memory store. By default lacks authentication or encryption. Bind to 127.0.0.1, set strong requirepass, and disable dangerous commands."
+        8080, 8443 -> "Alternate HTTP/HTTPS proxy or admin service. Inspect exposed debug endpoints (e.g. Spring Actuator) and default passwords."
+        27017 -> "MongoDB database port exposed. Verify authorization is enabled (auth = true) and TLS encryption is active."
+        else -> "Verify if this service requires public accessibility. Apply principle of least privilege and strict firewall ingress filtering."
+    }
+}
+
+@Composable
+fun PortDetailDialog(
+    port: DisplayPort,
+    target: String,
+    rawBanner: String?,
+    rawService: String?,
+    accent: Color,
+    lang: String,
+    onDismiss: () -> Unit
+) {
+    val isDark = LocalAppSettings.current.theme == "DARK"
+    val clipboardManager = LocalClipboardManager.current
+    var isCopied by remember { mutableStateOf(false) }
+    val (riskLabel, riskColor, riskIcon) = getPortRiskLevel(port.number)
+    val advisory = getPortSecurityAdvisory(port.number)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = if (isDark) SurfaceDark else SurfaceLight,
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(port.color.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .border(1.dp, port.color.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            port.number.toString(),
+                            color = port.color,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            fontSize = if (port.number > 9999) 10.sp else 12.sp
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            port.title,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) Color.White else Color.Black
+                        )
+                        Text(
+                            "${target}:${port.number} • TCP Active",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = if (isDark) TextMuted else TextMutedLight
+                        )
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, null, tint = if (isDark) TextMuted else TextMutedLight)
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Risk Level Badge
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(riskColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                        .border(1.dp, riskColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(riskIcon, null, tint = riskColor, modifier = Modifier.size(16.dp))
+                    Text(
+                        text = riskLabel,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                        color = riskColor
+                    )
+                }
+
+                // Service & Banner Box
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isDark) Color.Black.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.04f),
+                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.2f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            "DETECTED BANNER / SERVICE SIGNATURE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
+                            color = accent
+                        )
+                        val bannerText = if (!rawBanner.isNullOrBlank()) rawBanner.trim() else port.description
+                        Text(
+                            text = bannerText,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.9f)
+                        )
+                    }
+                }
+
+                // Security Advisory Box
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.03f),
+                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Security, null, tint = SecondaryNeon, modifier = Modifier.size(14.dp))
+                            Text(
+                                "SECURITY ADVISORY & HARDENING",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp),
+                                color = SecondaryNeon
+                            )
+                        }
+                        Text(
+                            text = advisory,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = if (isDark) TextSecondary else TextSecondaryLight
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val fullDetails = buildString {
+                        appendLine("Port: ${port.number}")
+                        appendLine("Title: ${port.title}")
+                        appendLine("Target: ${target}:${port.number}")
+                        appendLine("Status: OPEN")
+                        appendLine("Banner: ${rawBanner ?: port.description}")
+                        appendLine("Risk: $riskLabel")
+                        appendLine("Advisory: $advisory")
+                    }
+                    clipboardManager.setText(AnnotatedString(fullDetails))
+                    isCopied = true
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = accent),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(if (isCopied) "Copied!" else "Copy Details", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = if (isDark) Color.White else Color.Black)
+            }
+        },
+        modifier = Modifier.padding(16.dp).widthIn(max = 520.dp)
+    )
 }
 
