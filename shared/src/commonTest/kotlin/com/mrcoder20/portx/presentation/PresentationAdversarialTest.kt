@@ -220,8 +220,9 @@ class PresentationAdversarialTest {
         assertEquals("мс", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "ru"))
         assertEquals("毫秒", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "zh"))
 
-        // 2. Fallback to English for unmapped language
-        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fr"))
+        // 2. Fallback to English for unmapped language & verified French translation
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "xx"))
+        assertEquals("Délai d'Attente", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fr"))
 
         // 3. ScanUIState timeout default and bounds
         val defaultState = com.mrcoder20.portx.presentation.viewmodel.ScanUIState()

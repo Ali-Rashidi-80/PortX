@@ -1015,4 +1015,107 @@ class NetworkToolsHardeningTest {
         val ukServer = extractNextWhoisServer(ukResponse, "whois.iana.org")
         assertEquals("whois.registry.uk", ukServer)
     }
+
+    @Test
+    fun testStrictIpv4DigitValidation() {
+        assertFalse(isValidIpAddress("1.2.3.+4"), "IPv4 octets with leading + must be rejected")
+        assertFalse(isValidIpAddress("1.2.3.-1"), "IPv4 octets with negative signs must be rejected")
+        assertFalse(isValidIpAddress("1.2.3.4a"), "IPv4 octets with non-digits must be rejected")
+        assertTrue(isValidIpAddress("1.2.3.4"), "Valid decimal IPv4 must be accepted")
+        assertTrue(isValidIpAddress("0.0.0.0"), "Zero address must be accepted")
+    }
+
+    @Test
+    fun testReDosBoundTargetValidation() {
+        val excessivelyLongDomain = "a".repeat(254) + ".com"
+        assertFalse(isValidTarget(excessivelyLongDomain), "Targets longer than 253 characters must fail fast per RFC 1035")
+        assertTrue(isValidTarget("valid-subdomain.corp.internal"), "Compliant domain must pass validation")
+    }
+
+    @Test
+    fun testExpandedRfcAddressClassification() {
+        assertTrue(isTargetLocalOrPrivate("0.1.2.3"), "RFC 1122 0.0.0.0/8 current network must be local/private")
+        assertTrue(isTargetLocalOrPrivate("192.0.2.1"), "RFC 5737 TEST-NET-1 must be local/private")
+        assertTrue(isTargetLocalOrPrivate("198.51.100.5"), "RFC 5737 TEST-NET-2 must be local/private")
+        assertTrue(isTargetLocalOrPrivate("203.0.113.10"), "RFC 5737 TEST-NET-3 must be local/private")
+        assertTrue(isTargetLocalOrPrivate("198.18.0.1"), "RFC 2544 benchmark testing range must be local/private")
+        assertTrue(isTargetLocalOrPrivate("198.19.254.1"), "RFC 2544 benchmark testing range must be local/private")
+        assertTrue(isTargetLocalOrPrivate("2001:db8::1"), "RFC 3849 IPv6 documentation prefix must be local/private")
+        assertTrue(isTargetLocalOrPrivate("240.0.0.1"), "RFC 1112 / 6890 Reserved Class E must be local/private")
+        assertFalse(isTargetLocalOrPrivate("8.8.8.8"), "Public IP must not be classified as local/private")
+    }
+
+    @Test
+    fun testExpandedFingerprintsIotAndInfrastructure() {
+        val useCase = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()
+
+        // IoT CoAP sensor node
+        val coapResult = useCase(listOf(5683), emptyMap())
+        assertEquals("IoT Constrained Node", coapResult.deviceName)
+        assertEquals("CoAP Sensor Node (RFC 7252)", coapResult.osFingerprint)
+
+        // VPN Gateway (WireGuard)
+        val wgResult = useCase(listOf(51820), emptyMap())
+        assertEquals("Network Gateway", wgResult.deviceName)
+        assertEquals("WireGuard VPN Gateway", wgResult.osFingerprint)
+
+        // Kubernetes Cluster Node
+        val k8sResult = useCase(listOf(6443), emptyMap())
+        assertEquals("Kubernetes Node", k8sResult.deviceName)
+        assertEquals("Kubernetes Cluster Node", k8sResult.osFingerprint)
+
+        // Docker Daemon
+        val dockerResult = useCase(listOf(2375), emptyMap())
+        assertEquals("Container Host", dockerResult.deviceName)
+        assertEquals("Docker Engine Daemon", dockerResult.osFingerprint)
+
+        // etcd Datastore
+        val etcdResult = useCase(listOf(2379), emptyMap())
+        assertEquals("Key-Value Store", etcdResult.deviceName)
+        assertEquals("etcd Distributed Datastore", etcdResult.osFingerprint)
+
+        // Cassandra Database Server
+        val cassandraResult = useCase(listOf(9042), emptyMap())
+        assertEquals("Database Server", cassandraResult.deviceName)
+        assertEquals("Apache Cassandra Server", cassandraResult.osFingerprint)
+
+        // ClickHouse Database Server
+        val clickhouseResult = useCase(listOf(8123), emptyMap())
+        assertEquals("Database Server", clickhouseResult.deviceName)
+        assertEquals("ClickHouse Analytical Database", clickhouseResult.osFingerprint)
+    }
+
+    @Test
+    fun testCoApUdpProbePayload() {
+        val scanner = com.mrcoder20.portx.data.network.PortScanner()
+        val payload = scanner.getUdpProbePayload(5683)
+        assertEquals(4, payload.size)
+        assertEquals(0x40.toByte(), payload[0])
+        assertEquals(0x00.toByte(), payload[1])
+        assertEquals(0x00.toByte(), payload[2])
+        assertEquals(0x01.toByte(), payload[3])
+    }
+
+    @Test
+    fun testLegacyJsonCommaSeparatedMapDecoder() {
+        val adapter = com.mrcoder20.portx.data.local.mapIntStringAdapter
+        val legacyJson = "{\"80\":\"Apache/2.4\",\"443\":\"nginx/1.22\"}"
+        val decoded = adapter.decode(legacyJson)
+        assertEquals(2, decoded.size)
+        assertEquals("Apache/2.4", decoded[80])
+        assertEquals("nginx/1.22", decoded[443])
+    }
+
+    @Test
+    fun testFullMultilingualDictionaries() {
+        assertEquals("نطاق المنافذ", LocalizedStrings.get("port_range", "ar"))
+        assertEquals("Rango de Puertos", LocalizedStrings.get("port_range", "es"))
+        assertEquals("Plage de Ports", LocalizedStrings.get("port_range", "fr"))
+        assertEquals("Portbereich", LocalizedStrings.get("port_range", "de"))
+
+        assertEquals("مسح", LocalizedStrings.get("scan", "ar"))
+        assertEquals("ESCANEAR", LocalizedStrings.get("scan", "es"))
+        assertEquals("SCANNER", LocalizedStrings.get("scan", "fr"))
+        assertEquals("SCANNEN", LocalizedStrings.get("scan", "de"))
+    }
 }
