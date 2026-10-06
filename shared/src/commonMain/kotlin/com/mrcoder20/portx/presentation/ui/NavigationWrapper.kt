@@ -24,18 +24,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.AppSettings
 import com.mrcoder20.portx.domain.LocalizedStrings
+import com.mrcoder20.portx.domain.ScanManager
+import com.mrcoder20.portx.domain.SettingsManager
 import com.mrcoder20.portx.presentation.ui.theme.*
+import org.koin.compose.koinInject
 
 @Composable
 fun NavigationWrapper(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
-    settings: com.mrcoder20.portx.domain.AppSettings,
+    settings: AppSettings,
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
     onClose: () -> Unit = {},
@@ -44,120 +48,188 @@ fun NavigationWrapper(
 ) {
     val accent = LocalAccentColor.current
     val lang = settings.language
+    val isDark = settings.theme == "DARK"
+    val isScanning by ScanManager.isScanning.collectAsState()
+    val scanProgress by ScanManager.progress.collectAsState()
+    val settingsManager: SettingsManager = koinInject()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val isExpanded = maxWidth > 600.dp
+        val isExpanded = maxWidth > 680.dp
 
         if (isExpanded) {
             // Desktop UI
-            Column(modifier = Modifier.fillMaxSize().background(if(settings.theme == "DARK") BackgroundDark else Color.White)) {
-                // --- CUSTOM TOP TITLE BAR (Always LTR for native Windows layout consistency) ---
+            Column(modifier = Modifier.fillMaxSize().background(if (isDark) BackgroundDark else BackgroundLight)) {
+                // --- CUSTOM TOP TITLE BAR (Always LTR for native window consistency) ---
                 CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
                     windowDraggableArea {
                         Surface(
                             modifier = Modifier.fillMaxWidth().height(48.dp),
-                            color = if(settings.theme == "DARK") SurfaceDark else SurfaceLight,
-                            border = BorderStroke(0.5.dp, (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.2f))
+                            color = if (isDark) SurfaceDark else SurfaceLight,
+                            border = BorderStroke(0.5.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.25f))
                         ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "PortX Professional",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (settings.theme == "DARK") Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f)
+                            Row(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Left: Brand & Engine State Indicator
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(18.dp))
+                                    Text(
+                                        "PortX Professional",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
+                                        )
                                     )
-                                )
-                            }
-                            
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                WindowControlBtn(Icons.Default.Remove, if(settings.theme == "DARK") TextMuted else TextMutedLight, onMinimize)
-                                WindowControlBtn(Icons.Default.AspectRatio, if(settings.theme == "DARK") TextMuted else TextMutedLight, onMaximize)
-                                WindowControlBtn(Icons.Default.Close, DangerNeon, onClose)
+
+                                    // Dynamic Engine Status Badge in Title Bar
+                                    if (isScanning) {
+                                        CyberBadge(
+                                            text = "SCANNING $scanProgress%",
+                                            color = PrimaryNeon,
+                                            hasPulseDot = true,
+                                            fontSize = 9f
+                                        )
+                                    } else {
+                                        CyberBadge(
+                                            text = "ENGINE ONLINE",
+                                            color = TertiaryNeon,
+                                            hasPulseDot = true,
+                                            fontSize = 9f
+                                        )
+                                    }
+                                }
+
+                                // Right: Quick Theme Switch & Window Controls
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    // Quick Theme Switch
+                                    IconButton(
+                                        onClick = {
+                                            settingsManager.updateTheme(if (isDark) "LIGHT" else "DARK")
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                            contentDescription = "Toggle Theme",
+                                            tint = if (isDark) WarningNeon else Color(0xFF64748B),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(4.dp))
+
+                                    // Window Control Buttons
+                                    WindowControlBtn(Icons.Default.Remove, if (isDark) TextMuted else TextMutedLight, onMinimize)
+                                    WindowControlBtn(Icons.Default.AspectRatio, if (isDark) TextMuted else TextMutedLight, onMaximize)
+                                    WindowControlBtn(Icons.Default.Close, DangerNeon, onClose)
+                                }
                             }
                         }
                     }
                 }
-            }
 
                 Box(modifier = Modifier.weight(1f)) {
                     LiquidGlowBackground()
                     Row(modifier = Modifier.fillMaxSize()) {
+                        // Desktop Sidebar
                         Surface(
                             modifier = Modifier
-                                .width(300.dp)
+                                .width(280.dp)
                                 .fillMaxHeight()
                                 .padding(16.dp)
                                 .clip(RoundedCornerShape(24.dp))
-                                .border(1.dp, if (settings.theme == "DARK") GlassBorder else GlassBorderLight, RoundedCornerShape(24.dp)),
-                            color = if (settings.theme == "DARK") GlassBackground else GlassLight
+                                .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(24.dp)),
+                            color = if (isDark) GlassBackground else GlassLight
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(20.dp),
+                                    .padding(18.dp),
                                 verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     // Brand Header
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.padding(bottom = 14.dp, top = 4.dp)
+                                        modifier = Modifier.padding(bottom = 12.dp, top = 2.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(40.dp)
+                                                .size(42.dp)
                                                 .clip(RoundedCornerShape(12.dp))
                                                 .background(accent.copy(alpha = 0.15f))
-                                                .border(1.dp, accent.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                                                .border(1.dp, accent.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(22.dp))
+                                            Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(24.dp))
                                         }
                                         Column {
                                             Text(
                                                 "PortX",
                                                 style = MaterialTheme.typography.titleLarge.copy(
                                                     fontWeight = FontWeight.Black,
-                                                    color = if (settings.theme == "DARK") Color.White else Color.Black,
-                                                    shadow = Shadow(color = accent.copy(alpha = 0.8f), blurRadius = 12f)
+                                                    color = if (isDark) Color.White else Color.Black,
+                                                    shadow = Shadow(color = accent.copy(alpha = 0.7f), blurRadius = 10f)
                                                 )
                                             )
                                             Text(
-                                                "ENTERPRISE SUITE v5.2",
+                                                "SECURITY SUITE v5.2",
                                                 style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    fontFamily = FontFamily.Monospace,
                                                     fontSize = 9.sp,
                                                     letterSpacing = 1.sp,
-                                                    color = if (settings.theme == "DARK") TextMuted else TextMutedLight
+                                                    color = if (isDark) TextMuted else TextMutedLight
                                                 )
                                             )
                                         }
                                     }
 
                                     HorizontalDivider(
-                                        color = (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.4f),
+                                        color = (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.35f),
                                         modifier = Modifier.padding(bottom = 6.dp)
                                     )
 
-                                    DesktopNavItem(Icons.Default.Home, LocalizedStrings.get("dashboard", lang), selectedTab == 0) { onTabSelected(0) }
-                                    DesktopNavItem(Icons.Default.Build, LocalizedStrings.get("tools", lang), selectedTab == 1) { onTabSelected(1) }
-                                    DesktopNavItem(Icons.AutoMirrored.Filled.List, LocalizedStrings.get("reports", lang), selectedTab == 2) { onTabSelected(2) }
-                                    DesktopNavItem(Icons.Default.Settings, LocalizedStrings.get("settings", lang), selectedTab == 3) { onTabSelected(3) }
+                                    DesktopNavItem(
+                                        icon = Icons.Default.Home,
+                                        label = LocalizedStrings.get("dashboard", lang),
+                                        isSelected = selectedTab == 0,
+                                        hasBadge = isScanning,
+                                        badgeText = if (isScanning) "$scanProgress%" else null
+                                    ) { onTabSelected(0) }
+
+                                    DesktopNavItem(
+                                        icon = Icons.Default.Build,
+                                        label = LocalizedStrings.get("tools", lang),
+                                        isSelected = selectedTab == 1
+                                    ) { onTabSelected(1) }
+
+                                    DesktopNavItem(
+                                        icon = Icons.AutoMirrored.Filled.List,
+                                        label = LocalizedStrings.get("reports", lang),
+                                        isSelected = selectedTab == 2
+                                    ) { onTabSelected(2) }
+
+                                    DesktopNavItem(
+                                        icon = Icons.Default.Settings,
+                                        label = LocalizedStrings.get("settings", lang),
+                                        isSelected = selectedTab == 3
+                                    ) { onTabSelected(3) }
                                 }
 
-                                // Engine Telemetry Footer
+                                // Engine Telemetry Footer HUD
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
-                                    color = (if (settings.theme == "DARK") Color.Black else Color.White).copy(alpha = 0.25f),
-                                    border = BorderStroke(1.dp, (if (settings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.4f)),
+                                    color = (if (isDark) Color.Black else Color.White).copy(alpha = 0.28f),
+                                    border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.35f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -175,22 +247,31 @@ fun NavigationWrapper(
                                             modifier = Modifier
                                                 .size(10.dp)
                                                 .clip(CircleShape)
-                                                .background(TertiaryNeon.copy(alpha = pulseAlpha))
-                                                .border(2.dp, TertiaryNeon.copy(alpha = 0.4f), CircleShape)
+                                                .background(
+                                                    if (isScanning) PrimaryNeon.copy(alpha = pulseAlpha)
+                                                    else TertiaryNeon.copy(alpha = pulseAlpha)
+                                                )
+                                                .border(
+                                                    2.dp,
+                                                    if (isScanning) PrimaryNeon.copy(alpha = 0.4f)
+                                                    else TertiaryNeon.copy(alpha = 0.4f),
+                                                    CircleShape
+                                                )
                                         )
                                         Column {
                                             Text(
-                                                LocalizedStrings.get("engine_standby", lang),
+                                                if (isScanning) LocalizedStrings.get("engine_active", lang)
+                                                else LocalizedStrings.get("engine_standby", lang),
                                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                                                color = if (settings.theme == "DARK") Color.White else Color.Black
+                                                color = if (isDark) Color.White else Color.Black
                                             )
                                             Text(
-                                                "Local Engine • TCP/UDP",
+                                                "Async NIO • TCP/UDP",
                                                 style = MaterialTheme.typography.bodySmall.copy(
-                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    fontFamily = FontFamily.Monospace,
                                                     fontSize = 9.sp
                                                 ),
-                                                color = if (settings.theme == "DARK") TextMuted else TextMutedLight
+                                                color = if (isDark) TextMuted else TextMutedLight
                                             )
                                         }
                                     }
@@ -212,7 +293,8 @@ fun NavigationWrapper(
                     InfiniteBottomBar(
                         selectedTab = selectedTab,
                         onTabSelected = onTabSelected,
-                        lang = lang
+                        lang = lang,
+                        isScanning = isScanning
                     )
                 },
                 contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -220,7 +302,7 @@ fun NavigationWrapper(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(if(settings.theme == "DARK") BackgroundDark else Color.White)
+                        .background(if (isDark) BackgroundDark else BackgroundLight)
                 ) {
                     LiquidGlowBackground()
                     Box(
@@ -240,17 +322,18 @@ fun NavigationWrapper(
 fun InfiniteBottomBar(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
-    lang: String
+    lang: String,
+    isScanning: Boolean = false
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 12.dp)
+            .padding(horizontal = 24.dp, vertical = 12.dp)
             .height(64.dp)
             .clip(RoundedCornerShape(32.dp))
-            .background(if (isDark) SurfaceDark.copy(alpha = 0.9f) else GlassLight)
-            .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.4f), RoundedCornerShape(32.dp)),
+            .background(if (isDark) SurfaceDark.copy(alpha = 0.92f) else SurfaceLight.copy(alpha = 0.92f))
+            .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.45f), RoundedCornerShape(32.dp)),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -263,6 +346,7 @@ fun InfiniteBottomBar(
                 label = LocalizedStrings.get("dashboard", lang),
                 isSelected = selectedTab == 0,
                 isDark = isDark,
+                hasDot = isScanning,
                 onClick = { onTabSelected(0) }
             )
             BottomNavItem(
@@ -340,6 +424,7 @@ fun RowScope.BottomNavItem(
     label: String,
     isSelected: Boolean,
     isDark: Boolean,
+    hasDot: Boolean = false,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -390,6 +475,17 @@ fun RowScope.BottomNavItem(
                     tint = if (isSelected) accent else (if (isDark) TextMuted else TextMutedLight),
                     modifier = Modifier.size(if (isSelected) 24.dp else 22.dp)
                 )
+
+                if (hasDot) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-4).dp, y = 4.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryNeon)
+                    )
+                }
             }
         }
     }
@@ -400,6 +496,8 @@ fun DesktopNavItem(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
+    hasBadge: Boolean = false,
+    badgeText: String? = null,
     onClick: () -> Unit
 ) {
     val accent = LocalAccentColor.current
@@ -438,7 +536,7 @@ fun DesktopNavItem(
             .clip(RoundedCornerShape(14.dp))
             .border(
                 1.dp,
-                if (isSelected) accent.copy(alpha = 0.4f)
+                if (isSelected) accent.copy(alpha = 0.45f)
                 else if (isHovered) (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f)
                 else Color.Transparent,
                 RoundedCornerShape(14.dp)
@@ -462,7 +560,7 @@ fun DesktopNavItem(
                     .fillMaxSize()
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Active indicator pill
                 if (isSelected) {
@@ -496,8 +594,18 @@ fun DesktopNavItem(
                     else (if (isDark) TextSecondary else TextSecondaryLight),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
+
+                if (hasBadge && !badgeText.isNullOrBlank()) {
+                    CyberBadge(
+                        text = badgeText,
+                        color = accent,
+                        hasPulseDot = true,
+                        fontSize = 9f
+                    )
+                }
             }
         }
     }

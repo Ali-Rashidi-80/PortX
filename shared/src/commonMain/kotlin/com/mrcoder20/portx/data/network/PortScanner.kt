@@ -16,7 +16,7 @@ import kotlin.time.TimeSource
 // VERSION & CONSTANTS
 // ============================================================
 
-const val VERSION = "5.2.0"
+const val VERSION = "5.2.1"
 const val APP_NAME = "PortX Engine"
 const val MAX_PACKET_SIZE = 65535
 const val RING_BUFFER_SIZE = 1048576

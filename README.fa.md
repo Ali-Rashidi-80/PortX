@@ -9,8 +9,8 @@
 **اسکنر شبکه پیشرفته، فوق‌سریع و غیرمسدودکننده چندسکویی مبتنی بر <bdi>Kotlin Multiplatform (KMP)</bdi> و <bdi>Compose</bdi> — سرعت بیش از ۱۰,۰۰۰ پورت در ثانیه (تجربی) / تا ۵۰,۰۰۰ پورت (سقف تئوری)، بدون نیاز به دسترسی روت، با زمان‌بندی تطبیقی <bdi>RTT</bdi> و کنترل مصرف منابع سیستم‌عامل.**
 
 [![بیلد](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml)
-[![انتشار](https://img.shields.io/badge/%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1-v5.2.0-blue.svg?logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
-[![نسخه](https://img.shields.io/badge/%D9%86%D8%B3%D8%AE%D9%87-5.2.0-3fb950.svg)](CHANGELOG.md)
+[![انتشار](https://img.shields.io/badge/%D8%A7%D9%86%D8%AA%D8%B4%D8%A7%D8%B1-v5.2.1-blue.svg?logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
+[![نسخه](https://img.shields.io/badge/%D9%86%D8%B3%D8%AE%D9%87-5.2.1-3fb950.svg)](CHANGELOG.md)
 [![مجوز](https://img.shields.io/badge/%D9%85%D8%AC%D9%88%D8%B2-Apache--2.0-blue.svg)](LICENSE)
 [![کاتلین](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![کامپوز](https://img.shields.io/badge/Compose-Multiplatform-4285F4.svg?logo=jetpackcompose&logoColor=white)](https://github.com/JetBrains/compose-multiplatform)
@@ -67,7 +67,7 @@
 
 | مشخصه | جزییات فنی |
 | :--- | :--- |
-| **نسخه** | <bdi>5.2.0</bdi> · [تاریخچه تغییرات](CHANGELOG.md) · آمادگی عملیاتی تاییدشده |
+| **نسخه** | <bdi>5.2.1</bdi> · [تاریخچه تغییرات](CHANGELOG.md) · آمادگی عملیاتی تاییدشده |
 | **موتور هسته** | موتور نسل پنجم <bdi>Ultra Engine v5</bdi> (<bdi>PortScanner.kt</bdi>, <bdi>ScanPortUseCase.kt</bdi>, <bdi>ScannerController.kt</bdi>) |
 | **اصول پایدار** | سوکت‌های کاملاً غیرمسدودکننده <bdi>Ktor</bdi>، کانال‌های محدود کاتلین (۱۰ الی ۲۵۰۰ ورکر)، سازگار با الزامات سرویس پیش‌زمینه اندروید ۱۴+ |
 | **سیستم‌عامل‌های هدف** | ویندوز ۱۰ و ۱۱ (<bdi>`.msi`</bdi>)، مک‌او‌اس اینتل و اپل سیلیکون (<bdi>`.dmg`</bdi>)، لینوکس دبیان و اوبونتو (<bdi>`.deb`</bdi>, <bdi>AUR</bdi>)، اندروید (<bdi>`.apk`</bdi>) |
@@ -335,7 +335,7 @@ risk_severity: CRITICAL
 <details open>
 <summary><strong>🪟 ۱. راهنمای نصب ویندوز (Windows 10 / 11)</strong></summary>
 
-- **نصاب رسمی:** فایل نصاب رسمی <bdi>`PortX-5.2.0.msi`</bdi> را از [بخش انتشارها](https://github.com/mr-coder20/PortX/releases/latest) دریافت و نصب کنید.
+- **نصاب رسمی:** فایل نصاب رسمی <bdi>`PortX-5.2.1.msi`</bdi> را از [بخش انتشارها](https://github.com/mr-coder20/PortX/releases/latest) دریافت و نصب کنید.
 - **نصب از طریق وینگت (<bdi>Winget</bdi>):**
   ```powershell
   winget install mr-coder20.PortX
@@ -347,7 +347,7 @@ risk_severity: CRITICAL
 
 - **توزیع‌های مبتنی بر دبیان و اوبونتو (<bdi>`.deb`</bdi>):**
   ```bash
-  sudo dpkg -i PortX-5.2.0.deb
+  sudo dpkg -i PortX-5.2.1.deb
   sudo apt-get install -f
   ```
 - **آرچ لینوکس (<bdi>AUR</bdi>):**
@@ -359,7 +359,7 @@ risk_severity: CRITICAL
 <details>
 <summary><strong>🍎 ۳. راهنمای نصب مک‌او‌اس (Apple Silicon & Intel)</strong></summary>
 
-- فایل دیسک تصویری <bdi>`PortX-5.2.0.dmg`</bdi> را دریافت کرده و برنامه را نصب کنید، یا از هوم‌برو استفاده نمایید:
+- فایل دیسک تصویری <bdi>`PortX-5.2.1.dmg`</bdi> را دریافت کرده و برنامه را نصب کنید، یا از هوم‌برو استفاده نمایید:
   ```bash
   brew install --cask portx
   ```

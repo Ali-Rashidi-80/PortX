@@ -1,6 +1,6 @@
 # Changelog
 
-## [5.2.0] - 2026-10-06
+## [5.2.1] - 2026-10-06
 
 ### 🔬 Empirical Benchmarking & Performance Telemetry
 - **8-Suite Live Benchmark Harness:** Implemented and executed automated real-time test suite (`LiveSystemBenchmarkTest.kt`) covering Concurrency Saturation (up to 2,500 workers), 10,000-port sustained sweep (8,143+ ports/sec with 17 MB RAM delta), Q-Learning adaptive timing, IPv4/IPv6 dual-stack efficiency, banner grabbing latency profiling, security posture evaluation (56,000+ ops/sec), multi-format report serialization (CSV, Markdown, JSON), and non-blocking UDP probe dispatch.

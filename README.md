@@ -9,8 +9,8 @@
 **Ultra-Fast, Non-Blocking Multiplatform Network Port Scanner Powered by Kotlin Multiplatform (KMP) & Compose — 10,000+ Ports/sec (Empirical) / Up to 50,000 (Theoretical Peak), Zero-Root Required, Adaptive RTT Timing, Bounded Channels.**
 
 [![CI](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-Rashidi-80/PortX/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v5.2.0-blue.svg?logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
-[![Version](https://img.shields.io/badge/version-5.2.0-3fb950.svg)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v5.2.1-blue.svg?logo=github)](https://github.com/Ali-Rashidi-80/PortX/releases)
+[![Version](https://img.shields.io/badge/version-5.2.1-3fb950.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4.svg?logo=jetpackcompose&logoColor=white)](https://github.com/JetBrains/compose-multiplatform)
@@ -65,7 +65,7 @@
 
 | Field | Detail |
 | :--- | :--- |
-| **Version** | `5.2.0` · [CHANGELOG](CHANGELOG.md) · Production readiness verified |
+| **Version** | `5.2.1` · [CHANGELOG](CHANGELOG.md) · Production readiness verified |
 | **Engine** | Ultra Engine v5 (`PortScanner.kt`, `ScanPortUseCase.kt`, `ScannerController.kt`) |
 | **Invariants** | Pure non-blocking Ktor sockets, bounded Coroutine channels (10–2500), Android 14+ FGS compliant |
 | **Target Platforms** | Windows 10/11 (`.msi`), macOS Apple Silicon/Intel (`.dmg`), Linux Debian/Ubuntu (`.deb`, AUR), Android (`.apk`) |
@@ -332,7 +332,7 @@ All signatures are managed via `DeclarativeSignatureRegistry` with zero-allocati
 <details open>
 <summary><strong>🪟 1. Windows (10 / 11)</strong></summary>
 
-- **Official Installer:** Download `PortX-5.2.0.msi` from [Releases](https://github.com/mr-coder20/PortX/releases/latest).
+- **Official Installer:** Download `PortX-5.2.1.msi` from [Releases](https://github.com/mr-coder20/PortX/releases/latest).
 - **Windows Package Manager (Winget):**
   ```powershell
   winget install mr-coder20.PortX
@@ -344,7 +344,7 @@ All signatures are managed via `DeclarativeSignatureRegistry` with zero-allocati
 
 - **Debian / Ubuntu (.deb):**
   ```bash
-  sudo dpkg -i PortX-5.2.0.deb
+  sudo dpkg -i PortX-5.2.1.deb
   sudo apt-get install -f
   ```
 - **Arch Linux (AUR):**
@@ -356,7 +356,7 @@ All signatures are managed via `DeclarativeSignatureRegistry` with zero-allocati
 <details>
 <summary><strong>🍎 3. macOS (Apple Silicon & Intel)</strong></summary>
 
-- Download `PortX-5.2.0.dmg` and mount the disk image, or install via Homebrew:
+- Download `PortX-5.2.1.dmg` and mount the disk image, or install via Homebrew:
   ```bash
   brew install --cask portx
   ```

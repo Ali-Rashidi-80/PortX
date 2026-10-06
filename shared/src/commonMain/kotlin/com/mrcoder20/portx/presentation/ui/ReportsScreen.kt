@@ -7,9 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,12 +20,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.domain.model.ScanResult
+import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.components.PortXVerticalScrollbar
 import com.mrcoder20.portx.presentation.ui.theme.*
 import com.mrcoder20.portx.presentation.viewmodel.ReportsViewModel
@@ -39,13 +41,17 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
     val state by viewModel.uiState.collectAsState()
     val appSettings = LocalAppSettings.current
     val accent = LocalAccentColor.current
+    val isDark = appSettings.theme == "DARK"
     val lang = appSettings.language
+
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var filterQuery by remember { mutableStateOf("") }
+    var selectedReportForDetail by remember { mutableStateOf<ScanResult?>(null) }
+
     val filteredScans = remember(state.scans, filterQuery) {
         if (filterQuery.isBlank()) state.scans
-        else state.scans.filter { 
-            it.target.contains(filterQuery.trim(), ignoreCase = true) || 
+        else state.scans.filter {
+            it.target.contains(filterQuery.trim(), ignoreCase = true) ||
             (it.deviceName?.contains(filterQuery.trim(), ignoreCase = true) == true) ||
             (it.osFingerprint?.contains(filterQuery.trim(), ignoreCase = true) == true)
         }
@@ -57,52 +63,91 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             GlassCard(
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(16.dp)
             ) {
                 Column {
+                    // Header Bar
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            LocalizedStrings.get("reports", lang).uppercase(), 
-                            style = MaterialTheme.typography.labelMedium.copy(color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, fontWeight = FontWeight.Bold),
-                        )
-                        IconButton(
-                            onClick = { showDeleteConfirm = true },
-                            modifier = Modifier.size(44.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear All Reports", tint = DangerNeon.copy(alpha = 0.7f))
+                            Text(
+                                LocalizedStrings.get("reports", lang).uppercase(),
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = if (isDark) TextMuted else TextMutedLight,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                            )
+                            if (state.scans.isNotEmpty()) {
+                                CyberBadge(
+                                    text = "${state.scans.size}",
+                                    color = accent
+                                )
+                            }
+                        }
+
+                        if (state.scans.isNotEmpty()) {
+                            IconButton(
+                                onClick = { showDeleteConfirm = true },
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.DeleteSweep,
+                                    contentDescription = "Clear All Reports",
+                                    tint = DangerNeon.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(LocalizedStrings.get("security_trend", lang), style = MaterialTheme.typography.bodySmall, color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight)
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    ScanScoreTrendChart(
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Security Trend Chart
+                    ScanScoreTrendSection(
                         scans = state.scans,
                         accent = accent,
-                        modifier = Modifier.fillMaxWidth().height(120.dp)
+                        lang = lang,
+                        isDark = isDark,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Search & Filter Box
                     if (state.scans.isNotEmpty()) {
                         OutlinedTextField(
                             value = filterQuery,
                             onValueChange = { filterQuery = it },
-                            placeholder = { Text(LocalizedStrings.get("search_reports", lang), color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, fontSize = 12.sp) },
-                            leadingIcon = { Icon(Icons.Default.Search, null, tint = accent, modifier = Modifier.size(18.dp)) },
+                            placeholder = {
+                                Text(
+                                    LocalizedStrings.get("search_reports", lang),
+                                    color = if (isDark) TextMuted else TextMutedLight,
+                                    fontSize = 12.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, null, tint = accent, modifier = Modifier.size(18.dp))
+                            },
                             trailingIcon = {
                                 if (filterQuery.isNotEmpty()) {
-                                    IconButton(onClick = { filterQuery = "" }, modifier = Modifier.size(36.dp)) {
-                                        Icon(Icons.Default.Clear, null, tint = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, modifier = Modifier.size(16.dp))
+                                    IconButton(onClick = { filterQuery = "" }, modifier = Modifier.size(32.dp)) {
+                                        Icon(
+                                            Icons.Default.Clear,
+                                            null,
+                                            tint = if (isDark) TextMuted else TextMutedLight,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
                                 }
                             },
@@ -111,26 +156,48 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = accent,
-                                unfocusedBorderColor = (if (appSettings.theme == "DARK") GlassBorder else GlassBorderLight).copy(alpha = 0.4f),
-                                focusedTextColor = if (appSettings.theme == "DARK") Color.White else Color.Black,
-                                unfocusedTextColor = if (appSettings.theme == "DARK") Color.White else Color.Black
+                                unfocusedBorderColor = (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.5f),
+                                focusedTextColor = if (isDark) Color.White else Color.Black,
+                                unfocusedTextColor = if (isDark) Color.White else Color.Black,
+                                cursorColor = accent
                             ),
                             textStyle = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.ContentOrLtr)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
 
+                    // Content State
                     if (state.isLoading) {
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = accent)
                         }
                     } else if (state.scans.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(LocalizedStrings.get("no_reports", lang), color = TextMuted, fontSize = 12.sp)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Assessment,
+                                    contentDescription = null,
+                                    tint = if (isDark) TextMuted else TextMutedLight,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    LocalizedStrings.get("no_reports", lang),
+                                    color = if (isDark) TextMuted else TextMutedLight,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         }
                     } else if (filteredScans.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(LocalizedStrings.get("no_matching_reports", lang), color = TextMuted, fontSize = 12.sp)
+                            Text(
+                                LocalizedStrings.get("no_matching_reports", lang),
+                                color = if (isDark) TextMuted else TextMutedLight,
+                                fontSize = 12.sp
+                            )
                         }
                     } else {
                         val reportsListState = rememberLazyListState()
@@ -141,16 +208,17 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(
-                                        start = if (isRtl) 14.dp else 0.dp,
-                                        end = if (!isRtl) 14.dp else 0.dp
+                                        start = if (isRtl) 12.dp else 0.dp,
+                                        end = if (!isRtl) 12.dp else 0.dp
                                     ),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 items(filteredScans, key = { it.id ?: it.timestamp }) { scan ->
                                     ReportHistoryItem(
                                         scan = scan,
                                         accent = accent,
                                         lang = lang,
+                                        onClick = { selectedReportForDetail = scan },
                                         onDelete = { scan.id?.let { viewModel.deleteScan(it) } },
                                         onExport = { viewModel.shareScan(scan) },
                                         onDownload = { viewModel.downloadScan(scan) }
@@ -168,27 +236,45 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // Global Export Format Selector (Segmented)
             Text(
-                LocalizedStrings.get("global_export_format", lang), 
-                style = MaterialTheme.typography.labelMedium.copy(color = if (appSettings.theme == "DARK") TextMuted else TextMutedLight, fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(bottom = 12.dp)
+                LocalizedStrings.get("global_export_format", lang),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = if (isDark) TextMuted else TextMutedLight,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                ),
+                modifier = Modifier.padding(bottom = 8.dp)
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val formats = listOf("MD", "CSV", "JSON")
-                formats.forEach { format ->
-                    GlassExportButton(
-                        label = if(format == "MD") "Markdown" else format, 
-                        isSelected = state.exportFormat == format,
-                        accent = accent,
-                        onClick = { viewModel.onFormatChange(format) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+
+            val exportFormats = listOf(
+                "MD" to Icons.Default.Description,
+                "CSV" to Icons.Default.TableChart,
+                "JSON" to Icons.Default.DataObject
+            )
+            val selectedFormatIndex = exportFormats.indexOfFirst { it.first == state.exportFormat }.coerceAtLeast(0)
+
+            CyberSegmentedControl(
+                items = exportFormats.map { (fmt, icon) ->
+                    val label = when (fmt) {
+                        "MD" -> "Markdown (.md)"
+                        "CSV" -> "CSV Table (.csv)"
+                        else -> "JSON Schema (.json)"
+                    }
+                    label to icon
+                },
+                selectedIndex = selectedFormatIndex,
+                onIndexSelected = { index ->
+                    viewModel.onFormatChange(exportFormats[index].first)
+                },
+                accent = accent,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
+        // Snackbar
         AnimatedVisibility(
             visible = state.snackbarMessage != null,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -201,30 +287,105 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
         }
     }
 
+    // Detail Modal Dialog
+    selectedReportForDetail?.let { scan ->
+        ReportDetailDialog(
+            scan = scan,
+            accent = accent,
+            lang = lang,
+            onDismiss = { selectedReportForDetail = null },
+            onExport = { viewModel.shareScan(scan) },
+            onDownload = { viewModel.downloadScan(scan) },
+            onDelete = {
+                scan.id?.let { viewModel.deleteScan(it) }
+                selectedReportForDetail = null
+            }
+        )
+    }
+
+    // Delete Confirmation Dialog
     if (showDeleteConfirm) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            val isDark = LocalAppSettings.current.theme == "DARK"
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirm = false },
-                containerColor = if (isDark) SurfaceDark else SurfaceLight,
-                titleContentColor = if (isDark) Color.White else Color.Black,
-                textContentColor = if (isDark) TextSecondary else TextSecondaryLight,
-                title = { Text(LocalizedStrings.get("clear_history_title", lang)) },
-                text = { Text(LocalizedStrings.get("clear_history_desc", lang)) },
-                confirmButton = {
-                    TextButton(onClick = { 
+        val isDark = LocalAppSettings.current.theme == "DARK"
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = if (isDark) SurfaceDark else SurfaceLight,
+            titleContentColor = if (isDark) Color.White else Color.Black,
+            textContentColor = if (isDark) TextSecondary else TextSecondaryLight,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Warning, null, tint = DangerNeon, modifier = Modifier.size(20.dp))
+                    Text(LocalizedStrings.get("clear_history_title", lang), fontWeight = FontWeight.Bold)
+                }
+            },
+            text = { Text(LocalizedStrings.get("clear_history_desc", lang)) },
+            confirmButton = {
+                Button(
+                    onClick = {
                         viewModel.clearAll()
                         showDeleteConfirm = false
-                    }) {
-                        Text(LocalizedStrings.get("clear_all", lang), color = if (isDark) DangerNeon else DangerLight)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DangerNeon),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(LocalizedStrings.get("clear_all", lang), color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(LocalizedStrings.get("cancel", lang), color = if (isDark) Color.White else Color.Black)
+                }
+            },
+            modifier = Modifier.padding(24.dp)
+        )
+    }
+}
+
+@Composable
+fun ScanScoreTrendSection(
+    scans: List<ScanResult>,
+    accent: Color,
+    lang: String,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val scores = remember(scans) {
+        scans.sortedBy { it.timestamp }.map { it.securityScore }
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f),
+        border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    LocalizedStrings.get("security_trend", lang),
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = if (isDark) Color.White else Color.Black
+                )
+
+                if (scores.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val avg = kotlin.math.round(scores.average()).toInt()
+                        CyberBadge(text = "AVG $avg%", color = accent, fontSize = 9f)
+                        val latest = scores.last()
+                        CyberBadge(text = "LATEST $latest%", color = SecondaryNeon, fontSize = 9f)
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteConfirm = false }) {
-                        Text(LocalizedStrings.get("cancel", lang), color = if (isDark) Color.White else Color.Black)
-                    }
-                },
-                modifier = Modifier.padding(24.dp)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            ScanScoreTrendChart(
+                scans = scans,
+                accent = accent,
+                modifier = Modifier.fillMaxWidth().height(100.dp)
             )
         }
     }
@@ -232,11 +393,11 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinInject()) {
 
 @Composable
 fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifier = Modifier) {
-    val scores = scans.sortedBy { it.timestamp }.map { it.securityScore.toFloat() / 100f }.takeLast(10)
+    val scores = scans.sortedBy { it.timestamp }.map { it.securityScore.toFloat() / 100f }.takeLast(12)
     if (scores.size < 2) {
         val lang = LocalAppSettings.current.language
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text(LocalizedStrings.get("not_enough_data", lang), color = TextMuted, fontSize = 10.sp)
+            Text(LocalizedStrings.get("not_enough_data", lang), color = TextMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
         }
         return
     }
@@ -245,14 +406,14 @@ fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifi
         val width = size.width
         val height = size.height
         val spacing = width / (scores.size - 1)
-        val vPadding = 12.dp.toPx()
+        val vPadding = 10.dp.toPx()
         val graphHeight = (height - vPadding * 2).coerceAtLeast(1f)
-        
-        // Subtle baseline grid lines
+
+        // Baseline grid lines at 50% and 80%
         val y50 = vPadding + graphHeight * 0.5f
         val y80 = vPadding + graphHeight * 0.2f
         drawLine(
-            color = Color.White.copy(alpha = 0.05f),
+            color = Color.White.copy(alpha = 0.06f),
             start = Offset(0f, y50),
             end = Offset(width, y50),
             strokeWidth = 1.dp.toPx()
@@ -305,7 +466,7 @@ fun ScanScoreTrendChart(scans: List<ScanResult>, accent: Color, modifier: Modifi
         points.forEach { pt ->
             drawCircle(
                 color = accent.copy(alpha = 0.35f),
-                radius = 7.dp.toPx(),
+                radius = 6.dp.toPx(),
                 center = pt
             )
             drawCircle(
@@ -322,6 +483,7 @@ fun ReportHistoryItem(
     scan: ScanResult,
     accent: Color,
     lang: String = "en",
+    onClick: () -> Unit,
     onDelete: () -> Unit,
     onExport: () -> Unit,
     onDownload: () -> Unit
@@ -342,21 +504,28 @@ fun ReportHistoryItem(
         scan.securityScore >= 50 -> LocalizedStrings.get("warning", lang) to WarningNeon
         else -> LocalizedStrings.get("high_risk", lang) to DangerNeon
     }
-    
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 90.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(20.dp)),
-        color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f)
+            .heightIn(min = 86.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        color = if (isDark) Color.White.copy(alpha = 0.045f) else Color.Black.copy(alpha = 0.025f)
     ) {
-        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
                 val isolatedTarget = "\u2066${scan.target}\u2069"
                 val title = if (!scan.deviceName.isNullOrBlank()) "$isolatedTarget (${scan.deviceName})" else "${LocalizedStrings.get("target", lang)}: $isolatedTarget"
-                
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium,
@@ -366,25 +535,16 @@ fun ReportHistoryItem(
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
-                    // Security Risk Pill
-                    Surface(
-                        color = riskColor.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(6.dp),
-                        border = BorderStroke(1.dp, riskColor.copy(alpha = 0.4f))
-                    ) {
-                        Text(
-                            text = riskLabel,
-                            color = riskColor,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, fontSize = 9.sp),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
+                    CyberBadge(text = riskLabel, color = riskColor, fontSize = 9f)
                 }
 
                 Spacer(Modifier.height(4.dp))
-                
+
                 // Metadata row: Date/Time + OS Fingerprint + Open Ports Badge
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     val isolatedDateTime = "\u2066$formattedDate $formattedTime\u2069"
                     Text(
                         text = if (!scan.osFingerprint.isNullOrBlank()) "$isolatedDateTime • ${scan.osFingerprint}" else isolatedDateTime,
@@ -393,57 +553,40 @@ fun ReportHistoryItem(
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
-                    // Open Ports Count Badge
-                    Surface(
-                        color = accent.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp),
-                        border = BorderStroke(0.5.dp, accent.copy(alpha = 0.3f))
-                    ) {
-                        Text(
-                            text = "${scan.openPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
-                            color = accent,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                        )
-                    }
+                    CyberBadge(
+                        text = "${scan.openPorts.size} ${LocalizedStrings.get("open_ports_count", lang)}",
+                        color = accent,
+                        fontSize = 9f
+                    )
                 }
             }
-            
-            // Score Display
+
+            // Score Badge
             Surface(
                 color = riskColor.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, riskColor.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, riskColor.copy(alpha = 0.35f)),
                 modifier = Modifier.padding(horizontal = 6.dp)
             ) {
                 Text(
-                    "${scan.securityScore}%", 
+                    "${scan.securityScore}%",
                     color = riskColor,
                     fontWeight = FontWeight.Black,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                 )
             }
 
-            IconButton(
-                onClick = onDownload,
-                modifier = Modifier.size(40.dp)
-            ) {
+            IconButton(onClick = onDownload, modifier = Modifier.size(36.dp)) {
                 Icon(Icons.Default.Download, contentDescription = "Download Report", tint = accent, modifier = Modifier.size(18.dp))
             }
 
-            IconButton(
-                onClick = onExport,
-                modifier = Modifier.size(40.dp)
-            ) {
+            IconButton(onClick = onExport, modifier = Modifier.size(36.dp)) {
                 Icon(Icons.Default.Share, contentDescription = "Export Report", tint = SecondaryNeon, modifier = Modifier.size(18.dp))
             }
-            
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(40.dp)
-            ) {
+
+            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
                 Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Report", tint = if (isDark) TextMuted else TextMutedLight, modifier = Modifier.size(18.dp))
             }
         }
@@ -451,28 +594,272 @@ fun ReportHistoryItem(
 }
 
 @Composable
-fun GlassExportButton(
-    label: String, 
-    isSelected: Boolean,
+fun ReportDetailDialog(
+    scan: ScanResult,
     accent: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    lang: String,
+    onDismiss: () -> Unit,
+    onExport: () -> Unit,
+    onDownload: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val isDark = LocalAppSettings.current.theme == "DARK"
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight), RoundedCornerShape(12.dp)),
-        color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) GlassBackground else GlassLight)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                label, 
-                style = MaterialTheme.typography.labelLarge, 
-                color = if (isSelected) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight)
-            )
+    val isRtl = lang == "fa" || lang == "ar"
+    val scrollState = rememberScrollState()
+
+    val grade = when {
+        scan.securityScore >= 90 -> "A+" to TertiaryNeon
+        scan.securityScore >= 75 -> "A" to TertiaryNeon
+        scan.securityScore >= 50 -> "B" to WarningNeon
+        scan.securityScore >= 25 -> "C" to Color(0xFFF97316)
+        else -> "F" to DangerNeon
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f),
+            shape = RoundedCornerShape(20.dp),
+            color = if (isDark) SurfaceDark else SurfaceLight,
+            border = BorderStroke(1.dp, accent.copy(alpha = 0.4f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            ) {
+                // Top Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            LocalizedStrings.get("report_detail_title", lang),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) Color.White else Color.Black
+                        )
+                        Text(
+                            scan.target,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = accent
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = grade.second.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, grade.second.copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                "GRADE ${grade.first}",
+                                color = grade.second,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = if (isDark) TextMuted else TextMutedLight)
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    color = if (isDark) GlassBorder else GlassBorderLight,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+
+                // Scrollable Content
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(end = if (!isRtl) 10.dp else 0.dp, start = if (isRtl) 10.dp else 0.dp)
+                            .verticalScroll(scrollState),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // KPI Metric Tiles
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            MetricTile(
+                                title = LocalizedStrings.get("security_score", lang),
+                                value = "${scan.securityScore}%",
+                                accent = grade.second,
+                                modifier = Modifier.weight(1f)
+                            )
+                            MetricTile(
+                                title = LocalizedStrings.get("threat_score", lang),
+                                value = "${100 - scan.securityScore}%",
+                                accent = DangerNeon,
+                                modifier = Modifier.weight(1f)
+                            )
+                            MetricTile(
+                                title = LocalizedStrings.get("open_ports_count", lang),
+                                value = "${scan.openPorts.size}",
+                                accent = accent,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // System Environment Info
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f),
+                            border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    LocalizedStrings.get("executive_summary", lang),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = accent
+                                )
+                                scan.deviceName?.let {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(LocalizedStrings.get("device_profile", lang), style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                        Text(it, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = if (isDark) Color.White else Color.Black)
+                                    }
+                                }
+                                scan.osFingerprint?.let {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("OS Fingerprint", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                        Text(it, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = SecondaryNeon)
+                                    }
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Scan Protocol", style = MaterialTheme.typography.bodySmall, color = if (isDark) TextMuted else TextMutedLight)
+                                    Text("${scan.scanType ?: "TCP"} • ${scan.concurrentScans} conns", style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = TertiaryNeon)
+                                }
+                            }
+                        }
+
+                        // Open Ports List
+                        Text(
+                            LocalizedStrings.get("discovered_ports", lang),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) Color.White else Color.Black
+                        )
+
+                        if (scan.openPorts.isEmpty()) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                color = TertiaryNeon.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, TertiaryNeon.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    "No open ports detected. Perimeter is fully sealed.",
+                                    color = TertiaryNeon,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        } else {
+                            scan.openPorts.sorted().forEach { port ->
+                                val banner = scan.portBanners[port]
+                                val service = scan.portServices[port] ?: "Service"
+                                val isHighRisk = port in listOf(21, 23, 445, 3389)
+
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f),
+                                    border = BorderStroke(1.dp, if (isHighRisk) DangerNeon.copy(alpha = 0.4f) else (if (isDark) GlassBorder else GlassBorderLight))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        CyberBadge(
+                                            text = "$port",
+                                            color = if (isHighRisk) DangerNeon else accent
+                                        )
+
+                                        Spacer(Modifier.width(10.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                service,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                                color = if (isDark) Color.White else Color.Black
+                                            )
+                                            if (!banner.isNullOrBlank()) {
+                                                Text(
+                                                    banner,
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 10.sp),
+                                                    color = if (isDark) TextMuted else TextMutedLight,
+                                                    maxLines = 2
+                                                )
+                                            }
+                                        }
+
+                                        if (isHighRisk) {
+                                            CyberBadge(text = "CRITICAL", color = DangerNeon, fontSize = 8f)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    PortXScrollStateVerticalScrollbar(
+                        scrollState = scrollState,
+                        modifier = Modifier
+                            .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+                            .fillMaxHeight()
+                    )
+                }
+
+                HorizontalDivider(
+                    color = if (isDark) GlassBorder else GlassBorderLight,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+
+                // Action Footer
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = onDownload,
+                        colors = ButtonDefaults.buttonColors(containerColor = accent),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Download, null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Download", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    Button(
+                        onClick = onExport,
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryNeon),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Share, null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Share", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerNeon),
+                        border = BorderStroke(1.dp, DangerNeon.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, null, tint = DangerNeon, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
         }
     }
 }

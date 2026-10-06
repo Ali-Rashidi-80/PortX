@@ -306,7 +306,8 @@ fun LargeDesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: 
                     state,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     accent = accent,
-                    lang = lang
+                    lang = lang,
+                    onClearLogs = { viewModel.clearLogs() }
                 )
             }
 
@@ -374,7 +375,8 @@ fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color
                     state,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     accent = accent,
-                    lang = lang
+                    lang = lang,
+                    onClearLogs = { viewModel.clearLogs() }
                 )
             }
 
@@ -399,12 +401,13 @@ fun DesktopDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color
 @Composable
 fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color, lang: String) {
     var showSettings by remember { mutableStateOf(false) }
+    var selectedMobileTab by remember { mutableStateOf(0) }
     
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         
         DashboardIpInput(
             state = state, 
@@ -432,7 +435,35 @@ fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color,
         }
 
         SecurityVisualizerCard(state, modifier = Modifier.height(240.dp), smallSize = true, accent = accent, lang = lang)
-        ActiveServicesCard(state, modifier = Modifier.weight(1f), accent = accent, lang = lang)
+
+        CyberSegmentedControl(
+            items = listOf(
+                LocalizedStrings.get("services_tab", lang) to Icons.Default.Hub,
+                LocalizedStrings.get("logs_tab", lang) to Icons.Default.Terminal
+            ),
+            selectedIndex = selectedMobileTab,
+            onIndexSelected = { selectedMobileTab = it },
+            accent = accent,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        AnimatedContent(
+            targetState = selectedMobileTab,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            transitionSpec = { fadeIn() togetherWith fadeOut() }
+        ) { tab ->
+            if (tab == 0) {
+                ActiveServicesCard(state, modifier = Modifier.fillMaxSize(), accent = accent, lang = lang)
+            } else {
+                EngineLogsCard(
+                    state,
+                    modifier = Modifier.fillMaxSize(),
+                    accent = accent,
+                    lang = lang,
+                    onClearLogs = { viewModel.clearLogs() }
+                )
+            }
+        }
         
         state.error?.let { errorMsg ->
             Text(
@@ -440,7 +471,7 @@ fun MobileDashboard(state: ScanUIState, viewModel: ScanViewModel, accent: Color,
                 modifier = Modifier.padding(horizontal = 8.dp).align(Alignment.CenterHorizontally)
             )
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
     }
 }
 
@@ -459,95 +490,127 @@ fun DashboardIpInput(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = if (isDark) GlassBackground else GlassLight,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         border = BorderStroke(1.dp, if (isDark) GlassBorder else GlassBorderLight)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp).padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (showSettingsToggle) {
-                IconButton(onClick = onSettingsToggle, modifier = Modifier.padding(start = 4.dp)) {
-                    Icon(Icons.Default.Tune, null, tint = accent)
-                }
-            } else {
-                Icon(Icons.Default.Language, null, tint = accent, modifier = Modifier.padding(start = 12.dp).size(24.dp))
-            }
-            
-            OutlinedTextField(
-                value = state.ip,
-                onValueChange = onIpChange,
-                placeholder = { Text(LocalizedStrings.get("target", lang), color = if (LocalAppSettings.current.theme == "DARK") TextMuted else TextMutedLight, maxLines = 1) },
-                modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedTextColor = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black,
-                    focusedTextColor = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black,
-                    cursorColor = accent
-                ),
-                singleLine = true,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Go,
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
-                ),
-                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                    onGo = {
-                        if (state.isLoading) onStopScan() else onStartScan()
-                    }
-                ),
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                    textDirection = TextDirection.Ltr
-                ),
-                trailingIcon = {
-                    if (state.ip.isNotEmpty()) {
-                        val ipTrimmed = state.ip.trim()
-                        val isIpv4 = ipTrimmed.split(".").let { parts -> parts.size == 4 && parts.all { p -> p.toIntOrNull() in 0..255 } }
-                        val isLocal = ipTrimmed == "127.0.0.1" || ipTrimmed.equals("localhost", ignoreCase = true)
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.35f)),
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Text(
-                                if (isLocal) "LOCAL" else if (isIpv4) "IPv4" else "HOST",
-                                color = if (isLocal) TertiaryNeon else accent,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    } else {
-                        TextButton(
-                            onClick = { onIpChange("127.0.0.1") },
-                            contentPadding = PaddingValues(horizontal = 6.dp),
-                            modifier = Modifier.height(28.dp).padding(end = 4.dp)
-                        ) {
-                            Text("127.0.0.1", color = accent.copy(alpha = 0.7f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                        }
-                    }
-                }
-            )
-            
-            val infiniteTransition = rememberInfiniteTransition()
-            val pulseAlpha by infiniteTransition.animateFloat(
-                initialValue = 0.6f, targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse)
-            )
-
-            Button(
-                onClick = { if (state.isLoading) onStopScan() else onStartScan() },
-                colors = ButtonDefaults.buttonColors(containerColor = if (state.isLoading) DangerNeon.copy(alpha = pulseAlpha) else accent),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(end = 2.dp).height(52.dp).width(96.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp)
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(if (state.isLoading) Icons.Default.Stop else Icons.Default.FlashOn, null, tint = Color.Black, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(if (state.isLoading) LocalizedStrings.get("stop", lang) else LocalizedStrings.get("scan", lang), fontWeight = FontWeight.Black, color = Color.Black, fontSize = 13.sp)
+                if (showSettingsToggle) {
+                    IconButton(onClick = onSettingsToggle) {
+                        Icon(Icons.Default.Tune, null, tint = accent)
+                    }
+                } else {
+                    Icon(Icons.Default.Language, null, tint = accent, modifier = Modifier.padding(start = 8.dp).size(22.dp))
+                }
+                
+                OutlinedTextField(
+                    value = state.ip,
+                    onValueChange = onIpChange,
+                    placeholder = { Text(LocalizedStrings.get("target", lang), color = if (LocalAppSettings.current.theme == "DARK") TextMuted else TextMutedLight, maxLines = 1) },
+                    modifier = Modifier.weight(1f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedTextColor = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black,
+                        focusedTextColor = if (LocalAppSettings.current.theme == "DARK") Color.White else Color.Black,
+                        cursorColor = accent
+                    ),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Go,
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onGo = {
+                            if (state.isLoading) onStopScan() else onStartScan()
+                        }
+                    ),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        textDirection = TextDirection.Ltr
+                    ),
+                    trailingIcon = {
+                        if (state.ip.isNotEmpty()) {
+                            val ipTrimmed = state.ip.trim()
+                            val isIpv4 = ipTrimmed.split(".").let { parts -> parts.size == 4 && parts.all { p -> p.toIntOrNull() in 0..255 } }
+                            val isLocal = ipTrimmed == "127.0.0.1" || ipTrimmed.equals("localhost", ignoreCase = true)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, (if (isLocal) TertiaryNeon else accent).copy(alpha = 0.35f)),
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                Text(
+                                    if (isLocal) "LOCAL" else if (isIpv4) "IPv4" else "HOST",
+                                    color = if (isLocal) TertiaryNeon else accent,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                )
+                
+                val infiniteTransition = rememberInfiniteTransition()
+                val pulseAlpha by infiniteTransition.animateFloat(
+                    initialValue = 0.6f, targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse)
+                )
+
+                Button(
+                    onClick = { if (state.isLoading) onStopScan() else onStartScan() },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (state.isLoading) DangerNeon.copy(alpha = pulseAlpha) else accent),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.padding(end = 2.dp).height(46.dp).width(90.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(if (state.isLoading) Icons.Default.Stop else Icons.Default.FlashOn, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (state.isLoading) LocalizedStrings.get("stop", lang) else LocalizedStrings.get("scan", lang), fontWeight = FontWeight.Black, color = Color.Black, fontSize = 12.sp)
+                }
+            }
+
+            // Quick Target Presets Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    LocalizedStrings.get("quick_targets", lang) + ":",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = if (isDark) TextMuted else TextMutedLight
+                )
+                listOf(
+                    "127.0.0.1" to "Localhost",
+                    "192.168.1.1" to "Gateway",
+                    "scanme.nmap.org" to "Nmap Echo"
+                ).forEach { (targetVal, label) ->
+                    val isSelected = state.ip.trim() == targetVal
+                    Surface(
+                        onClick = { onIpChange(targetVal) },
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f)),
+                        border = BorderStroke(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold), color = if (isSelected) accent else (if (isDark) Color.White else Color.Black))
+                            Text(targetVal, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontFamily = FontFamily.Monospace), color = accent)
+                        }
+                    }
+                }
             }
         }
     }
@@ -575,17 +638,20 @@ fun AdvancedParametersCard(state: ScanUIState, viewModel: ScanViewModel, accent:
                 
                 val currentRange = "${state.startPort}-${state.endPort}"
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ScanChip(LocalizedStrings.get("top_100", lang), currentRange == "1-100", accent) {
-                        viewModel.onStartPortChange("1")
-                        viewModel.onEndPortChange("100")
+                    ScanChip(LocalizedStrings.get("top_20", lang), currentRange == "1-100", accent) {
+                        viewModel.setPortRange("1", "100")
                     }
                     ScanChip(LocalizedStrings.get("standard_ports", lang), currentRange == "1-1024", accent) {
-                        viewModel.onStartPortChange("1")
-                        viewModel.onEndPortChange("1024")
+                        viewModel.setPortRange("1", "1024")
                     }
                     ScanChip(LocalizedStrings.get("web_ports", lang), currentRange == "80-8443", accent) {
-                        viewModel.onStartPortChange("80")
-                        viewModel.onEndPortChange("8443")
+                        viewModel.setPortRange("80", "8443")
+                    }
+                    ScanChip(LocalizedStrings.get("db_services", lang), currentRange == "1433-27017", accent) {
+                        viewModel.setPortRange("1433", "27017")
+                    }
+                    ScanChip(LocalizedStrings.get("remote_iot", lang), currentRange == "22-1883", accent) {
+                        viewModel.setPortRange("22", "1883")
                     }
                 }
 
@@ -773,7 +839,13 @@ fun SecurityVisualizerCard(state: ScanUIState, modifier: Modifier = Modifier, sm
 }
 
 @Composable
-fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Color, lang: String = "en") {
+fun EngineLogsCard(
+    state: ScanUIState, 
+    modifier: Modifier = Modifier, 
+    accent: Color, 
+    lang: String = "en",
+    onClearLogs: (() -> Unit)? = null
+) {
     val isDark = LocalAppSettings.current.theme == "DARK"
     val logListState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
@@ -835,6 +907,20 @@ fun EngineLogsCard(state: ScanUIState, modifier: Modifier = Modifier, accent: Co
                                 if (isLogsCopied) Icons.Default.Check else Icons.Default.ContentCopy,
                                 contentDescription = LocalizedStrings.get("copy_all_logs", lang),
                                 tint = if (isLogsCopied) TertiaryNeon else (if (isDark) TextMuted else TextMutedLight),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+
+                    if (onClearLogs != null && state.logs.isNotEmpty()) {
+                        IconButton(
+                            onClick = onClearLogs,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.DeleteOutline,
+                                contentDescription = LocalizedStrings.get("clear_logs", lang),
+                                tint = if (isDark) TextMuted else TextMutedLight,
                                 modifier = Modifier.size(14.dp)
                             )
                         }

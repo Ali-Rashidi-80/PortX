@@ -147,6 +147,14 @@ class ScanViewModel(
         _uiState.update { it.copy(allPorts = enabled) }
     }
 
+    fun setPortRange(start: String, end: String, allPorts: Boolean = false) {
+        _uiState.update { it.copy(startPort = start, endPort = end, allPorts = allPorts, error = null) }
+    }
+
+    fun clearLogs() {
+        _uiState.update { it.copy(logs = emptyList()) }
+    }
+
     fun toggleAllProtocols(enabled: Boolean) {
         _uiState.update { it.copy(allProtocols = enabled) }
     }
@@ -248,7 +256,7 @@ class ScanViewModel(
                 // Ignore unexpected probe exceptions
             }
 
-            addLog("Engine v5.2.0 initializing...")
+            addLog("Engine v5.2.1 initializing...")
             delay(400)
             
             if (state.allPorts) addLog("Full port scan mode [1-65535] active")
