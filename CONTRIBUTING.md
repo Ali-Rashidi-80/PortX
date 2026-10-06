@@ -65,9 +65,16 @@ PortX is built using **Kotlin Multiplatform (KMP)** and **Compose Multiplatform*
    ```bash
    git checkout -b feat/your-feature-name
    ```
-2. Verify local builds and type safety:
+2. Verify local builds, tests, and benchmarks:
    ```bash
-   ./gradlew :shared:compileKotlinJvm
+   # Run all shared unit tests
+   ./gradlew :shared:jvmTest
+
+   # Run empirical 8-suite live benchmark suite
+   ./gradlew :shared:jvmTest --tests "com.mrcoder20.portx.data.network.LiveSystemBenchmarkTest" --rerun-tasks
+
+   # Verify desktop app compilation
+   ./gradlew :desktopApp:compileKotlin
    ```
 3. Commit with conventional commit messages:
    ```bash

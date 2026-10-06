@@ -16,8 +16,9 @@
 
 ### 📦 Desktop Packaging & CI/CD
 - **Native Desktop Shortcuts:** Configured Compose desktop packaging to automatically generate desktop icons and start-menu shortcuts on Windows (`.msi`), Linux (`.deb`), and macOS (`.dmg`).
-- **Comprehensive Unit Test Suites:** Added dedicated test suites for `DatabaseAdaptersTest.kt` (custom SQLite column adapters), `ScanManagerTest.kt` (flow state and UI event dispatcher), and `SecurityHardenTest.kt` (encryption involution and client factory).
+- **Comprehensive Unit Test Suites:** Added dedicated test suites for `DatabaseAdaptersTest.kt` (custom SQLite column adapters), `ScanManagerTest.kt` (flow state and UI event dispatcher), `SecurityHardenTest.kt` (encryption involution and client factory), `DeviceFingerprintUseCaseTest.kt` (heuristic device and OS classification across SCADA, Printers, Routers, NAS, Cloud, and DBs), `FirewallDetectionUseCaseTest.kt` (perimeter exposure evaluation), `ScanPortUseCaseTest.kt` (orchestration and automatic persistence), and `RemoteApiTest.kt` (threat intel and CVE lookup models).
 - **Continuous Integration Workflow:** Created `.github/workflows/ci.yml` for automated multiplatform JVM testing, desktop compilation, and Android APK builds on pull requests and pushes.
+- **Automated Dependency Auditing:** Added `.github/dependabot.yml` for automated weekly security vulnerability scans across Gradle dependencies and GitHub Actions.
 
 ---
 
