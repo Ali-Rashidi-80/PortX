@@ -20,10 +20,12 @@ val SurfaceDark = Color(0xFF0E141E) // Elevated Slate Surface
 val CardDark = Color(0xFF131B27) // Elevated Card Background
 
 // Light Mode Aesthetics (Linear / GitHub Slate - Modern & Clean)
-val BackgroundLight = Color(0xFFF1F5F9) // Clean Slate 100
-val SurfaceLight = Color(0xFFFFFFFF) // Crisp Pure White
-val GlassLight = Color(0xF2FFFFFF) // Frosted White Glass
-val GlassBorderLight = Color(0x260F172A) // Defined Crisp Slate Border
+val BackgroundLight = Color(0xFFF3F5F9) // Refined Slate Canvas - Prevents eye fatigue from blinding #FFFFFF
+val SurfaceLight = Color(0xFFFFFFFF) // Crisp Pure White for elevated cards & panels
+val SurfaceInsetLight = Color(0xFFF8FAFC) // Slate 50 for inset wells, code blocks & search inputs
+val GlassLight = Color(0xFFFFFFFF) // Crisp Pure White
+val BorderLight = Color(0xFFE2E8F0) // Solid Crisp Slate 200 Border (Industry-standard edge definition)
+val GlassBorderLight = Color(0xFFCBD5E1) // Defined Slate 300 Border (Remains visible even when scaled with alpha)
 
 // Glassmorphism Colors
 val GlassBackground = Color(0x1400E5FF) // Subtle Electric Cyan Tint
@@ -71,21 +73,24 @@ fun getAccessibleAccent(accent: Color, isDark: Boolean): Color {
  * Specular highlight top border brush for frosted glass cards
  */
 fun topBorderHighlightBrush(accent: Color, isDark: Boolean): Brush {
-    val topColor = if (isDark) {
-        accent.copy(alpha = 0.45f)
+    return if (isDark) {
+        val topColor = accent.copy(alpha = 0.45f)
+        val sideColor = GlassBorder.copy(alpha = 0.25f)
+        Brush.verticalGradient(
+            0.0f to topColor,
+            0.3f to sideColor,
+            1.0f to sideColor.copy(alpha = 0.08f)
+        )
     } else {
-        accent.copy(alpha = 0.35f)
+        // Light Mode: Refined top specular accent highlight seamlessly meeting a solid Slate 200 border
+        val topColor = accent.copy(alpha = 0.50f)
+        val boundaryColor = BorderLight
+        Brush.verticalGradient(
+            0.0f to topColor,
+            0.20f to boundaryColor,
+            1.0f to boundaryColor
+        )
     }
-    val sideColor = if (isDark) {
-        GlassBorder.copy(alpha = 0.2f)
-    } else {
-        GlassBorderLight.copy(alpha = 0.15f)
-    }
-    return Brush.verticalGradient(
-        0.0f to topColor,
-        0.3f to sideColor,
-        1.0f to sideColor.copy(alpha = 0.05f)
-    )
 }
 
 /**
@@ -101,10 +106,11 @@ fun cardGlassBackdropBrush(isDark: Boolean, accent: Color): Brush {
             )
         )
     } else {
-        Brush.linearGradient(
+        // Light Mode: Solid pure white base with microscopic gradient to maintain maximum surface luminance
+        Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = 0.95f),
-                Color(0xFFF8FAFC).copy(alpha = 0.92f)
+                Color.White,
+                Color(0xFFFCFDFE)
             )
         )
     }

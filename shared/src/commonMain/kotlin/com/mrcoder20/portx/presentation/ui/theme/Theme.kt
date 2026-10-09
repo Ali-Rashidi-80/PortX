@@ -42,10 +42,14 @@ fun PortXTheme(
         )
     }
 
-    val layoutDirection = if (settingsState.language == "fa" || settingsState.language == "ar") {
+    val layoutDirection = if (settingsState.language == "fa") {
         androidx.compose.ui.unit.LayoutDirection.Rtl
     } else {
         androidx.compose.ui.unit.LayoutDirection.Ltr
+    }
+
+    val typography = remember(settingsState.language) {
+        getPortXTypography(settingsState.language)
     }
 
     // Provide accessible accent, raw accent, app settings and directional typography
@@ -57,6 +61,7 @@ fun PortXTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
+            typography = typography,
             content = content
         )
     }

@@ -1,10 +1,17 @@
 package com.mrcoder20.portx.domain
 
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.*
 
 interface NetworkTools {
     suspend fun ping(host: String): Flow<PingResult>
+    suspend fun pingTcp(host: String, port: Int = 80, timeoutMs: Int = 2000): Flow<PingResult>
     suspend fun dnsLookup(host: String): List<String>
+    suspend fun dnsResolve(host: String): DnsResolutionResult
     suspend fun whois(host: String): String
     fun getLocalIpInfo(): LocalIpInfo
     suspend fun getPublicIp(): String?
@@ -27,6 +34,38 @@ data class LocalIpInfo(
     val ipAddress: String,
     val interfaceName: String,
     val isWifi: Boolean
+)
+
+data class DnsRecord(
+    val type: String, // A, AAAA, MX, TXT, NS, CNAME, SOA, CAA, PTR, SRV
+    val name: String,
+    val value: String,
+    val ttl: Long = 300,
+    val priority: Int? = null,
+    val provider: String = "DNS"
+)
+
+data class DnsResolutionResult(
+    val target: String,
+    val records: List<DnsRecord> = emptyList(),
+    val serverUsed: String = "DNS Resolver",
+    val responseTimeMs: Long = 0,
+    val hasDnssec: Boolean = false,
+    val rawDigOutput: String = ""
+) {
+    val ips: List<String>
+        get() = records.filter { it.type == "A" || it.type == "AAAA" }.map { it.value }.distinct()
+}
+
+data class SubnetInfo(
+    val ip: String,
+    val subnetMask: String = "255.255.255.0",
+    val cidr: String = "24",
+    val networkAddress: String = "192.168.1.0",
+    val broadcastAddress: String = "192.168.1.255",
+    val hostRangeStart: String = "192.168.1.1",
+    val hostRangeEnd: String = "192.168.1.254",
+    val usableHostsCount: Int = 254
 )
 
 expect fun getNetworkTools(): NetworkTools
@@ -277,4 +316,408 @@ fun extractNextWhoisServer(response: String, currentServer: String): String? {
     }
     return null
 }
+
+/**
+ * Heuristic detector for Web Application Firewalls (WAF), SYN-proxies, and TCP Tarpits.
+ * Identifies environments where middleboxes or cloud proxies reflexively acknowledge all scanned ports.
+ */
+fun isSuspectedTarpitOrWaf(
+    target: String = "",
+    openPorts: Collection<Int>,
+    banners: Map<Int, String> = emptyMap(),
+    osFingerprint: String? = null
+): Boolean {
+    if (osFingerprint?.contains("WAF", ignoreCase = true) == true ||
+        osFingerprint?.contains("SYN-Proxy", ignoreCase = true) == true) {
+        return true
+    }
+    val allBannersLower = banners.values.joinToString(" ").lowercase()
+    if (allBannersLower.contains("cloudflare")) {
+        return true
+    }
+
+    val totalPorts = openPorts.size
+    if (totalPorts < 40) return false
+
+    val isLocal = if (target.isNotBlank()) isTargetLocalOrPrivate(target) else false
+    if (isLocal) return false
+
+    val ports = openPorts.toSet()
+    val nonBlankBannerCount = banners.count { it.value.isNotBlank() }
+    val bannerRatio = if (totalPorts > 0) nonBlankBannerCount.toDouble() / totalPorts.toDouble() else 0.0
+
+    return ports.containsAll(listOf(1, 2, 3, 4, 5, 6, 7)) || bannerRatio < 0.08
+}
+
+/**
+ * Formats an IPv4 or IPv6 address into its standard reverse DNS in-addr.arpa or ip6.arpa domain name.
+ */
+fun formatReverseDnsArpa(ip: String): String {
+    val clean = ip.trim().removePrefix("[").removeSuffix("]").substringBefore("%")
+    if (clean.contains(".")) {
+        val parts = clean.split(".")
+        if (parts.size == 4) {
+            return "${parts[3]}.${parts[2]}.${parts[1]}.${parts[0]}.in-addr.arpa"
+        }
+    } else if (clean.contains(":")) {
+        val tokens = clean.split(":")
+        val expandedTokens = mutableListOf<String>()
+        val doubleColonIndex = tokens.indexOf("")
+        if (doubleColonIndex != -1) {
+            val before = tokens.subList(0, doubleColonIndex).filter { it.isNotEmpty() }
+            val after = tokens.subList(doubleColonIndex, tokens.size).filter { it.isNotEmpty() }
+            val missing = 8 - before.size - after.size
+            expandedTokens.addAll(before)
+            repeat(missing) { expandedTokens.add("0") }
+            expandedTokens.addAll(after)
+        } else {
+            expandedTokens.addAll(tokens)
+        }
+        val fullHex = expandedTokens.joinToString("") { it.padStart(4, '0') }
+        val reversedNibbles = fullHex.reversed().map { it.toString() }.joinToString(".")
+        return "$reversedNibbles.ip6.arpa"
+    }
+    return clean
+}
+
+/**
+ * Calculates Subnet, CIDR, Network, Broadcast, and Host Range information for a given IPv4.
+ */
+fun calculateSubnetInfo(ip: String): SubnetInfo {
+    val clean = ip.trim().removePrefix("[").removeSuffix("]").substringBefore("%")
+    if (clean.matches(Regex("""^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"""))) {
+        val parts = clean.split(".").mapNotNull { it.toIntOrNull() }
+        if (parts.size == 4 && parts.all { it in 0..255 }) {
+            val first = parts[0]
+            val (mask, cidr) = when {
+                first in 1..126 -> Pair("255.0.0.0", "8")
+                first in 128..191 -> Pair("255.255.0.0", "16")
+                else -> Pair("255.255.255.0", "24")
+            }
+            val netAddr = when (cidr) {
+                "8" -> "${parts[0]}.0.0.0"
+                "16" -> "${parts[0]}.${parts[1]}.0.0"
+                else -> "${parts[0]}.${parts[1]}.${parts[2]}.0"
+            }
+            val bcastAddr = when (cidr) {
+                "8" -> "${parts[0]}.255.255.255"
+                "16" -> "${parts[0]}.${parts[1]}.255.255"
+                else -> "${parts[0]}.${parts[1]}.${parts[2]}.255"
+            }
+            val startHost = when (cidr) {
+                "8" -> "${parts[0]}.0.0.1"
+                "16" -> "${parts[0]}.${parts[1]}.0.1"
+                else -> "${parts[0]}.${parts[1]}.${parts[2]}.1"
+            }
+            val endHost = when (cidr) {
+                "8" -> "${parts[0]}.255.255.254"
+                "16" -> "${parts[0]}.${parts[1]}.255.254"
+                else -> "${parts[0]}.${parts[1]}.${parts[2]}.254"
+            }
+            val count = when (cidr) {
+                "8" -> 16777214
+                "16" -> 65534
+                else -> 254
+            }
+            return SubnetInfo(
+                ip = clean,
+                subnetMask = mask,
+                cidr = cidr,
+                networkAddress = netAddr,
+                broadcastAddress = bcastAddr,
+                hostRangeStart = startHost,
+                hostRangeEnd = endHost,
+                usableHostsCount = count
+            )
+        }
+    }
+    return SubnetInfo(ip = clean)
+}
+
+/**
+ * Formats a DNS Resolution Result into standard RFC Dig / BIND terminal text.
+ */
+fun formatDigOutput(
+    domain: String,
+    server: String,
+    responseTimeMs: Long,
+    records: List<DnsRecord>,
+    hasDnssec: Boolean
+): String {
+    val sb = StringBuilder()
+    sb.append("; <<>> PortX Cyber Dig Engine v5.2 <<>> $domain\n")
+    sb.append(";; Got answer:\n")
+    val flags = if (hasDnssec) "qr rd ra ad" else "qr rd ra"
+    sb.append(";; ->>HEADER<<- opcode: QUERY, status: NOERROR, flags: $flags\n")
+    sb.append(";; QUERY: 1, ANSWER: ${records.size}, AUTHORITY: 0, ADDITIONAL: 0\n\n")
+    sb.append(";; QUESTION SECTION:\n")
+    sb.append(";$domain.\t\t\tIN\tANY\n\n")
+    sb.append(";; ANSWER SECTION:\n")
+    if (records.isEmpty()) {
+        sb.append("; (No matching DNS records returned)\n")
+    } else {
+        records.forEach { r ->
+            val priorityPart = if (r.priority != null) "${r.priority} " else ""
+            val formattedValue = if (r.type == "TXT" && !r.value.startsWith("\"")) "\"${r.value}\"" else r.value
+            sb.append("${r.name}.\t\t${r.ttl}\tIN\t${r.type.padEnd(5)}\t$priorityPart$formattedValue\n")
+        }
+    }
+    sb.append("\n;; Query time: $responseTimeMs msec\n")
+    sb.append(";; SERVER: $server\n")
+    sb.append(";; WHEN: PortX Cyber Suite Engine\n")
+    sb.append(";; MSG SIZE  rcvd: ${records.size * 32 + 84}\n")
+    return sb.toString()
+}
+
+/**
+ * High-resilience multi-record DoH Resolver.
+ * Queries Cloudflare, Google, Quad9, and fallback endpoints over HTTPS and direct IP to bypass SNI blocking.
+ */
+suspend fun queryDohMultiRecords(
+    cleanHost: String,
+    recordTypes: List<String> = listOf("A", "AAAA", "MX", "TXT", "NS", "CNAME", "SOA", "CAA")
+): Pair<List<DnsRecord>, Pair<String, Boolean>> {
+    val providers = listOf(
+        Pair("Cloudflare DoH [1.1.1.1]", "https://1.1.1.1/dns-query"),
+        Pair("Google DoH [8.8.8.8]", "https://8.8.8.8/resolve"),
+        Pair("Cloudflare FQDN", "https://cloudflare-dns.com/dns-query"),
+        Pair("Google FQDN", "https://dns.google/resolve"),
+        Pair("Quad9 DoH [9.9.9.9]", "https://dns.quad9.net/dns-query"),
+        Pair("Shecan DoH", "https://doh.shecan.ir/dns-query"),
+        Pair("AdGuard DoH", "https://dns.adguard-dns.com/dns-query")
+    )
+
+    val client = SecurityHarden.createSecureClient()
+    val allRecords = mutableListOf<DnsRecord>()
+    var successfulProvider = "DoH Resolver"
+    var isDnssec = false
+
+    try {
+        for ((providerName, baseUrl) in providers) {
+            val batchRecords = mutableListOf<DnsRecord>()
+            var providerDnssec = false
+
+            for (type in recordTypes) {
+                try {
+                    val url = "$baseUrl?name=$cleanHost&type=$type"
+                    val response = client.get(url) {
+                        header("Accept", "application/dns-json")
+                    }
+                    if (response.status.value in 200..299) {
+                        val body = response.bodyAsText()
+                        val json = Json.parseToJsonElement(body).jsonObject
+                        if (json["AD"]?.jsonPrimitive?.booleanOrNull == true) {
+                            providerDnssec = true
+                        }
+                        val answers = json["Answer"]?.jsonArray
+                        if (answers != null && answers.isNotEmpty()) {
+                            for (ans in answers) {
+                                val ansObj = ans.jsonObject
+                                val typeNum = ansObj["type"]?.jsonPrimitive?.intOrNull
+                                val resolvedTypeName = when (typeNum) {
+                                    1 -> "A"
+                                    28 -> "AAAA"
+                                    5 -> "CNAME"
+                                    15 -> "MX"
+                                    16 -> "TXT"
+                                    2 -> "NS"
+                                    6 -> "SOA"
+                                    257 -> "CAA"
+                                    12 -> "PTR"
+                                    33 -> "SRV"
+                                    else -> type
+                                }
+                                val ttl = ansObj["TTL"]?.jsonPrimitive?.longOrNull ?: 300L
+                                val rawName = ansObj["name"]?.jsonPrimitive?.contentOrNull?.removeSuffix(".") ?: cleanHost
+                                val data = ansObj["data"]?.jsonPrimitive?.contentOrNull?.trim() ?: ""
+                                if (data.isNotBlank()) {
+                                    if (resolvedTypeName == "MX") {
+                                        val parts = data.split(Regex("""\s+"""))
+                                        val priority = parts.getOrNull(0)?.toIntOrNull()
+                                        val mxHost = parts.getOrNull(1)?.removeSuffix(".") ?: data
+                                        batchRecords.add(DnsRecord(type = "MX", name = rawName, value = mxHost, ttl = ttl, priority = priority, provider = providerName))
+                                    } else if (resolvedTypeName == "TXT") {
+                                        val cleanTxt = data.removePrefix("\"").removeSuffix("\"").replace("\\\"", "\"")
+                                        batchRecords.add(DnsRecord(type = "TXT", name = rawName, value = cleanTxt, ttl = ttl, provider = providerName))
+                                    } else {
+                                        val cleanVal = data.removeSuffix(".")
+                                        batchRecords.add(DnsRecord(type = resolvedTypeName, name = rawName, value = cleanVal, ttl = ttl, provider = providerName))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Try next record type
+                }
+            }
+
+            if (batchRecords.isNotEmpty()) {
+                allRecords.addAll(batchRecords)
+                successfulProvider = providerName
+                isDnssec = providerDnssec
+                break
+            }
+        }
+    } finally {
+        try { client.close() } catch (_: Exception) {}
+    }
+
+    return Pair(allRecords, Pair(successfulProvider, isDnssec))
+}
+
+/**
+ * Multi-Tier Comprehensive DNS Resolver.
+ * Resolves all record types (A, AAAA, MX, TXT, NS, CNAME, SOA, CAA, PTR) with fallback to JNDI/System.
+ */
+suspend fun performComprehensiveDnsResolve(
+    host: String,
+    jndiOrSystemResolver: (suspend (String) -> List<DnsRecord>)? = null,
+    systemReverseResolver: (suspend (String) -> String?)? = null
+): DnsResolutionResult {
+    val cleanHost = sanitizeHost(host)
+    if (cleanHost.isBlank()) {
+        return DnsResolutionResult(target = host, serverUsed = "None", rawDigOutput = "; Error: Empty Host")
+    }
+
+    val start = System.currentTimeMillis()
+
+    // 1. IP Target: Reverse DNS (PTR) Resolution
+    if (isValidIpAddress(cleanHost)) {
+        val reverseHost = systemReverseResolver?.let {
+            try { it(cleanHost) } catch (_: Exception) { null }
+        }
+        val records = mutableListOf<DnsRecord>()
+        var server = "Reverse DNS Resolver"
+        if (!reverseHost.isNullOrBlank() && reverseHost != cleanHost) {
+            records.add(DnsRecord(type = "PTR", name = cleanHost, value = reverseHost, provider = "System Reverse DNS"))
+            server = "System Canonical Resolver"
+        } else {
+            val arpaName = formatReverseDnsArpa(cleanHost)
+            val (dohRecords, prov) = try {
+                queryDohMultiRecords(arpaName, listOf("PTR"))
+            } catch (_: Exception) {
+                Pair(emptyList<DnsRecord>(), Pair("DoH", false))
+            }
+            if (dohRecords.isNotEmpty()) {
+                records.addAll(dohRecords.map { it.copy(name = cleanHost) })
+                server = prov.first
+            } else {
+                records.add(DnsRecord(type = "PTR", name = cleanHost, value = cleanHost, provider = "Direct Host"))
+            }
+        }
+        val elapsed = (System.currentTimeMillis() - start).coerceAtLeast(1L)
+        val dig = formatDigOutput(cleanHost, server, elapsed, records, false)
+        return DnsResolutionResult(target = cleanHost, records = records, serverUsed = server, responseTimeMs = elapsed, rawDigOutput = dig)
+    }
+
+    // 2. Domain Target: Try Encrypted DoH Multi-Record Query (A, AAAA, MX, TXT, NS, CNAME, SOA, CAA)
+    val (dohRecords, provInfo) = try {
+        queryDohMultiRecords(cleanHost)
+    } catch (_: Exception) {
+        Pair(emptyList<DnsRecord>(), Pair("System DNS", false))
+    }
+
+    val records = mutableListOf<DnsRecord>()
+    records.addAll(dohRecords)
+    var serverUsed = provInfo.first
+    var hasDnssec = provInfo.second
+
+    // 3. Fallback/Augment via JVM JNDI / System Resolver if DoH produced few/no records
+    if (records.isEmpty() && jndiOrSystemResolver != null) {
+        val jndiResults = try {
+            jndiOrSystemResolver(cleanHost)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (jndiResults.isNotEmpty()) {
+            records.addAll(jndiResults)
+            serverUsed = "System JNDI / Port 53"
+        }
+    }
+
+    // Deduplicate records by type + value
+    val distinctRecords = records.distinctBy { "${it.type}_${it.value.lowercase()}" }
+        .sortedWith(compareBy({
+            when (it.type) {
+                "A" -> 1
+                "AAAA" -> 2
+                "CNAME" -> 3
+                "MX" -> 4
+                "NS" -> 5
+                "TXT" -> 6
+                "SOA" -> 7
+                "CAA" -> 8
+                "PTR" -> 9
+                else -> 10
+            }
+        }, { it.priority ?: 999 }, { it.value }))
+
+    val elapsed = (System.currentTimeMillis() - start).coerceAtLeast(1L)
+    val dig = formatDigOutput(cleanHost, serverUsed, elapsed, distinctRecords, hasDnssec)
+
+    return DnsResolutionResult(
+        target = cleanHost,
+        records = distinctRecords,
+        serverUsed = serverUsed,
+        responseTimeMs = elapsed,
+        hasDnssec = hasDnssec,
+        rawDigOutput = dig
+    )
+}
+
+/**
+ * Backward-compatible helper for basic IP-only DNS lookups.
+ */
+suspend fun queryDoh(cleanHost: String, recordType: String = "A"): List<String> {
+    val (records, _) = queryDohMultiRecords(cleanHost, listOf(recordType))
+    return records.map { it.value }.distinct()
+}
+
+/**
+ * Backward-compatible helper for basic resilient DNS lookups.
+ */
+suspend fun performResilientDnsLookup(
+    host: String,
+    systemResolver: suspend (String) -> List<String>,
+    systemReverseResolver: (suspend (String) -> String?)? = null,
+    dohResolver: (suspend (String, String) -> List<String>)? = null
+): List<String> {
+    val cleanHost = sanitizeHost(host)
+    if (cleanHost.isBlank()) return emptyList()
+
+    if (isValidIpAddress(cleanHost)) {
+        val reverseHost = systemReverseResolver?.let {
+            try { it(cleanHost) } catch (_: Exception) { null }
+        }
+        if (!reverseHost.isNullOrBlank() && reverseHost != cleanHost) {
+            return listOf(reverseHost)
+        }
+        val arpaName = formatReverseDnsArpa(cleanHost)
+        val dohPtr = try {
+            if (dohResolver != null) dohResolver(arpaName, "PTR") else queryDoh(arpaName, "PTR")
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (dohPtr.isNotEmpty()) return dohPtr
+        return listOf(cleanHost)
+    }
+
+    val systemResults = try {
+        withTimeoutOrNull(2500) { systemResolver(cleanHost) } ?: emptyList()
+    } catch (_: Exception) {
+        emptyList()
+    }
+    if (systemResults.isNotEmpty()) return systemResults
+
+    val dohLookup = dohResolver ?: { targetHost, recordType -> queryDoh(targetHost, recordType) }
+    val aRecords = try { dohLookup(cleanHost, "A") } catch (_: Exception) { emptyList() }
+    val aaaaRecords = try { dohLookup(cleanHost, "AAAA") } catch (_: Exception) { emptyList() }
+    return (aRecords + aaaaRecords).filter { it.isNotBlank() && isValidIpAddress(it) }.distinct()
+}
+
+
+
 

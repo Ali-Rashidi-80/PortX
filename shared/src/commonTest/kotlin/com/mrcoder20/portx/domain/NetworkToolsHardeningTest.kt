@@ -53,6 +53,38 @@ class NetworkToolsHardeningTest {
     }
 
     @Test
+    fun testReverseDnsArpaFormatting() {
+        assertEquals("1.1.168.192.in-addr.arpa", formatReverseDnsArpa("192.168.1.1"))
+        assertEquals("8.8.8.8.in-addr.arpa", formatReverseDnsArpa("8.8.8.8"))
+        assertEquals("1.0.0.1.in-addr.arpa", formatReverseDnsArpa("1.0.0.1"))
+        val ipv6Arpa = formatReverseDnsArpa("2001:db8::1")
+        assertTrue(ipv6Arpa.endsWith(".ip6.arpa"), "IPv6 ARPA must end with .ip6.arpa: $ipv6Arpa")
+        assertTrue(ipv6Arpa.startsWith("1.0.0.0."), "IPv6 ARPA must start with reversed nibble: $ipv6Arpa")
+    }
+
+    @Test
+    fun testResilientDnsLookupFallback() = runTest {
+        // Test system resolver failure fallback to DoH
+        val mockDohResolver: suspend (String, String) -> List<String> = { host, recordType ->
+            if (host == "cloudflare.com" && recordType == "A") {
+                listOf("104.16.132.229", "104.16.133.229")
+            } else {
+                emptyList()
+            }
+        }
+        val results = performResilientDnsLookup(
+            host = "cloudflare.com",
+            systemResolver = { emptyList() }, // simulate system DNS failure
+            systemReverseResolver = null,
+            dohResolver = mockDohResolver
+        )
+        assertTrue(results.isNotEmpty(), "Fallback DoH should successfully resolve cloudflare.com even when system DNS fails")
+        assertEquals(2, results.size)
+        assertTrue(results.all { isValidIpAddress(it) }, "All resolved records must be valid IP addresses")
+    }
+
+
+    @Test
     fun testExportReportSanitization() {
         val useCase = ExportReportUseCase()
         val scanResult = ScanResult(
@@ -974,13 +1006,10 @@ class NetworkToolsHardeningTest {
     }
 
     @Test
-    fun testRussianAndChineseTranslations() {
+    fun testRussianTranslations() {
         assertEquals("Диапазон портов", LocalizedStrings.get("port_range", "ru"))
-        assertEquals("端口范围", LocalizedStrings.get("port_range", "zh"))
         assertEquals("Топ 100", LocalizedStrings.get("top_100", "ru"))
-        assertEquals("前 100 端口", LocalizedStrings.get("top_100", "zh"))
         assertEquals("Фильтр по цели или устройству...", LocalizedStrings.get("search_reports", "ru"))
-        assertEquals("按目标或设备过滤...", LocalizedStrings.get("search_reports", "zh"))
     }
 
     @Test
@@ -1109,23 +1138,28 @@ class NetworkToolsHardeningTest {
 
     @Test
     fun testFullMultilingualDictionaries() {
-        assertEquals("نطاق المنافذ", LocalizedStrings.get("port_range", "ar"))
-        assertEquals("Rango de Puertos", LocalizedStrings.get("port_range", "es"))
-        assertEquals("Plage de Ports", LocalizedStrings.get("port_range", "fr"))
-        assertEquals("Portbereich", LocalizedStrings.get("port_range", "de"))
+        // Active languages (EN, FA, RU)
+        assertEquals("Port Range", LocalizedStrings.get("port_range", "en"))
+        assertEquals("محدوده پورت‌ها", LocalizedStrings.get("port_range", "fa"))
+        assertEquals("Диапазон портов", LocalizedStrings.get("port_range", "ru"))
 
-        assertEquals("مسح", LocalizedStrings.get("scan", "ar"))
-        assertEquals("ESCANEAR", LocalizedStrings.get("scan", "es"))
-        assertEquals("SCANNER", LocalizedStrings.get("scan", "fr"))
-        assertEquals("SCANNEN", LocalizedStrings.get("scan", "de"))
+        assertEquals("SCAN", LocalizedStrings.get("scan", "en"))
+        assertEquals("اسکن", LocalizedStrings.get("scan", "fa"))
+        assertEquals("СКАНИРОВАТЬ", LocalizedStrings.get("scan", "ru"))
 
-        // not_enough_data coverage across languages
-        assertEquals("بيانات غير كافية", LocalizedStrings.get("not_enough_data", "ar"))
-        assertEquals("DATOS INSUFICIENTES", LocalizedStrings.get("not_enough_data", "es"))
-        assertEquals("DONNÉES INSUFFISANTES", LocalizedStrings.get("not_enough_data", "fr"))
-        assertEquals("NICHT GENÜGEND DATEN", LocalizedStrings.get("not_enough_data", "de"))
+        // not_enough_data coverage across official languages
+        assertEquals("NOT ENOUGH DATA", LocalizedStrings.get("not_enough_data", "en"))
+        assertEquals("داده کافی نیست", LocalizedStrings.get("not_enough_data", "fa"))
         assertEquals("НЕДОСТАТОЧНО ДАННЫХ", LocalizedStrings.get("not_enough_data", "ru"))
-        assertEquals("数据不足", LocalizedStrings.get("not_enough_data", "zh"))
+
+        // Robust fallback to English for any decommissioned or unsupported language codes
+        assertEquals("Port Range", LocalizedStrings.get("port_range", "ar"))
+        assertEquals("Port Range", LocalizedStrings.get("port_range", "es"))
+        assertEquals("Port Range", LocalizedStrings.get("port_range", "fr"))
+        assertEquals("Port Range", LocalizedStrings.get("port_range", "de"))
+        assertEquals("SCAN", LocalizedStrings.get("scan", "ar"))
+        assertEquals("SCAN", LocalizedStrings.get("scan", "zh"))
+        assertEquals("NOT ENOUGH DATA", LocalizedStrings.get("not_enough_data", "ja"))
     }
 
     @Test
@@ -1426,6 +1460,40 @@ class NetworkToolsHardeningTest {
         val scanner = PortScanner()
         assertEquals("zookeeper", scanner.guessService(2181))
         assertEquals("rabbitmq", scanner.guessService(5672))
+    }
+
+    @Test
+    fun testSubnetCalculatorPureLogic() {
+        val sub24 = calculateSubnetInfo("192.168.1.105")
+        assertEquals("192.168.1.0", sub24.networkAddress)
+        assertEquals("24", sub24.cidr)
+        assertEquals("255.255.255.0", sub24.subnetMask)
+        assertEquals("192.168.1.255", sub24.broadcastAddress)
+        assertEquals("192.168.1.1", sub24.hostRangeStart)
+        assertEquals("192.168.1.254", sub24.hostRangeEnd)
+        assertEquals(254, sub24.usableHostsCount)
+
+        val sub10 = calculateSubnetInfo("10.5.20.1")
+        assertEquals("10.0.0.0", sub10.networkAddress)
+        assertEquals("8", sub10.cidr)
+        assertEquals("255.0.0.0", sub10.subnetMask)
+    }
+
+    @Test
+    fun testFormatDigOutput() {
+        val records = listOf(
+            DnsRecord(type = "A", name = "example.com", value = "93.184.216.34", ttl = 300),
+            DnsRecord(type = "MX", name = "example.com", value = "mail.example.com", priority = 10, ttl = 3600),
+            DnsRecord(type = "TXT", name = "example.com", value = "v=spf1 -all", ttl = 300)
+        )
+        val formatted = formatDigOutput("example.com", "Cloudflare DoH", 42L, records, true)
+        assertTrue(formatted.contains("; <<>> PortX Cyber Dig Engine v5.2 <<>> example.com"))
+        assertTrue(formatted.contains("ANSWER SECTION:"))
+        assertTrue(formatted.contains("93.184.216.34"))
+        assertTrue(formatted.contains("10 mail.example.com"))
+        assertTrue(formatted.contains("SERVER: Cloudflare DoH"))
+        assertTrue(formatted.contains("Query time: 42 msec"))
+        assertTrue(formatted.contains("flags: qr rd ra ad"))
     }
 }
 

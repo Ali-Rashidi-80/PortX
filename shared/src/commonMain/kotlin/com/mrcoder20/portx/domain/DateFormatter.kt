@@ -76,6 +76,19 @@ object DateFormatter {
     }
 
     /**
+     * Converts Persian (۰-۹) and Arabic (٠-٩) digits to standard ASCII numeric digits (0-9).
+     */
+    fun toAsciiDigits(input: String): String {
+        return input.map { ch ->
+            when (ch) {
+                in '۰'..'۹' -> '0' + (ch - '۰')
+                in '٠'..'٩' -> '0' + (ch - '٠')
+                else -> ch
+            }
+        }.joinToString("")
+    }
+
+    /**
      * Formats an epoch millisecond timestamp into a localized (Date, Time) pair.
      * When lang is "fa", converts to Solar Hijri (Jalali) with Persian digits.
      */
@@ -96,9 +109,8 @@ object DateFormatter {
                     val timeStr = "$hour:$min"
                     toPersianDigits(dateStr) to toPersianDigits(timeStr)
                 }
-                "ar" -> {
-                    val (jy, jm, jd) = gregorianToJalali(gy, gm, gd)
-                    val dateStr = "$jy/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}"
+                "ru" -> {
+                    val dateStr = "${gd.toString().padStart(2, '0')}.${gm.toString().padStart(2, '0')}.$gy"
                     val timeStr = "$hour:$min"
                     dateStr to timeStr
                 }
@@ -153,17 +165,16 @@ object DateFormatter {
                 }
                 toPersianDigits(dateText)
             }
-            "ar" -> {
-                val (jy, jm, jd) = gregorianToJalali(gy, gm, gd)
-                val dayNamesAr = arrayOf("الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت")
-                val monthNamesAr = arrayOf(
-                    "حمل", "ثور", "جوزاء", "سرطان", "أسد", "سنبلة",
-                    "ميزان", "عقرب", "قوس", "جدي", "دلو", "حوت"
+            "ru" -> {
+                val dayNamesRu = arrayOf("Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота")
+                val monthNamesRu = arrayOf(
+                    "января", "февраля", "марта", "апреля", "мая", "июня",
+                    "июля", "августа", "сентября", "октября", "ноября", "декабря"
                 )
-                val dayName = dayNamesAr.getOrElse(dow) { "" }
-                val monthName = monthNamesAr.getOrElse(jm - 1) { "" }
+                val dayName = dayNamesRu.getOrElse(dow) { "" }
+                val monthName = monthNamesRu.getOrElse(gm - 1) { "" }
                 buildString {
-                    append("$dayName، $jd $monthName $jy")
+                    append("$dayName, $gd $monthName $gy")
                     if (hour != null && min != null) {
                         append(" - ${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}")
                     }

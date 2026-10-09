@@ -16,6 +16,7 @@ fun App(
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
     onClose: () -> Unit = {},
+    onSnapWindow: ((Int, Int) -> Unit)? = null,
     windowDraggableArea: @Composable (@Composable () -> Unit) -> Unit = { it() }
 ) {
     PortXTheme {
@@ -27,6 +28,7 @@ fun App(
                 onMinimize = onMinimize,
                 onMaximize = onMaximize,
                 onClose = onClose,
+                onSnapWindow = onSnapWindow,
                 windowDraggableArea = windowDraggableArea
             )
         }

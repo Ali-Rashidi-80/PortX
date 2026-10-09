@@ -53,7 +53,7 @@ PortX is built using **Kotlin Multiplatform (KMP)** and **Compose Multiplatform*
    - The UI layer (`presentation/ui/`) is design-frozen to maintain the custom neon cyber-aesthetic. Do not alter shaders or layout components without prior maintainer approval.
 2. **Memory Safety & Concurrency:**
    - All network socket dispatching must use bounded channels (`kotlinx.coroutines.channels.Channel`).
-   - Concurrency limits must be explicitly capped between `10` and `2500` to prevent OS file descriptor exhaustion (`RLIMIT_NOFILE`).
+   - Concurrency limits are bounded between `10` and `2,500` workers for targeted ranges and scaled up to `4,000` workers during Full 65k port sweeps to eliminate OS file descriptor exhaustion (`RLIMIT_NOFILE`).
 3. **Android 14+ / 15+ Compliance:**
    - Foreground services must declare explicit `foregroundServiceType` and `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`.
 

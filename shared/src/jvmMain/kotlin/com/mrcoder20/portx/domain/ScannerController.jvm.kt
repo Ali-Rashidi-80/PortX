@@ -21,6 +21,29 @@ class JvmScannerController : ScannerController, KoinComponent {
                 }
                 
                 ScanManager.setResult(result)
+                try {
+                    if (java.awt.SystemTray.isSupported()) {
+                        val tray = java.awt.SystemTray.getSystemTray()
+                        val trayIcons = tray.trayIcons
+                        val openPortsText = if (result.openPorts.isNotEmpty()) {
+                            "${result.openPorts.size} open (${result.openPorts.take(6).joinToString(", ")})"
+                        } else "No open ports"
+                        val grade = when {
+                            result.securityScore >= 90 -> "A+"
+                            result.securityScore >= 75 -> "A"
+                            result.securityScore >= 50 -> "B"
+                            result.securityScore >= 25 -> "C"
+                            else -> "F"
+                        }
+                        if (trayIcons.isNotEmpty()) {
+                            trayIcons[0].displayMessage(
+                                "PortX: Scan Complete",
+                                "Target: ${result.target} | $openPortsText | Score: ${result.securityScore}% (Grade $grade)",
+                                java.awt.TrayIcon.MessageType.INFO
+                            )
+                        }
+                    }
+                } catch (_: Throwable) {}
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -1,11 +1,24 @@
 package com.mrcoder20.portx.domain.usecase
 
+import com.mrcoder20.portx.domain.isSuspectedTarpitOrWaf
 import com.mrcoder20.portx.domain.model.ScanResult
 
 class AnomalyDetectionUseCase {
     operator fun invoke(scanResult: ScanResult): List<String> {
         val anomalies = mutableListOf<String>()
         val openPorts = scanResult.openPorts.toSet()
+        if (openPorts.isEmpty()) return anomalies
+
+        val isWafOrTarpit = isSuspectedTarpitOrWaf(
+            target = scanResult.target,
+            openPorts = openPorts,
+            banners = scanResult.portBanners,
+            osFingerprint = scanResult.osFingerprint
+        )
+
+        if (isWafOrTarpit) {
+            anomalies.add("Perimeter Defense: Stateful Firewall / Cloud WAF SYN-Proxy detected responding reflexively across ${openPorts.size} ports. Synthetic port threats are filtered; evaluating verified service responses.")
+        }
 
         // Known high-risk and unauthenticated vectors
         val threats = mapOf(
@@ -39,19 +52,29 @@ class AnomalyDetectionUseCase {
 
         threats.forEach { (port, desc) ->
             if (openPorts.contains(port)) {
-                anomalies.add("High Risk [Port $port]: $desc")
+                if (isWafOrTarpit) {
+                    val banner = scanResult.portBanners[port]
+                    if (!banner.isNullOrBlank()) {
+                        anomalies.add("High Risk [Port $port]: $desc (Verified Banner: $banner)")
+                    }
+                } else {
+                    anomalies.add("High Risk [Port $port]: $desc")
+                }
             }
         }
 
-        // Uncommon ports for consumer devices (excluding common web/proxy services)
-        val knownServicePorts = setOf(
-            80, 443, 8080, 8443, 8000, 3000, 5000, 5173, 8888, 9090, 53, 22, 123
-        )
-        val uncommonPorts = openPorts.filter { it in 1025..65535 && !knownServicePorts.contains(it) && !threats.containsKey(it) }
-        if (uncommonPorts.size > 8) {
-            anomalies.add("Warning: Elevated number of unusual open ports (${uncommonPorts.size} ports: ${uncommonPorts.take(5).joinToString(", ")}...)")
+        if (!isWafOrTarpit) {
+            // Uncommon ports for consumer devices (excluding common web/proxy services)
+            val knownServicePorts = setOf(
+                80, 443, 8080, 8443, 8000, 3000, 5000, 5173, 8888, 9090, 53, 22, 123
+            )
+            val uncommonPorts = openPorts.filter { it in 1025..65535 && !knownServicePorts.contains(it) && !threats.containsKey(it) }
+            if (uncommonPorts.size > 8) {
+                anomalies.add("Warning: Elevated number of unusual open ports (${uncommonPorts.size} ports: ${uncommonPorts.take(5).joinToString(", ")}...)")
+            }
         }
 
         return anomalies
     }
 }
+

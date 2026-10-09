@@ -20,8 +20,20 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
 import com.mrcoder20.portx.domain.LocalizedStrings
+import com.mrcoder20.portx.presentation.ui.CyberBadge
 import com.mrcoder20.portx.presentation.ui.theme.*
+
+expect fun getDeviceEmulationPointerIcon(): PointerIcon
 
 enum class DeviceCategory {
     RESPONSIVE,
@@ -73,7 +85,12 @@ data class DevicePreset(
             DevicePreset("ipad_pro", "iPad Pro", 1024, 1366, DeviceCategory.TABLET),
             DevicePreset("surface_pro_7", "Surface Pro 7", 912, 1368, DeviceCategory.TABLET),
             DevicePreset("nest_hub", "Nest Hub", 1024, 600, DeviceCategory.TABLET),
-            DevicePreset("nest_hub_max", "Nest Hub Max", 1280, 800, DeviceCategory.TABLET)
+            DevicePreset("nest_hub_max", "Nest Hub Max", 1280, 800, DeviceCategory.TABLET),
+
+            // Desktop & Laptop Viewports
+            DevicePreset("laptop_hd", "Laptop (1366×768)", 1366, 768, DeviceCategory.DESKTOP),
+            DevicePreset("desktop_fhd", "Desktop (1920×1080)", 1920, 1080, DeviceCategory.DESKTOP),
+            DevicePreset("macbook_air", "MacBook Air (1440×900)", 1440, 900, DeviceCategory.DESKTOP)
         )
     }
 }
@@ -96,24 +113,45 @@ fun DeviceSimulatorToolbar(
 
     Surface(
         modifier = Modifier.fillMaxWidth().height(44.dp),
-        color = if (isDark) SurfaceDark.copy(alpha = 0.95f) else SurfaceLight.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.4f))
+        color = if (isDark) SurfaceDark.copy(alpha = 0.95f) else Color.White,
+        border = BorderStroke(1.dp, if (isDark) GlassBorder.copy(alpha = 0.4f) else BorderLight)
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left: Device Model Selector & Dimension Display
+            // Start: Close Button (Right in RTL / Persian, Left in LTR) + Model Selector
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Close Device Mode Button
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(32.dp).pointerHoverIcon(PointerIcon.Hand)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = LocalizedStrings.get("close", lang),
+                        tint = DangerNeon,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(20.dp)
+                        .background(if (isDark) GlassBorder.copy(alpha = 0.5f) else BorderLight)
+                )
+
                 Icon(
                     imageVector = when (selectedPreset.category) {
                         DeviceCategory.TABLET -> Icons.Default.Tablet
                         DeviceCategory.FOLDABLE -> Icons.Default.ScreenLockLandscape
                         DeviceCategory.RESPONSIVE -> Icons.Default.AspectRatio
+                        DeviceCategory.DESKTOP -> Icons.Default.Devices
                         else -> Icons.Default.Smartphone
                     },
                     contentDescription = null,
@@ -124,9 +162,19 @@ fun DeviceSimulatorToolbar(
                 Box {
                     Surface(
                         onClick = { showMenu = true },
+                        modifier = Modifier
+                            .then(
+                                if (isDark) Modifier else Modifier.shadow(
+                                    elevation = 1.dp,
+                                    shape = RoundedCornerShape(8.dp),
+                                    spotColor = Color(0x100F172A),
+                                    ambientColor = Color(0x0A0F172A)
+                                )
+                            )
+                            .pointerHoverIcon(PointerIcon.Hand),
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f),
-                        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f))
+                        color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) accent.copy(alpha = 0.35f) else BorderLight)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -134,7 +182,7 @@ fun DeviceSimulatorToolbar(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = selectedPreset.name,
+                                text = if (selectedPreset.category == DeviceCategory.RESPONSIVE) LocalizedStrings.get("device_responsive", lang) else selectedPreset.name,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = if (isDark) Color.White else Color.Black
                             )
@@ -148,7 +196,7 @@ fun DeviceSimulatorToolbar(
                         modifier = Modifier
                             .heightIn(max = 380.dp)
                             .background(if (isDark) SurfaceDark else Color.White)
-                            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(8.dp))
+                            .border(1.dp, if (isDark) GlassBorder else BorderLight, RoundedCornerShape(8.dp))
                     ) {
                         DevicePreset.ALL_PRESETS.forEach { preset ->
                             val isSelected = preset.id == selectedPreset.id
@@ -160,7 +208,7 @@ fun DeviceSimulatorToolbar(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            preset.name,
+                                            if (preset.category == DeviceCategory.RESPONSIVE) LocalizedStrings.get("device_responsive", lang) else preset.name,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                             color = if (isSelected) accent else (if (isDark) Color.White else Color.Black),
                                             fontSize = 12.sp
@@ -186,6 +234,7 @@ fun DeviceSimulatorToolbar(
                                             DeviceCategory.TABLET -> Icons.Default.Tablet
                                             DeviceCategory.FOLDABLE -> Icons.Default.ScreenLockLandscape
                                             DeviceCategory.RESPONSIVE -> Icons.Default.AspectRatio
+                                            DeviceCategory.DESKTOP -> Icons.Default.Devices
                                             else -> Icons.Default.Smartphone
                                         },
                                         contentDescription = null,
@@ -208,7 +257,7 @@ fun DeviceSimulatorToolbar(
                         border = BorderStroke(1.dp, SecondaryNeon.copy(alpha = 0.3f))
                     ) {
                         Text(
-                            text = "$effectiveW × $effectiveH dp",
+                            text = "\u200E$effectiveW × $effectiveH dp\u200E",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
@@ -221,16 +270,26 @@ fun DeviceSimulatorToolbar(
                 }
             }
 
-            // Right: Orientation, Frame Toggle, Snap Window, Close
+            // Right: Touch Mode Badge, Orientation, Frame Toggle, Snap Window, Close
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Interactive Touch Emulation Mode Indicator Badge (Only for touch devices)
+                if (selectedPreset.category != DeviceCategory.DESKTOP) {
+                    CyberBadge(
+                        text = LocalizedStrings.get("touch_emulation_active", lang),
+                        color = TertiaryNeon,
+                        hasPulseDot = true,
+                        fontSize = 9f
+                    )
+                }
+
                 if (selectedPreset.category != DeviceCategory.RESPONSIVE) {
                     // Orientation Toggle Button
                     IconButton(
                         onClick = onToggleOrientation,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp).pointerHoverIcon(PointerIcon.Hand)
                     ) {
                         Icon(
                             Icons.Default.ScreenRotation,
@@ -243,7 +302,7 @@ fun DeviceSimulatorToolbar(
                     // Device Bezel Frame Toggle
                     IconButton(
                         onClick = onToggleFrame,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp).pointerHoverIcon(PointerIcon.Hand)
                     ) {
                         Icon(
                             if (showFrame) Icons.Default.PhoneIphone else Icons.Default.CropFree,
@@ -259,7 +318,7 @@ fun DeviceSimulatorToolbar(
                         val effectiveH = if (isLandscape) selectedPreset.width else selectedPreset.height
                         IconButton(
                             onClick = { onSnapWindow(effectiveW, effectiveH) },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(32.dp).pointerHoverIcon(PointerIcon.Hand)
                         ) {
                             Icon(
                                 Icons.Default.FitScreen,
@@ -269,19 +328,6 @@ fun DeviceSimulatorToolbar(
                             )
                         }
                     }
-                }
-
-                // Close Device Mode
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = LocalizedStrings.get("close", lang),
-                        tint = DangerNeon,
-                        modifier = Modifier.size(16.dp)
-                    )
                 }
             }
         }
@@ -300,8 +346,14 @@ fun DeviceChassis(
     val accent = LocalAccentColor.current
 
     if (preset.category == DeviceCategory.RESPONSIVE) {
-        Box(modifier = modifier.fillMaxSize()) {
-            content()
+        CompositionLocalProvider(LocalTouchEmulation provides true) {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .pointerHoverIcon(getDeviceEmulationPointerIcon())
+            ) {
+                content()
+            }
         }
         return
     }
@@ -311,18 +363,38 @@ fun DeviceChassis(
     val cornerRadius = when (preset.category) {
         DeviceCategory.TABLET -> 24.dp
         DeviceCategory.FOLDABLE -> 20.dp
+        DeviceCategory.DESKTOP -> 12.dp
         else -> 36.dp
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(if (isDark) Color(0xFF030712) else Color(0xFFE2E8F0)),
         contentAlignment = Alignment.Center
     ) {
+        val availableW = maxWidth
+        val availableH = maxHeight
+        val margin = if (showFrame) 36.dp else 16.dp
+        val maxAllowedW = (availableW - margin).coerceAtLeast(100.dp)
+        val maxAllowedH = (availableH - margin).coerceAtLeast(100.dp)
+
+        val computedScale = if (targetW > maxAllowedW || targetH > maxAllowedH) {
+            val scaleW = maxAllowedW / targetW
+            val scaleH = maxAllowedH / targetH
+            minOf(scaleW, scaleH).coerceIn(0.2f, 1f)
+        } else {
+            1f
+        }
+
         // Device Chassis Container with drop shadow and border
         Surface(
             modifier = Modifier
+                .graphicsLayer {
+                    scaleX = computedScale
+                    scaleY = computedScale
+                    transformOrigin = TransformOrigin.Center
+                }
                 .width(targetW)
                 .height(targetH)
                 .shadow(16.dp, RoundedCornerShape(if (showFrame) cornerRadius else 0.dp))
@@ -334,35 +406,42 @@ fun DeviceChassis(
                 ),
             color = if (isDark) BackgroundDark else BackgroundLight
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Main Application Screen Content
-                content()
+            val isTouchEmulated = preset.category != DeviceCategory.DESKTOP
+            CompositionLocalProvider(LocalTouchEmulation provides isTouchEmulated) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (isTouchEmulated) Modifier.pointerHoverIcon(getDeviceEmulationPointerIcon()) else Modifier)
+                ) {
+                    // Main Application Screen Content
+                    content()
 
-                // Realistic Simulated Bezel Details (Camera / Dynamic Island & Home Indicator)
-                if (showFrame && preset.category == DeviceCategory.PHONE && !isLandscape) {
-                    // Top Speaker / Camera Pill (Visual only)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 8.dp)
-                            .width(88.dp)
-                            .height(20.dp)
-                            .background(Color.Black, CircleShape)
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        Box(modifier = Modifier.size(8.dp).background(Color(0xFF1F2937), CircleShape))
+                    // Realistic Simulated Bezel Details (Camera / Dynamic Island & Home Indicator)
+                    if (showFrame && preset.category == DeviceCategory.PHONE && !isLandscape) {
+                        // Top Speaker / Camera Pill (Visual only)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 8.dp)
+                                .width(88.dp)
+                                .height(20.dp)
+                                .background(Color.Black, CircleShape)
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Box(modifier = Modifier.size(8.dp).background(Color(0xFF1F2937), CircleShape))
+                        }
+
+                        // Bottom Home Indicator Line (Visual only)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 6.dp)
+                                .width(110.dp)
+                                .height(4.dp)
+                                .background((if (isDark) Color.White else Color.Black).copy(alpha = 0.35f), CircleShape)
+                        )
                     }
-
-                    // Bottom Home Indicator Line (Visual only)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 6.dp)
-                            .width(110.dp)
-                            .height(4.dp)
-                            .background((if (isDark) Color.White else Color.Black).copy(alpha = 0.35f), CircleShape)
-                    )
                 }
             }
         }

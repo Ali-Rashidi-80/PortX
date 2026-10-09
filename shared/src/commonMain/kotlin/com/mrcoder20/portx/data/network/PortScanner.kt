@@ -16,7 +16,7 @@ import kotlin.time.TimeSource
 // VERSION & CONSTANTS
 // ============================================================
 
-const val VERSION = "5.2.1"
+const val VERSION = "5.3.0"
 const val APP_NAME = "PortX Engine"
 const val MAX_PACKET_SIZE = 65535
 const val RING_BUFFER_SIZE = 1048576
@@ -95,23 +95,27 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
 
     private fun getAction(currentState: String): String {
         val candidateActions = if (currentState == "congested" || currentState == "high_latency") {
-            listOf("safety", "maintain", "increase")
+            listOf("safety", "maintain")
         } else {
-            listOf("maintain", "increase", "turbo", "safety")
+            listOf("turbo", "increase", "maintain", "safety")
         }
         if (Random.nextDouble() < epsilon) {
             return candidateActions.random()
         }
-        return candidateActions.maxByOrNull { qTable["$currentState:$it"] ?: 0.0 } ?: "maintain"
+        return candidateActions.maxByOrNull { qTable["$currentState:$it"] ?: 0.0 } ?: candidateActions.first()
     }
 
     private fun update(state: String, action: String, reward: Double, nextState: String) {
         val key = "$state:$action"
-        val nextKey = "$nextState:maintain"
+        val nextCandidates = if (nextState == "congested" || nextState == "high_latency") {
+            listOf("safety", "maintain")
+        } else {
+            listOf("turbo", "increase", "maintain", "safety")
+        }
         val currentQ = qTable[key] ?: 0.0
-        val maxNextQ = qTable[nextKey] ?: 0.0
+        val maxNextQ = nextCandidates.maxOfOrNull { qTable["$nextState:$it"] ?: 0.0 } ?: 0.0
         qTable[key] = currentQ + alpha * (reward + 0.9 * maxNextQ - currentQ)
-        if (epsilon > 0.02) epsilon *= 0.99
+        if (epsilon > 0.01) epsilon *= 0.95
     }
 
     fun adapt(successRate: Double, latencyMs: Long) {
@@ -128,8 +132,9 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
         val isDegraded = nextState == "congested" || nextState == "high_latency"
         val reward = (successRate / 10.0) - (latencyMs / 150.0) +
             (if (action == "turbo" && successRate > 90.0) 30.0 else 0.0) +
-            (if (isDegraded && action == "safety") 20.0 else 0.0) -
-            (if (isDegraded && (action == "increase" || action == "turbo")) 30.0 else 0.0)
+            (if (action == "increase" && successRate > 80.0) 15.0 else 0.0) +
+            (if (isDegraded && action == "safety") 25.0 else 0.0) -
+            (if (isDegraded && (action == "increase" || action == "turbo")) 50.0 else 0.0)
         
         update(state, action, reward, nextState)
         
@@ -144,8 +149,16 @@ class AdaptiveTiming(private val minRate: Int, private val maxRate: Int) {
 }
 
 // ============================================================
-// MAIN SCAN ENGINE (Extreme Performance)
+// MAIN SCAN ENGINE (Extreme Performance, Stealth & Evasion)
 // ============================================================
+
+private val EVASION_USER_AGENTS = listOf(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0"
+)
 
 class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Default) {
 
@@ -159,16 +172,37 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
         val startTime = timeSource.markNow()
         val selectorManager = SelectorManager(dispatcher)
         
-        // DNS CACHING & Host Sanitization
+        // DNS CACHING & Host Sanitization / Pre-Resolution
         val resolvedTarget = com.mrcoder20.portx.domain.sanitizeHost(config.target)
+        val targetIp = if (!com.mrcoder20.portx.domain.isValidIpAddress(resolvedTarget)) {
+            try {
+                val ips = withTimeoutOrNull(2500) {
+                    com.mrcoder20.portx.domain.getNetworkTools().dnsLookup(resolvedTarget)
+                }
+                ips?.firstOrNull { com.mrcoder20.portx.domain.isValidIpAddress(it) } ?: resolvedTarget
+            } catch (_: Exception) {
+                resolvedTarget
+            }
+        } else {
+            resolvedTarget
+        }
 
         val results = mutableListOf<ScanPortResult>()
-        val concurrency = (if (config.concurrency > 0) config.concurrency else 1000).coerceIn(10, 2500)
+        // Fisher-Yates port randomization for IDS/IPS evasion
         val ports = (config.startPort..config.endPort).toList().let {
             if (config.randomizePorts) it.shuffled() else it
         }
         
         val totalPorts = ports.size
+        // Extreme concurrency scaling for full 65,535 scans
+        val concurrency = when {
+            config.concurrency > 0 -> config.concurrency.coerceIn(10, 5000)
+            totalPorts > 20000 -> 4000
+            totalPorts > 5000 -> 2500
+            totalPorts > 1000 -> 1500
+            else -> 1000
+        }
+        
         val scanPasses = if (config.scanType == "TCP/UDP") listOf("TCP", "UDP") else listOf(config.scanType)
         val totalOperations = totalPorts * scanPasses.size
 
@@ -204,15 +238,25 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                     val finalResult = try {
                         val start = timeSource.markNow()
                         val result = if (proto == "UDP") {
-                            scanUdpPort(selectorManager, resolvedTarget, port)
+                            scanUdpPort(selectorManager, targetIp, port)
                         } else {
-                            val adaptiveTimeout = timing.getAdaptiveTimeout(config.timeoutMs)
-                            var res = scanTcpPort(selectorManager, resolvedTarget, port, adaptiveTimeout)
+                            val baseTimeout = if (totalPorts > 10000) {
+                                timing.getAdaptiveTimeout(config.timeoutMs).coerceIn(150L, 800L)
+                            } else {
+                                timing.getAdaptiveTimeout(config.timeoutMs)
+                            }
                             
-                            // Accuracy Retry on filtered ports
-                            if (res.state == "filtered" && concurrency > 500) {
-                                delay(15)
-                                res = scanTcpPort(selectorManager, resolvedTarget, port, adaptiveTimeout * 2)
+                            // Micro-jitter timing dispersion for stealth
+                            if (config.randomizePorts && totalPorts < 5000 && Random.nextFloat() < 0.12f) {
+                                delay(Random.nextLong(1, 3))
+                            }
+
+                            var res = scanTcpPort(selectorManager, targetIp, port, baseTimeout)
+                            
+                            // Targeted retry on filtered ports for small ranges
+                            if (res.state == "filtered" && totalPorts <= 1000 && concurrency > 500) {
+                                delay(10)
+                                res = scanTcpPort(selectorManager, targetIp, port, baseTimeout * 2)
                             }
                             res
                         }
@@ -239,7 +283,7 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
                 for (res in bannerChannel) {
                     val enriched = try {
                         val socket = withTimeoutOrNull(2500) {
-                            aSocket(selectorManager).tcp().connect(resolvedTarget.removePrefix("[").removeSuffix("]"), res.port) {
+                            aSocket(selectorManager).tcp().connect(targetIp.removePrefix("[").removeSuffix("]"), res.port) {
                                 socketTimeout = 2000
                             }
                         }
@@ -647,7 +691,18 @@ class PortScanner(private val dispatcher: CoroutineDispatcher = Dispatchers.Defa
             if (httpPorts.contains(port)) {
                 val hostHeader = if (target.contains(":") && !target.startsWith("[")) "[$target]" else target
                 val hostWithPort = if (port == 80 || port == 443) hostHeader else "$hostHeader:$port"
-                sendChannel.writeStringUtf8("GET / HTTP/1.1\r\nHost: $hostWithPort\r\nUser-Agent: PortX/5.1\r\nConnection: close\r\n\r\n")
+                val randomAgent = EVASION_USER_AGENTS.random()
+                sendChannel.writeStringUtf8(
+                    "GET / HTTP/1.1\r\n" +
+                    "Host: $hostWithPort\r\n" +
+                    "User-Agent: $randomAgent\r\n" +
+                    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
+                    "Accept-Language: en-US,en;q=0.9\r\n" +
+                    "Sec-Ch-Ua: \"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\"\r\n" +
+                    "Sec-Ch-Ua-Mobile: ?0\r\n" +
+                    "Sec-Ch-Ua-Platform: \"Windows\"\r\n" +
+                    "Connection: close\r\n\r\n"
+                )
             } else if (port == 6379) {
                 sendChannel.writeStringUtf8("PING\r\n")
             } else if (port == 11211) {

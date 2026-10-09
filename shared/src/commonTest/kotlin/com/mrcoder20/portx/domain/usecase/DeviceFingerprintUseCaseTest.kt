@@ -130,9 +130,78 @@ class DeviceFingerprintUseCaseTest {
     }
 
     @Test
+    fun testWafTarpitFloodDetectionOnLegalWebsite() {
+        // Simulating adlomidapp.com or WAF-protected site where all 1..1024 ports return SYN-ACK
+        val simulatedAllPorts = (1..1024).toSet()
+
+        // Case 1: Tarpit with web banner (Cloudflare)
+        val wafWithBanner = useCase(simulatedAllPorts, mapOf(443 to "cloudflare-nginx", 80 to "Cloudflare"))
+        assertEquals("Web Application Host", wafWithBanner.deviceName)
+        assertEquals("Cloudflare Protected Edge (WAF Active)", wafWithBanner.osFingerprint)
+
+        // Case 2: Tarpit without banner on web ports (raw SYN flood/proxy)
+        val rawTarpit = useCase(simulatedAllPorts, emptyMap())
+        assertEquals("Web Application Host", rawTarpit.deviceName)
+        assertEquals("Web Edge Platform (Stateful Firewall / SYN-Proxy Active)", rawTarpit.osFingerprint)
+    }
+
+    @Test
+    fun testPortIntelligenceDossier() {
+        val smbDossier = com.mrcoder20.portx.domain.PortIntelligence.getDossier(445)
+        assertEquals("MS-SMB / RFC 1001 (Server Message Block)", smbDossier.rfcStandard)
+        assertEquals("cat_files", smbDossier.categoryKey)
+        assertEquals("privileged_port", smbDossier.tierKey)
+        assertEquals("enc_kerberos", smbDossier.encryptionKey)
+        kotlin.test.assertTrue(smbDossier.cveReferences.any { it.contains("EternalBlue") })
+        kotlin.test.assertTrue(smbDossier.getAttackVectors("fa").isNotBlank())
+        kotlin.test.assertTrue(smbDossier.getHardeningGuide("fa").isNotBlank())
+
+        val rpcDossier = com.mrcoder20.portx.domain.PortIntelligence.getDossier(135)
+        assertEquals("MS-RPC / DCE 1.1 Endpoint Mapper", rpcDossier.rfcStandard)
+        assertEquals("cat_remote", rpcDossier.categoryKey)
+        kotlin.test.assertTrue(rpcDossier.cveReferences.any { it.contains("CVE-2022-26809") })
+
+        val webDossier = com.mrcoder20.portx.domain.PortIntelligence.getDossier(443)
+        assertEquals("RFC 8446 (HTTP over TLS 1.3)", webDossier.rfcStandard)
+        assertEquals("cat_web", webDossier.categoryKey)
+        assertEquals("enc_tls", webDossier.encryptionKey)
+    }
+
+    @Test
+    fun testWafSecurityScoreAndAnomalyResilience() {
+        val simulatedAllPorts = (1..1024).toList()
+        val wafScan = com.mrcoder20.portx.domain.model.ScanResult(
+            target = "adlomidapp.com",
+            openPorts = simulatedAllPorts,
+            portBanners = mapOf(443 to "cloudflare-nginx", 80 to "Cloudflare"),
+            portServices = mapOf(443 to "https", 80 to "http"),
+            timestamp = 1700000000000L,
+            securityScore = 0,
+            deviceName = "Web Application Host",
+            osFingerprint = "Cloudflare Protected Edge (WAF Active)"
+        )
+
+        val scoreUseCase = SecurityScoreUseCase()
+        val score = scoreUseCase(wafScan)
+        assertEquals(95, score, "WAF protected web host must not be penalized for 1024 synthetic ports")
+
+        val anomalyUseCase = AnomalyDetectionUseCase()
+        val anomalies = anomalyUseCase(wafScan)
+        kotlin.test.assertTrue(anomalies.any { it.contains("Cloud WAF SYN-Proxy detected") })
+        kotlin.test.assertFalse(anomalies.any { it.contains("Modbus/TCP") }, "Synthetic ports must not trigger Modbus false alarms")
+        kotlin.test.assertFalse(anomalies.any { it.contains("Siemens S7comm") }, "Synthetic ports must not trigger S7comm false alarms")
+        kotlin.test.assertFalse(anomalies.any { it.contains("SMB (WannaCry") }, "Synthetic ports must not trigger SMB false alarms")
+
+        val fwUseCase = FirewallDetectionUseCase()
+        val fwStatus = fwUseCase(wafScan)
+        assertEquals("Stateful Firewall / SYN-Proxy Active", fwStatus)
+    }
+
+    @Test
     fun testFallbackUnknown() {
         val unknown = useCase(setOf(9999), emptyMap())
         assertNull(unknown.deviceName)
         assertNull(unknown.osFingerprint)
     }
 }
+

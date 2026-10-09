@@ -12,6 +12,7 @@ fun MainScreen(
     onMinimize: () -> Unit = {},
     onMaximize: () -> Unit = {},
     onClose: () -> Unit = {},
+    onSnapWindow: ((Int, Int) -> Unit)? = null,
     windowDraggableArea: @Composable (@Composable () -> Unit) -> Unit = { it() }
 ) {
     var selectedTab by remember { mutableStateOf(0) }
@@ -26,6 +27,7 @@ fun MainScreen(
         onMinimize = onMinimize,
         onMaximize = onMaximize,
         onClose = onClose,
+        onSnapWindow = onSnapWindow,
         windowDraggableArea = windowDraggableArea
     ) {
         AnimatedContent(

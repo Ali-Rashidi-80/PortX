@@ -19,11 +19,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,119 +63,129 @@ fun NavigationWrapper(
     var isLandscapeOrientation by remember { mutableStateOf(false) }
     var showDeviceFrameBezel by remember { mutableStateOf(true) }
 
+    val isDesktop = remember { !com.mrcoder20.portx.getPlatform().name.startsWith("Android") }
+
     Column(modifier = Modifier.fillMaxSize().background(if (isDark) BackgroundDark else BackgroundLight)) {
-        // --- CUSTOM TOP TITLE BAR (Always LTR for native window consistency) ---
-        CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
-            windowDraggableArea {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    color = if (isDark) SurfaceDark else SurfaceLight,
-                    border = BorderStroke(0.5.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.25f))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+        // --- CUSTOM TOP TITLE BAR (Only rendered on Desktop, always LTR for native window consistency) ---
+        if (isDesktop) {
+            CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                windowDraggableArea {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        color = if (isDark) SurfaceDark else Color.White,
+                        border = BorderStroke(0.5.dp, if (isDark) GlassBorder.copy(alpha = 0.25f) else BorderLight)
                     ) {
-                        // Left: Brand & Engine State Indicator
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(18.dp))
-                            Text(
-                                "PortX Professional",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
-                                )
-                            )
-
-                            // Dynamic Engine Status Badge in Title Bar
-                            if (isScanning) {
-                                CyberBadge(
-                                    text = "SCANNING $scanProgress%",
-                                    color = PrimaryNeon,
-                                    hasPulseDot = true,
-                                    fontSize = 9f
-                                )
-                            } else {
-                                CyberBadge(
-                                    text = "ENGINE ONLINE",
-                                    color = TertiaryNeon,
-                                    hasPulseDot = true,
-                                    fontSize = 9f
-                                )
-                            }
-                        }
-
-                        // Right: Device Mode + Quick Theme Switch + Window Controls
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Device Mode Emulation Switcher (DevTools Mode)
-                            IconButton(
-                                onClick = { deviceModeActive = !deviceModeActive },
-                                modifier = Modifier.size(32.dp)
+                            // Left: Brand & Engine State Indicator
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(
-                                    if (deviceModeActive) Icons.Default.PhoneIphone else Icons.Default.Devices,
-                                    contentDescription = LocalizedStrings.get("device_mode", lang),
-                                    tint = if (deviceModeActive) accent else (if (isDark) TextMuted else TextMutedLight),
-                                    modifier = Modifier.size(16.dp)
+                                Icon(Icons.Default.Radar, null, tint = accent, modifier = Modifier.size(18.dp))
+                                Text(
+                                    "PortX Professional",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
+                                    )
                                 )
+
+                                // Dynamic Engine Status Badge in Title Bar
+                                if (isScanning) {
+                                    CyberBadge(
+                                        text = "${LocalizedStrings.get("engine_scanning_badge", lang)} $scanProgress%",
+                                        color = PrimaryNeon,
+                                        hasPulseDot = true,
+                                        fontSize = 9f
+                                    )
+                                } else {
+                                    CyberBadge(
+                                        text = LocalizedStrings.get("engine_online", lang),
+                                        color = TertiaryNeon,
+                                        hasPulseDot = true,
+                                        fontSize = 9f
+                                    )
+                                }
                             }
 
-                            // Quick Theme Switch
-                            IconButton(
-                                onClick = {
-                                    settingsManager.updateTheme(if (isDark) "LIGHT" else "DARK")
-                                },
-                                modifier = Modifier.size(32.dp)
+                            // Right: Device Mode + Quick Theme Switch + Window Controls
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                    contentDescription = "Toggle Theme",
-                                    tint = if (isDark) WarningNeon else Color(0xFF64748B),
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                // Device Mode Emulation Switcher (DevTools Mode)
+                                IconButton(
+                                    onClick = { deviceModeActive = !deviceModeActive },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .pointerHoverIcon(PointerIcon.Hand)
+                                ) {
+                                    Icon(
+                                        if (deviceModeActive) Icons.Default.PhoneIphone else Icons.Default.Devices,
+                                        contentDescription = LocalizedStrings.get("device_mode", lang),
+                                        tint = if (deviceModeActive) accent else (if (isDark) TextMuted else TextMutedLight),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                // Quick Theme Switch
+                                IconButton(
+                                    onClick = {
+                                        settingsManager.updateTheme(if (isDark) "LIGHT" else "DARK")
+                                    },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .pointerHoverIcon(PointerIcon.Hand)
+                                ) {
+                                    Icon(
+                                        if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                        contentDescription = LocalizedStrings.get("toggle_theme", lang),
+                                        tint = if (isDark) WarningNeon else Color(0xFF64748B),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Spacer(Modifier.width(4.dp))
+
+                                // Window Control Buttons
+                                WindowControlBtn(Icons.Default.Remove, if (isDark) TextMuted else TextMutedLight, onMinimize)
+                                WindowControlBtn(Icons.Default.AspectRatio, if (isDark) TextMuted else TextMutedLight, onMaximize)
+                                WindowControlBtn(Icons.Default.Close, DangerNeon, onClose)
                             }
-
-                            Spacer(Modifier.width(4.dp))
-
-                            // Window Control Buttons
-                            WindowControlBtn(Icons.Default.Remove, if (isDark) TextMuted else TextMutedLight, onMinimize)
-                            WindowControlBtn(Icons.Default.AspectRatio, if (isDark) TextMuted else TextMutedLight, onMaximize)
-                            WindowControlBtn(Icons.Default.Close, DangerNeon, onClose)
                         }
                     }
                 }
             }
         }
 
-        // --- DEVICE SIMULATION TOOLBAR (Visible when Device Mode is active) ---
-        AnimatedVisibility(
-            visible = deviceModeActive,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            com.mrcoder20.portx.presentation.ui.components.DeviceSimulatorToolbar(
-                selectedPreset = selectedDevicePreset,
-                onSelectPreset = { selectedDevicePreset = it },
-                isLandscape = isLandscapeOrientation,
-                onToggleOrientation = { isLandscapeOrientation = !isLandscapeOrientation },
-                showFrame = showDeviceFrameBezel,
-                onToggleFrame = { showDeviceFrameBezel = !showDeviceFrameBezel },
-                onClose = { deviceModeActive = false },
-                onSnapWindow = onSnapWindow,
-                lang = lang
-            )
+        // --- DEVICE SIMULATION TOOLBAR (Visible on Desktop when Device Mode is active) ---
+        if (isDesktop) {
+            AnimatedVisibility(
+                visible = deviceModeActive,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                com.mrcoder20.portx.presentation.ui.components.DeviceSimulatorToolbar(
+                    selectedPreset = selectedDevicePreset,
+                    onSelectPreset = { selectedDevicePreset = it },
+                    isLandscape = isLandscapeOrientation,
+                    onToggleOrientation = { isLandscapeOrientation = !isLandscapeOrientation },
+                    showFrame = showDeviceFrameBezel,
+                    onToggleFrame = { showDeviceFrameBezel = !showDeviceFrameBezel },
+                    onClose = { deviceModeActive = false },
+                    onSnapWindow = onSnapWindow,
+                    lang = lang
+                )
+            }
         }
 
-        // --- MAIN BODY (Normal Adaptive OR Device Frame Emulated) ---
+        // --- MAIN BODY (Normal Adaptive OR Device Frame Emulated on Desktop) ---
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (deviceModeActive) {
+            if (isDesktop && deviceModeActive) {
                 com.mrcoder20.portx.presentation.ui.components.DeviceChassis(
                     preset = selectedDevicePreset,
                     isLandscape = isLandscapeOrientation,
@@ -223,12 +236,14 @@ fun AppAdaptiveContent(
                 Scaffold(
                     containerColor = Color.Transparent,
                     bottomBar = {
-                        InfiniteBottomBar(
-                            selectedTab = selectedTab,
-                            onTabSelected = onTabSelected,
-                            lang = lang,
-                            isScanning = isScanning
-                        )
+                        Box(modifier = Modifier.navigationBarsPadding()) {
+                            InfiniteBottomBar(
+                                selectedTab = selectedTab,
+                                onTabSelected = onTabSelected,
+                                lang = lang,
+                                isScanning = isScanning
+                            )
+                        }
                     },
                     contentWindowInsets = WindowInsets(0, 0, 0, 0)
                 ) { padding ->
@@ -317,9 +332,17 @@ fun TabletNavRail(
             .width(76.dp)
             .fillMaxHeight()
             .padding(vertical = 12.dp, horizontal = 8.dp)
+            .then(
+                if (isDark) Modifier else Modifier.shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(20.dp),
+                    ambientColor = Color(0x120F172A),
+                    spotColor = Color(0x1A0F172A)
+                )
+            )
             .clip(RoundedCornerShape(20.dp))
-            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(20.dp)),
-        color = if (isDark) GlassBackground else GlassLight
+            .border(1.dp, if (isDark) GlassBorder else BorderLight, RoundedCornerShape(20.dp)),
+        color = if (isDark) GlassBackground else Color.White
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(vertical = 12.dp),
@@ -379,7 +402,7 @@ fun TabletRailItem(
     val isDark = LocalAppSettings.current.theme == "DARK"
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(48.dp).springPress(pressedScale = 0.90f),
+        modifier = Modifier.size(48.dp).springPress(pressedScale = 0.90f).pointerHoverIcon(PointerIcon.Hand),
         shape = RoundedCornerShape(14.dp),
         color = if (isSelected) accent.copy(alpha = 0.18f) else Color.Transparent,
         border = BorderStroke(1.dp, if (isSelected) accent else Color.Transparent)
@@ -419,9 +442,17 @@ fun DesktopSidebar(
             .width(260.dp)
             .fillMaxHeight()
             .padding(14.dp)
+            .then(
+                if (isDark) Modifier else Modifier.shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = Color(0x120F172A),
+                    spotColor = Color(0x1A0F172A)
+                )
+            )
             .clip(RoundedCornerShape(24.dp))
-            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(24.dp)),
-        color = if (isDark) GlassBackground else GlassLight
+            .border(1.dp, if (isDark) GlassBorder else BorderLight, RoundedCornerShape(24.dp)),
+        color = if (isDark) GlassBackground else Color.White
     ) {
         Column(
             modifier = Modifier
@@ -456,7 +487,7 @@ fun DesktopSidebar(
                             )
                         )
                         Text(
-                            "SECURITY SUITE v5.2",
+                            LocalizedStrings.get("security_suite_sub", lang),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 9.sp,
@@ -468,7 +499,7 @@ fun DesktopSidebar(
                 }
 
                 HorizontalDivider(
-                    color = (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.35f),
+                    color = if (isDark) GlassBorder.copy(alpha = 0.35f) else BorderLight,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
@@ -502,8 +533,8 @@ fun DesktopSidebar(
             // Engine Telemetry Footer HUD
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = (if (isDark) Color.Black else Color.White).copy(alpha = 0.28f),
-                border = BorderStroke(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.35f)),
+                color = if (isDark) Color.Black.copy(alpha = 0.28f) else SurfaceInsetLight,
+                border = BorderStroke(1.dp, if (isDark) GlassBorder.copy(alpha = 0.35f) else BorderLight),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -540,7 +571,7 @@ fun DesktopSidebar(
                             color = if (isDark) Color.White else Color.Black
                         )
                         Text(
-                            "Async NIO • TCP/UDP",
+                            LocalizedStrings.get("engine_socket_sub", lang),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 9.sp
@@ -567,9 +598,17 @@ fun InfiniteBottomBar(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 12.dp)
             .height(64.dp)
+            .then(
+                if (isDark) Modifier else Modifier.shadow(
+                    elevation = 10.dp,
+                    shape = RoundedCornerShape(32.dp),
+                    ambientColor = Color(0x1C0F172A),
+                    spotColor = Color(0x280F172A)
+                )
+            )
             .clip(RoundedCornerShape(32.dp))
-            .background(if (isDark) SurfaceDark.copy(alpha = 0.92f) else SurfaceLight.copy(alpha = 0.92f))
-            .border(1.dp, (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.45f), RoundedCornerShape(32.dp)),
+            .background(if (isDark) SurfaceDark.copy(alpha = 0.92f) else Color.White)
+            .border(1.dp, if (isDark) GlassBorder.copy(alpha = 0.45f) else BorderLight, RoundedCornerShape(32.dp)),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -624,32 +663,24 @@ fun WindowControlBtn(icon: ImageVector, color: Color, onClick: () -> Unit) {
         color.copy(alpha = 0.05f)
     }
 
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isHovered) 1.08f else 1.0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
-    )
-
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-            }
+            .size(36.dp)
             .clip(CircleShape)
             .background(bgBrush)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            ),
+            )
+            .pointerHoverIcon(PointerIcon.Hand),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = if (isClose && isHovered) Color.White else color.copy(alpha = if (isHovered) 1f else 0.7f),
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(15.dp)
         )
     }
 }
@@ -678,7 +709,8 @@ fun RowScope.BottomNavItem(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            ),
+            )
+            .pointerHoverIcon(PointerIcon.Hand),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -756,34 +788,22 @@ fun DesktopNavItem(
         Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
     }
 
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isHovered) 1.02f else 1.0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium)
-    )
-
     Surface(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-            }
-            .clip(RoundedCornerShape(14.dp))
-            .border(
-                1.dp,
-                if (isSelected) accent.copy(alpha = 0.45f)
-                else if (isHovered) (if (isDark) GlassBorder else GlassBorderLight).copy(alpha = 0.6f)
-                else Color.Transparent,
-                RoundedCornerShape(14.dp)
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
+            .springPress(pressedScale = 0.98f, interactionSource = interactionSource)
+            .pointerHoverIcon(PointerIcon.Hand),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) accent.copy(alpha = 0.45f)
+            else if (isHovered) (if (isDark) GlassBorder.copy(alpha = 0.6f) else BorderLight)
+            else Color.Transparent
+        ),
         color = Color.Transparent,
-        shape = RoundedCornerShape(14.dp)
+        interactionSource = interactionSource
     ) {
         Box(
             modifier = Modifier
@@ -798,16 +818,19 @@ fun DesktopNavItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Active indicator pill
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .width(3.dp)
-                            .height(20.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(accent)
-                    )
-                }
+                // Stable active indicator pill (preserves layout bounds to prevent visual shift)
+                val indicatorAlpha by animateFloatAsState(
+                    targetValue = if (isSelected) 1f else 0f,
+                    animationSpec = tween(durationMillis = 200),
+                    label = "NavIndicatorAlpha"
+                )
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(accent.copy(alpha = indicatorAlpha))
+                )
 
                 Box(
                     modifier = Modifier

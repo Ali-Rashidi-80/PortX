@@ -33,7 +33,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 7
-        versionName = "5.2.1"
+        versionName = "5.3.0"
     }
     packaging {
         resources {

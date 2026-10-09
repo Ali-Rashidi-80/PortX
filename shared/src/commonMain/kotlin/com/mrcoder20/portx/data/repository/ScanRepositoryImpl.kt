@@ -30,14 +30,15 @@ class ScanRepositoryImpl(
         val openPortList = openResults.map { it.port }.distinct().sorted()
         val bannersMap = openResults.associate { it.port to it.banner }
         val servicesMap = openResults.associate { it.port to it.service }
-        val fingerprint = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()(openPortList, bannersMap)
+        val fingerprint = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()(openPortList, bannersMap, summary.target)
+        val score = calculateScore(summary.target, openPortList, bannersMap, servicesMap, fingerprint)
         val scanResult = ScanResult(
             target = summary.target,
             openPorts = openPortList,
             portBanners = bannersMap,
             portServices = servicesMap,
             timestamp = Clock.System.now().toEpochMilliseconds(),
-            securityScore = calculateScore(openPortList, bannersMap, servicesMap),
+            securityScore = score,
             deviceName = fingerprint.deviceName,
             osFingerprint = fingerprint.osFingerprint,
             scanType = config.scanType,
@@ -116,14 +117,22 @@ class ScanRepositoryImpl(
         }
     }
 
-    private fun calculateScore(openPorts: List<Int>, banners: Map<Int, String>, services: Map<Int, String>): Int {
+    private fun calculateScore(
+        target: String,
+        openPorts: List<Int>,
+        banners: Map<Int, String>,
+        services: Map<Int, String>,
+        fingerprint: com.mrcoder20.portx.domain.usecase.FingerprintResult
+    ): Int {
         val dummy = ScanResult(
-            target = "",
+            target = target,
             openPorts = openPorts,
             portBanners = banners,
             portServices = services,
             timestamp = 0L,
-            securityScore = 0
+            securityScore = 0,
+            deviceName = fingerprint.deviceName,
+            osFingerprint = fingerprint.osFingerprint
         )
         return com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase()(dummy)
     }

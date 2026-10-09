@@ -233,26 +233,49 @@ class PresentationAdversarialTest {
 
     @Test
     fun testTimeoutConfigurationAndLocalization() {
-        // 1. Verify Localization of socket_timeout and ms in EN, FA, RU, ZH
+        // 1. Verify Localization of socket_timeout and ms in EN, FA, RU
         assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "en"))
         assertEquals("مهلت زمانی اتصال", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fa"))
         assertEquals("Тайм-аут сокета", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "ru"))
-        assertEquals("套接字超时", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "zh"))
 
         assertEquals("ms", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "en"))
         assertEquals("میلی‌ثانیه", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "fa"))
         assertEquals("мс", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "ru"))
-        assertEquals("毫秒", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "zh"))
 
-        // 2. Fallback to English for unmapped language & verified French translation
+        // 2. Fallback to English for unmapped or removed languages
         assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "xx"))
-        assertEquals("Délai d'Attente", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fr"))
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fr"))
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "zh"))
 
         // 3. ScanUIState timeout default and bounds
         val defaultState = com.mrcoder20.portx.presentation.viewmodel.ScanUIState()
         assertEquals(1000, defaultState.timeout)
         val modifiedState = defaultState.copy(timeout = 2500)
         assertEquals(2500, modifiedState.timeout)
+    }
+
+    @Test
+    fun testEngineLogsLocalization() {
+        val targetLog = "Target validated: 127.0.0.1"
+        assertEquals("Target validated: 127.0.0.1", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(targetLog, "en"))
+        assertEquals("هدف اعتبارسنجی شد: 127.0.0.1", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(targetLog, "fa"))
+        assertEquals("Цель проверена: 127.0.0.1", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(targetLog, "ru"))
+
+        val probeLog = "Probing network interface..."
+        assertEquals("Probing network interface...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(probeLog, "en"))
+        assertEquals("در حال بررسی رابط شبکه...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(probeLog, "fa"))
+
+        val engineInitLog = "Engine v5.3.0 initializing..."
+        assertEquals("Engine v5.3.0 initializing...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(engineInitLog, "en"))
+        assertEquals("در حال مقداردهی اولیه موتور v5.3.0...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(engineInitLog, "fa"))
+
+        val opScanLog = "Operationalizing TCP scan..."
+        assertEquals("Operationalizing TCP scan...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(opScanLog, "en"))
+        assertEquals("راه‌اندازی و اجرای اسکن TCP...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(opScanLog, "fa"))
+
+        val completedLog = "Scan completed: 3 open ports found on 127.0.0.1 (Score: 61%)"
+        assertEquals("Scan completed: 3 open ports found on 127.0.0.1 (Score: 61%)", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(completedLog, "en"))
+        assertEquals("اسکن پایان یافت: ۳ پورت باز در 127.0.0.1 یافت شد (امتیاز امنیت: ۶۱٪)", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(completedLog, "fa"))
     }
 }
 

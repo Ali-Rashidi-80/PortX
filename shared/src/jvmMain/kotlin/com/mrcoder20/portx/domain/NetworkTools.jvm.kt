@@ -117,19 +117,117 @@ class JvmNetworkTools : NetworkTools {
         }
     }
 
-    override suspend fun dnsLookup(host: String): List<String> = withContext(Dispatchers.IO) {
+    override suspend fun pingTcp(host: String, port: Int, timeoutMs: Int): Flow<PingResult> = flow {
         try {
             val cleanHost = sanitizeHost(host)
-            if (cleanHost.isBlank()) return@withContext emptyList()
-            InetAddress.getAllByName(cleanHost)
-                .mapNotNull { it.hostAddress }
-                .filter { it.isNotBlank() }
-                .distinct()
+            if (cleanHost.isBlank()) {
+                emit(PingResult(0, null, false, "Error: Target host is empty"))
+                return@flow
+            }
+            emit(PingResult(0, null, true, "TCP Ping to $cleanHost:$port (SYN/ACK Handshake):"))
+            repeat(4) { i ->
+                val start = System.currentTimeMillis()
+                var socket: Socket? = null
+                try {
+                    socket = Socket()
+                    socket.connect(java.net.InetSocketAddress(cleanHost, port), timeoutMs)
+                    val elapsed = System.currentTimeMillis() - start
+                    emit(PingResult(i + 1, elapsed, true, "Connected to $cleanHost:$port: time=${elapsed}ms TCP_SYN_ACK"))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(PingResult(i + 1, null, false, "TCP connection to $cleanHost:$port failed: ${e.message ?: "timeout"}"))
+                } finally {
+                    try { socket?.close() } catch (_: Exception) {}
+                }
+                kotlinx.coroutines.delay(600)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            emptyList()
+            emit(PingResult(0, null, false, "TCP Ping Error: ${e.message}"))
         }
+    }.flowOn(Dispatchers.IO)
+
+    override suspend fun dnsLookup(host: String): List<String> = withContext(Dispatchers.IO) {
+        performResilientDnsLookup(
+            host = host,
+            systemResolver = { cleanHost ->
+                InetAddress.getAllByName(cleanHost)
+                    .mapNotNull { it.hostAddress }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+            },
+            systemReverseResolver = { cleanIp ->
+                val addr = InetAddress.getByName(cleanIp)
+                val canonical = addr.canonicalHostName
+                if (canonical.isNotBlank() && canonical != cleanIp) canonical else null
+            }
+        )
+    }
+
+    override suspend fun dnsResolve(host: String): DnsResolutionResult = withContext(Dispatchers.IO) {
+        performComprehensiveDnsResolve(
+            host = host,
+            jndiOrSystemResolver = { cleanHost ->
+                queryJvmJndiDns(cleanHost)
+            },
+            systemReverseResolver = { cleanIp ->
+                val addr = InetAddress.getByName(cleanIp)
+                val canonical = addr.canonicalHostName
+                if (canonical.isNotBlank() && canonical != cleanIp) canonical else null
+            }
+        )
+    }
+
+    private fun queryJvmJndiDns(cleanHost: String): List<DnsRecord> {
+        val results = mutableListOf<DnsRecord>()
+        val types = listOf("A", "AAAA", "MX", "TXT", "NS", "CNAME", "SOA")
+        val env = java.util.Hashtable<String, String>()
+        env["java.naming.factory.initial"] = "com.sun.jndi.dns.DnsContextFactory"
+        env["java.naming.provider.url"] = "dns:"
+        env["com.sun.jndi.dns.timeout.initial"] = "1500"
+        env["com.sun.jndi.dns.timeout.retries"] = "1"
+        try {
+            val ictx = javax.naming.directory.InitialDirContext(env)
+            for (t in types) {
+                try {
+                    val attrs = ictx.getAttributes(cleanHost, arrayOf(t))
+                    val attr = attrs.get(t)
+                    if (attr != null) {
+                        val enum = attr.all
+                        while (enum.hasMore()) {
+                            val raw = enum.next().toString()
+                            if (t == "MX") {
+                                val parts = raw.trim().split(Regex("""\s+"""))
+                                val priority = parts.getOrNull(0)?.toIntOrNull()
+                                val host = parts.getOrNull(1)?.removeSuffix(".") ?: raw
+                                results.add(DnsRecord(type = "MX", name = cleanHost, value = host, priority = priority, provider = "System JNDI"))
+                            } else if (t == "TXT") {
+                                val cleanTxt = raw.removePrefix("\"").removeSuffix("\"").replace("\\\"", "\"")
+                                results.add(DnsRecord(type = "TXT", name = cleanHost, value = cleanTxt, provider = "System JNDI"))
+                            } else {
+                                val cleanVal = raw.removeSuffix(".")
+                                results.add(DnsRecord(type = t, name = cleanHost, value = cleanVal, provider = "System JNDI"))
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+
+        // Fallback: If JNDI couldn't resolve A/AAAA, add standard InetAddress.getAllByName
+        if (results.none { it.type == "A" || it.type == "AAAA" }) {
+            try {
+                val addrs = InetAddress.getAllByName(cleanHost)
+                for (a in addrs) {
+                    val ip = a.hostAddress ?: continue
+                    val type = if (ip.contains(":")) "AAAA" else "A"
+                    results.add(DnsRecord(type = type, name = cleanHost, value = ip, provider = "System Resolver"))
+                }
+            } catch (_: Exception) {}
+        }
+        return results
     }
 
     override suspend fun whois(host: String): String = withContext(Dispatchers.IO) {

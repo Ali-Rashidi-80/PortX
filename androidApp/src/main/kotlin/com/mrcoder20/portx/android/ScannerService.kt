@@ -124,7 +124,8 @@ class ScannerService : Service() {
 
     private fun createInitialNotification(): Notification {
         return createNotificationBuilder(0)
-            .setContentTitle("Initializing Engine...")
+            .setContentTitle("PortX Scanner")
+            .setContentText("Initializing Engine...")
             .build()
     }
 
@@ -137,10 +138,21 @@ class ScannerService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
+        val contentIntent = Intent(this, com.mrcoder20.portx.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            contentIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Scanning in Progress")
-            .setContentText("Completed: $progress%")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("PortX: Scanning in Progress")
+            .setContentText("Progress: $progress%")
+            .setSmallIcon(com.mrcoder20.portx.R.mipmap.ic_launcher)
+            .setContentIntent(contentPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setProgress(100, progress, false)
@@ -166,14 +178,49 @@ class ScannerService : Service() {
 
     private fun showFinishNotification(result: ScanResult) {
         try {
+            val contentIntent = Intent(this, com.mrcoder20.portx.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val contentPendingIntent = PendingIntent.getActivity(
+                this,
+                1,
+                contentIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
             val deviceSuffix = if (!result.deviceName.isNullOrBlank()) " (${result.deviceName})" else ""
+            val openPortsFormatted = if (result.openPorts.isNotEmpty()) {
+                val firstPorts = result.openPorts.take(8).joinToString(", ")
+                if (result.openPorts.size > 8) "$firstPorts (+${result.openPorts.size - 8} more)" else firstPorts
+            } else {
+                "No open ports detected"
+            }
+
+            val grade = when {
+                result.securityScore >= 90 -> "A+"
+                result.securityScore >= 75 -> "A"
+                result.securityScore >= 50 -> "B"
+                result.securityScore >= 25 -> "C"
+                else -> "F"
+            }
+
+            val bigText = buildString {
+                append("🎯 Target: ${result.target}$deviceSuffix\n")
+                append("🔓 Open Ports (${result.openPorts.size}): $openPortsFormatted\n")
+                append("🛡️ Security Score: ${result.securityScore}/100 (Grade $grade)\n")
+                append("⚡ Scan Mode: ${result.scanType ?: "TCP"} (PortX Engine)")
+            }
+
             val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Scan Complete")
-                .setContentText("Found ${result.openPorts.size} open ports on ${result.target}$deviceSuffix")
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentTitle("🎯 PortX: Scan Complete")
+                .setContentText("Found ${result.openPorts.size} open ports on ${result.target}$deviceSuffix • Score ${result.securityScore}% (Grade $grade)")
+                .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
+                .setSmallIcon(com.mrcoder20.portx.R.mipmap.ic_launcher)
+                .setContentIntent(contentPendingIntent)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .build()
+
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.notify(NOTIFICATION_ID + 1, notification)
         } catch (e: SecurityException) {

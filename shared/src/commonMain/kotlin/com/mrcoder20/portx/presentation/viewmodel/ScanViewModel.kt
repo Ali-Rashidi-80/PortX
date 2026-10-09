@@ -166,7 +166,7 @@ class ScanViewModel(
         // 1. STRICT Target Validation & Sanitization
         val rawInput = state.ip.trim()
         if (rawInput.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter an IP or Hostname") }
+            _uiState.update { it.copy(error = "err_enter_ip") }
             return
         }
         val target = com.mrcoder20.portx.domain.sanitizeHost(rawInput)
@@ -175,7 +175,7 @@ class ScanViewModel(
         val isLocal = com.mrcoder20.portx.domain.isTargetLocalOrPrivate(target)
         
         if (!isValid) {
-            _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8, router, or example.com)") }
+            _uiState.update { it.copy(error = "err_invalid_target") }
             return
         }
 
@@ -186,12 +186,12 @@ class ScanViewModel(
                 val start = state.startPort.toInt()
                 val end = state.endPort.toInt()
                 if (start < 1 || end > 65535 || start > end) {
-                    _uiState.update { it.copy(error = "Range must be 1-65535") }
+                    _uiState.update { it.copy(error = "err_port_range") }
                     return
                 }
                 start..end
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Invalid numeric port range") }
+                _uiState.update { it.copy(error = "err_numeric_range") }
                 return
             }
         }
@@ -256,7 +256,7 @@ class ScanViewModel(
                 // Ignore unexpected probe exceptions
             }
 
-            addLog("Engine v5.2.1 initializing...")
+            addLog("Engine v5.3.0 initializing...")
             delay(400)
             
             if (state.allPorts) addLog("Full port scan mode [1-65535] active")

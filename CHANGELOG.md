@@ -1,30 +1,35 @@
 # Changelog
 
-## [5.2.1] - 2026-10-06
+## [5.3.0] - 2026-10-09
 
-### 🔬 Empirical Benchmarking & Performance Telemetry
-- **8-Suite Live Benchmark Harness:** Implemented and executed automated real-time test suite (`LiveSystemBenchmarkTest.kt`) covering Concurrency Saturation (up to 2,500 workers), 10,000-port sustained sweep (8,143+ ports/sec with 17 MB RAM delta), Q-Learning adaptive timing, IPv4/IPv6 dual-stack efficiency, banner grabbing latency profiling, security posture evaluation (56,000+ ops/sec), multi-format report serialization (CSV, Markdown, JSON), and non-blocking UDP probe dispatch.
-- **Official Benchmark Publication:** Authored and published [BENCHMARKS.md](BENCHMARKS.md) providing full hardware telemetry, scaling curves, and deterministic CLI reproducibility instructions.
+### 🔀 Stealth Mode & Firewall/WAF Evasion
+- **Fisher-Yates Port Randomization:** Implemented randomized port distribution in `PortScanner.kt` to prevent sequential port access patterns that trigger stateful firewall, IPS, and IDS heuristic rate-limiting rules.
+- **WAF Evasion HTTP Prober:** Dynamically rotates modern browser User-Agents (Chrome 122, Firefox 123, Safari 17.3, Edge 122) and realistic HTTP headers (`Accept`, `Accept-Language`, `Sec-Ch-Ua`, `Connection: close`) combined with 1–3ms jitter delays during HTTP service banner extraction.
+- **4,000-Worker Full-Range Scaling:** Scaled the concurrency ceiling from 2,500 to 4,000 workers specifically during Full Range (1–65,535) sweeps, reducing full-port discovery duration while maintaining zero socket exhaustion.
 
-### 🛡️ Core Engine, Security & Android Hardening
-- **False-Positive Root Detection Elimination:** Replaced naive process output checks with strict exit code validation (`exitValue == 0`) and filtered out error messages like `which: no su in ...`, expanding binary search paths to Magisk/SuperSU.
-- **Android 13+ Notification Safety:** Guarded all notification channel updates in `ScannerService` against `SecurityException` when `POST_NOTIFICATIONS` permission is revoked.
-- **Exhaustive Private Network Classification:** Implemented `isTargetLocalOrPrivate` covering RFC 1122 (127.0.0.0/8), RFC 1918 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), RFC 3927 (169.254.0.0/16), RFC 6598 (CGNAT 100.64.0.0/10), RFC 4193/4291 (IPv6 ULA/Link-local), and local domain suffixes (.local, .lan, .internal, .home.arpa).
-- **Report Markdown Table Sanitization:** Sanitized extracted HTML `<title>` tags by replacing pipe `|` characters with `/` and clamping strings to 120 chars to eliminate Markdown table disruption.
-- **Cloud & Industrial Threat Signatures:** Added port signatures for Docker Daemon (2375), Elasticsearch (9200), Kubernetes Kubelet (10250), Memcached (11211), Modbus/TCP (502), Siemens S7comm (102), and BACnet (47808) into `SecurityScoreUseCase` and `AnomalyDetectionUseCase`.
-- **Database Schema Migration:** Added automated SQLite user version tracking (`PRAGMA user_version`) and forward-compatible column migrations in desktop runtime initialization.
+### 🌐 Network Intelligence Suite (DNSSEC, DoH & CIDR)
+- **DNS-over-HTTPS (DoH) & DNSSEC:** Added native encrypted DoH resolution via Cloudflare and Google endpoints, parsing DNSSEC Authenticated Data (`AD`) and Checking Disabled (`CD`) validation flags alongside EDNS support.
+- **Advanced Dig DNS Resolver:** Integrated multi-type DNS querying supporting `A`, `AAAA`, `MX`, `TXT`, `NS`, `CNAME`, `SOA`, `PTR`, `SRV`, and `CAA` record types.
+- **Resilient TCP Ping:** Added TCP socket connection latency checks as a resilient fallback when ICMP echo packets are blocked by firewalls or restricted non-root environments.
+- **Subnet & CIDR Calculator:** Integrated network subnetting calculator resolving network address, broadcast address, netmask, wildcard mask, and usable host count for arbitrary CIDR prefixes.
 
-### 📦 Desktop Packaging & CI/CD
-- **Native Desktop Shortcuts:** Configured Compose desktop packaging to automatically generate desktop icons and start-menu shortcuts on Windows (`.msi`), Linux (`.deb`), and macOS (`.dmg`).
-- **100% Comprehensive Test Suite Matrix (16 Suites, 148 Tests):** Expanded automated test harness across all architectural layers with zero gaps:
-  - *Data & Persistence:* `DatabaseAdaptersTest.kt` (custom SQLite column adapters) and `ScanRepositoryImplJvmTest.kt` (in-memory SQLite repository queries, sorting, and deletions).
-  - *State & Domain:* `ScanManagerTest.kt` (flow state and UI event dispatcher), `SettingsManagerJvmTest.kt` (SQLite persistence for language, theme, and ARGB accent colors), and `SecurityHardenTest.kt` (cryptographic involution and secure client factory).
-  - *Use Cases:* `DeviceFingerprintUseCaseTest.kt` (heuristic device and OS classification across SCADA, Printers, Routers, NAS, Cloud, and DBs), `FirewallDetectionUseCaseTest.kt` (perimeter exposure evaluation), and `ScanPortUseCaseTest.kt` (orchestration and automatic persistence).
-  - *Presentation & ViewModels:* `ReportsViewModelTest.kt` (scan history loading, filtering, and deletion), `ToolsViewModelTest.kt` (target validation and tool switching), and `PresentationAdversarialTest.kt` (adversarial user inputs).
-  - *Network & Benchmarks:* `PortScannerTest.kt`, `RemoteApiTest.kt`, `NetworkToolsHardeningTest.kt` (79 network tool assertions), and `LiveSystemBenchmarkTest.kt` (8 real-time hardware benchmarks).
-  - *Dependency Injection:* `KoinGraphTest.kt` (validating Koin component resolution).
-- **Continuous Integration Workflow:** Created `.github/workflows/ci.yml` for automated multiplatform JVM testing, desktop compilation, and Android APK builds on pull requests and pushes.
-- **Automated Dependency Auditing:** Added `.github/dependabot.yml` for automated weekly security vulnerability scans across Gradle dependencies and GitHub Actions.
+### 🔔 Multiplatform Rich Notifications
+- **Android Foreground Service (`ScannerService`):**
+  - Configured official app launcher icon (`R.mipmap.ic_launcher`) for active and completed scan notifications.
+  - Bound direct-focus `PendingIntent` (`FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT`) to launch and focus `MainActivity` upon notification tap.
+  - Implemented `BigTextStyle` expandable completion notification detailing target address, device heuristic, discovered open ports, security score, and posture grade.
+- **Desktop SystemTray Notifications:** Added native desktop system tray notifications in `ScannerController.jvm.kt` providing completion telemetry and posture rating.
+
+### 🎨 UI/UX Refinement & Attack Surface Reduction
+- **Minimalist 3-Button Language Switcher:** Streamlined language selection in `SettingsScreen` to a compact horizontal row of `[EN]`, `[FA]`, and `[RU]` toggle buttons.
+- **Attack Surface Minimization:** Removed internal system architecture diagnostics card from settings to prevent environmental fingerprinting.
+- **Search Bar Decluttering:** Simplified search input on Dashboard and Tools screens, removing distracting quick-target chips in favor of focused, direct input.
+- **Responsive Export Grid:** Redesigned report export actions into an adaptive 2x2 grid on mobile viewports with single-line ellipsis truncation, eliminating UI overflow on narrow screens.
+
+### 🔬 Empirical Benchmarking & Comprehensive Test Harness
+- **8-Suite Live Benchmark Harness:** Automated real-time test suite (`LiveSystemBenchmarkTest.kt`) covering Concurrency Saturation (up to 2,500 workers), 10,000-port sustained sweep (8,143+ ports/sec with 17 MB RAM delta), Q-Learning adaptive timing, IPv4/IPv6 dual-stack efficiency, banner grabbing latency profiling, security posture evaluation (56,000+ ops/sec), multi-format report serialization (CSV, Markdown, JSON), and non-blocking UDP probe dispatch.
+- **Adversarial QA Suite:** Added `AdversarialQAVerificationTest.kt` verifying Android notification intents, BigTextStyle fields, 4,000-worker ceiling, stealth shuffling, DNSSEC DoH resolution, and responsive UI layouts.
+- **Official Benchmark Publication:** Published [BENCHMARKS.md](BENCHMARKS.md) providing full hardware telemetry, scaling curves, and deterministic CLI reproducibility instructions.
 
 ---
 

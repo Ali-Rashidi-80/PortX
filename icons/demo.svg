@@ -62,7 +62,7 @@
   <circle cx="24" cy="20" r="2.5" fill="#00E5FF"/>
   <text x="38" y="24" fill="#E2E8F0" font-size="12" class="title-font" letter-spacing="0.5">PortX Professional</text>
   <rect x="156" y="12" width="60" height="16" rx="4" fill="#00E5FF" fill-opacity="0.15" stroke="#00E5FF" stroke-width="0.8"/>
-  <text x="163" y="23" fill="#00E5FF" font-size="9" class="mono-font" font-weight="700">v5.2.1 KMP</text>
+  <text x="163" y="23" fill="#00E5FF" font-size="9" class="mono-font" font-weight="700">v5.3.0 KMP</text>
 
   <!-- Top Right Window Controls -->
   <circle cx="925" cy="20" r="5" fill="#64748B"/>

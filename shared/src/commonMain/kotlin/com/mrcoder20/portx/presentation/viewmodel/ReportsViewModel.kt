@@ -42,7 +42,7 @@ class ReportsViewModel(
             val (_, content, fileName, mimeType) = prepareExport(scan, format)
             fileSharer.shareFile(content, fileName, mimeType)
         } catch (e: Exception) {
-            showSnackbar("Share failed: ${e.message ?: "Unknown error"}")
+            showSnackbar("share_failed:${e.message ?: "Unknown error"}")
         }
     }
 
@@ -51,12 +51,12 @@ class ReportsViewModel(
             val (_, content, fileName, mimeType) = prepareExport(scan, format)
             val path = fileSharer.downloadFile(content, fileName, mimeType)
             if (path != null) {
-                showSnackbar("Saved to: $path")
+                showSnackbar("saved_to:$path")
             } else {
-                showSnackbar("Download failed")
+                showSnackbar("download_failed")
             }
         } catch (e: Exception) {
-            showSnackbar("Download failed: ${e.message ?: "Unknown error"}")
+            showSnackbar("download_failed:${e.message ?: "Unknown error"}")
         }
     }
 
@@ -112,34 +112,37 @@ class ReportsViewModel(
                 throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false) }
-                showSnackbar("Failed to load records: ${e.message}")
+                showSnackbar("failed_load:${e.message ?: ""}")
             }
         }
     }
 
     fun deleteScan(id: Long) {
+        _uiState.update { current -> current.copy(scans = current.scans.filter { it.id != id }) }
         viewModelScope.launch {
             try {
                 scanRepository.deleteScan(id)
-                showSnackbar("Scan report deleted")
+                showSnackbar("scan_report_deleted")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                showSnackbar("Failed to delete record: ${e.message}")
+                showSnackbar("failed_delete:${e.message ?: ""}")
             }
         }
     }
 
     fun clearAll() {
+        _uiState.update { it.copy(scans = emptyList()) }
         viewModelScope.launch {
             try {
                 scanRepository.deleteAllScans()
-                showSnackbar("All scan reports cleared")
+                showSnackbar("all_reports_cleared")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                showSnackbar("Failed to clear history: ${e.message}")
+                showSnackbar("failed_clear:${e.message ?: ""}")
             }
         }
     }
 }
+

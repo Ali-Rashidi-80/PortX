@@ -51,11 +51,29 @@ class ToolsViewModelTest {
 
         viewModel.selectTool("DNS")
         assertEquals("DNS", viewModel.uiState.value.activeTool)
-        assertEquals(emptyList(), viewModel.uiState.value.dnsResults)
+        assertNull(viewModel.uiState.value.dnsResult)
 
         viewModel.selectTool("WHOIS")
         assertEquals("WHOIS", viewModel.uiState.value.activeTool)
         assertNull(viewModel.uiState.value.whoisResult)
+    }
+
+    @Test
+    fun testDnsFilterAndMode() {
+        viewModel.setDnsFilterType("MX")
+        assertEquals("MX", viewModel.uiState.value.dnsFilterType)
+
+        viewModel.setDnsViewMode("RAW")
+        assertEquals("RAW", viewModel.uiState.value.dnsViewMode)
+    }
+
+    @Test
+    fun testPingModeAndPort() {
+        viewModel.setPingMode("TCP")
+        assertEquals("TCP", viewModel.uiState.value.pingMode)
+
+        viewModel.setPingPort(443)
+        assertEquals(443, viewModel.uiState.value.pingPort)
     }
 
     @Test

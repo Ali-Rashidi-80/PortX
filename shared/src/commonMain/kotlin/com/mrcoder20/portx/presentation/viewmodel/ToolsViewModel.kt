@@ -13,9 +13,14 @@ import kotlinx.coroutines.launch
 
 data class ToolsUIState(
     val pingResults: List<PingResult> = emptyList(),
-    val dnsResults: List<String> = emptyList(),
+    val pingMode: String = "ICMP", // "ICMP" or "TCP"
+    val pingPort: Int = 80,
+    val dnsResult: DnsResolutionResult? = null,
+    val dnsFilterType: String = "ALL", // "ALL", "A", "AAAA", "MX", "TXT", "NS", "CNAME", "SOA", "CAA", "PTR"
+    val dnsViewMode: String = "CARDS", // "CARDS" or "RAW"
     val whoisResult: String? = null,
     val localIp: LocalIpInfo? = null,
+    val subnetInfo: SubnetInfo? = null,
     val publicIp: String? = null,
     val isLoading: Boolean = false,
     val activeTool: String = "LOCAL",
@@ -41,9 +46,25 @@ class ToolsViewModel : ViewModel() {
         _uiState.update { it.copy(target = newTarget, error = null) }
     }
 
+    fun setDnsFilterType(type: String) {
+        _uiState.update { it.copy(dnsFilterType = type) }
+    }
+
+    fun setDnsViewMode(mode: String) {
+        _uiState.update { it.copy(dnsViewMode = mode) }
+    }
+
+    fun setPingMode(mode: String) {
+        _uiState.update { it.copy(pingMode = mode) }
+    }
+
+    fun setPingPort(port: Int) {
+        _uiState.update { it.copy(pingPort = port.coerceIn(1, 65535)) }
+    }
+
     fun selectTool(tool: String) {
         stopActiveTool()
-        _uiState.update { it.copy(activeTool = tool, error = null, pingResults = emptyList(), dnsResults = emptyList(), whoisResult = null) }
+        _uiState.update { it.copy(activeTool = tool, error = null, pingResults = emptyList(), dnsResult = null, whoisResult = null) }
         if (tool == "LOCAL") {
             if (_uiState.value.localIp == null || _uiState.value.publicIp == null) {
                 refreshLocalInfo()
@@ -56,7 +77,8 @@ class ToolsViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true) }
             try {
                 val info = networkTools.getLocalIpInfo()
-                _uiState.update { it.copy(localIp = info) }
+                val subnet = calculateSubnetInfo(info.ipAddress)
+                _uiState.update { it.copy(localIp = info, subnetInfo = subnet) }
                 
                 val pubIp = networkTools.getPublicIp()
                 _uiState.update { it.copy(publicIp = pubIp) }
@@ -73,12 +95,12 @@ class ToolsViewModel : ViewModel() {
     fun runPing() {
         val rawInput = _uiState.value.target.trim()
         if (rawInput.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter a target IP or Domain") }
+            _uiState.update { it.copy(error = "err_enter_ip") }
             return
         }
         val target = sanitizeHost(rawInput)
         if (!isValidTarget(target)) {
-            _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8 or example.com)") }
+            _uiState.update { it.copy(error = "err_invalid_target") }
             return
         }
         
@@ -86,13 +108,20 @@ class ToolsViewModel : ViewModel() {
         activeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, pingResults = emptyList(), error = null) }
             try {
-                networkTools.ping(target).collect { res ->
+                val isTcp = _uiState.value.pingMode == "TCP"
+                val port = _uiState.value.pingPort
+                val pingFlow = if (isTcp) {
+                    networkTools.pingTcp(target, port)
+                } else {
+                    networkTools.ping(target)
+                }
+                pingFlow.collect { res ->
                     _uiState.update { it.copy(pingResults = it.pingResults + res) }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Engine failure: ${e.message}") }
+                _uiState.update { it.copy(error = "err_engine_failure") }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -102,29 +131,29 @@ class ToolsViewModel : ViewModel() {
     fun runDnsLookup() {
         val rawInput = _uiState.value.target.trim()
         if (rawInput.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter a Domain to resolve") }
+            _uiState.update { it.copy(error = "err_enter_dns") }
             return
         }
         val target = sanitizeHost(rawInput)
         if (!isValidTarget(target)) {
-            _uiState.update { it.copy(error = "Invalid domain format (e.g. example.com)") }
+            _uiState.update { it.copy(error = "err_invalid_target") }
             return
         }
 
         stopActiveTool()
         activeJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, dnsResults = emptyList(), error = null) }
+            _uiState.update { it.copy(isLoading = true, dnsResult = null, error = null) }
             try {
-                val results = networkTools.dnsLookup(target)
-                if (results.isEmpty()) {
-                    _uiState.update { it.copy(error = "No resolution found for $target. Check your internet.") }
+                val result = networkTools.dnsResolve(target)
+                if (result.records.isEmpty()) {
+                    _uiState.update { it.copy(error = "err_dns_unreachable", dnsResult = result) }
                 } else {
-                    _uiState.update { it.copy(dnsResults = results) }
+                    _uiState.update { it.copy(dnsResult = result) }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Resolver error: ${e.message}") }
+                _uiState.update { it.copy(error = "err_engine_failure") }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -134,25 +163,25 @@ class ToolsViewModel : ViewModel() {
     fun runWhois() {
         val rawInput = _uiState.value.target.trim()
         if (rawInput.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter a domain (e.g. google.com)") }
+            _uiState.update { it.copy(error = "err_enter_whois") }
             return
         }
         val target = sanitizeHost(rawInput)
         if (!isValidTarget(target)) {
-            _uiState.update { it.copy(error = "Invalid domain format (e.g. google.com)") }
+            _uiState.update { it.copy(error = "err_invalid_target") }
             return
         }
 
         stopActiveTool()
         activeJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, whoisResult = "Connecting to Authority Database...", error = null) }
+            _uiState.update { it.copy(isLoading = true, whoisResult = null, error = null) }
             try {
                 val result = networkTools.whois(target)
                 _uiState.update { it.copy(whoisResult = result) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "WHOIS service unreachable.") }
+                _uiState.update { it.copy(error = "err_whois_unreachable") }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -167,29 +196,29 @@ class ToolsViewModel : ViewModel() {
 
     fun clearResults() {
         stopActiveTool()
-        _uiState.update { it.copy(pingResults = emptyList(), dnsResults = emptyList(), whoisResult = null, error = null) }
+        _uiState.update { it.copy(pingResults = emptyList(), dnsResult = null, whoisResult = null, error = null) }
     }
 
     fun copyResultsToClipboard() {
         val state = _uiState.value
         val text = when (state.activeTool) {
             "PING" -> state.pingResults.joinToString("\n") { it.message }
-            "DNS" -> state.dnsResults.joinToString("\n")
+            "DNS" -> state.dnsResult?.rawDigOutput ?: state.dnsResult?.records?.joinToString("\n") { "${it.type}\t${it.name}\t${it.value}" } ?: ""
             "WHOIS" -> state.whoisResult ?: ""
-            "LOCAL" -> state.localIp?.let { "Internal IP: ${it.ipAddress}\nInterface: ${it.interfaceName}\nPublic IP: ${state.publicIp ?: "Not available"}" } ?: (state.publicIp?.let { "Public IP: $it" } ?: "")
+            "LOCAL" -> state.localIp?.let { "Internal IP: ${it.ipAddress}\nInterface: ${it.interfaceName}\nSubnet: ${state.subnetInfo?.networkAddress}/${state.subnetInfo?.cidr}\nPublic IP: ${state.publicIp ?: "Not available"}" } ?: (state.publicIp?.let { "Public IP: $it" } ?: "")
             else -> ""
         }
         if (text.isNotBlank()) {
             clipboardManager.copyToClipboard(text)
-            showSnackbar("Report copied to clipboard.")
+            showSnackbar("report_copied_clipboard")
         } else {
-            showSnackbar("No output to copy.")
+            showSnackbar("no_output_to_copy")
         }
     }
 
     fun copyIndividualResult(text: String) {
         clipboardManager.copyToClipboard(text)
-        showSnackbar("Copied: $text")
+        showSnackbar("copied:$text")
     }
 
     private var snackbarJob: Job? = null

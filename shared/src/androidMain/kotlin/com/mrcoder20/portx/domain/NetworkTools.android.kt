@@ -121,19 +121,77 @@ class AndroidNetworkTools : NetworkTools {
         }
     }
 
-    override suspend fun dnsLookup(host: String): List<String> = withContext(Dispatchers.IO) {
+    override suspend fun pingTcp(host: String, port: Int, timeoutMs: Int): Flow<PingResult> = flow {
         try {
             val cleanHost = sanitizeHost(host)
-            if (cleanHost.isBlank()) return@withContext emptyList()
-            InetAddress.getAllByName(cleanHost)
-                .mapNotNull { it.hostAddress }
-                .filter { it.isNotBlank() }
-                .distinct()
+            if (cleanHost.isBlank()) {
+                emit(PingResult(0, null, false, "Error: Target host is empty"))
+                return@flow
+            }
+            emit(PingResult(0, null, true, "TCP Ping to $cleanHost:$port (SYN/ACK Handshake):"))
+            repeat(4) { i ->
+                val start = System.currentTimeMillis()
+                var socket: java.net.Socket? = null
+                try {
+                    socket = java.net.Socket()
+                    socket.connect(java.net.InetSocketAddress(cleanHost, port), timeoutMs)
+                    val elapsed = System.currentTimeMillis() - start
+                    emit(PingResult(i + 1, elapsed, true, "Connected to $cleanHost:$port: time=${elapsed}ms TCP_SYN_ACK"))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(PingResult(i + 1, null, false, "TCP connection to $cleanHost:$port failed: ${e.message ?: "timeout"}"))
+                } finally {
+                    try { socket?.close() } catch (_: Exception) {}
+                }
+                kotlinx.coroutines.delay(600)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            emptyList()
+            emit(PingResult(0, null, false, "TCP Ping Error: ${e.message}"))
         }
+    }.flowOn(Dispatchers.IO)
+
+    override suspend fun dnsLookup(host: String): List<String> = withContext(Dispatchers.IO) {
+        performResilientDnsLookup(
+            host = host,
+            systemResolver = { cleanHost ->
+                InetAddress.getAllByName(cleanHost)
+                    .mapNotNull { it.hostAddress }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+            },
+            systemReverseResolver = { cleanIp ->
+                val addr = InetAddress.getByName(cleanIp)
+                val canonical = addr.canonicalHostName
+                if (canonical.isNotBlank() && canonical != cleanIp) canonical else null
+            }
+        )
+    }
+
+    override suspend fun dnsResolve(host: String): DnsResolutionResult = withContext(Dispatchers.IO) {
+        performComprehensiveDnsResolve(
+            host = host,
+            jndiOrSystemResolver = { cleanHost ->
+                try {
+                    InetAddress.getAllByName(cleanHost)
+                        .mapNotNull { it.hostAddress }
+                        .filter { it.isNotBlank() }
+                        .map { ip ->
+                            val type = if (ip.contains(":")) "AAAA" else "A"
+                            DnsRecord(type = type, name = cleanHost, value = ip, provider = "Android System Resolver")
+                        }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            systemReverseResolver = { cleanIp ->
+                val addr = InetAddress.getByName(cleanIp)
+                val canonical = addr.canonicalHostName
+                if (canonical.isNotBlank() && canonical != cleanIp) canonical else null
+            }
+        )
     }
 
     override suspend fun whois(host: String): String = withContext(Dispatchers.IO) {

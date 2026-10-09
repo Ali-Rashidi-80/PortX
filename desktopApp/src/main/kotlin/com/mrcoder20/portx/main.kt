@@ -68,7 +68,7 @@ fun main() {
                     override fun windowLostFocus(e: WindowEvent?) {}
                 }
                 window.addWindowFocusListener(focusListener)
-                window.minimumSize = Dimension(960, 640)
+                window.minimumSize = Dimension(380, 480)
 
                 onDispose {
                     window.removeWindowFocusListener(focusListener)
@@ -128,6 +128,17 @@ fun main() {
                     onMinimize = { windowState.isMinimized = true },
                     onMaximize = toggleMaximize,
                     onClose = { exitApplication() },
+                    onSnapWindow = { targetW, targetH ->
+                        val titleAndToolbarOffset = 48 + 44
+                        val framePadding = 48
+                        val newW = (targetW + framePadding).coerceAtLeast(420)
+                        val newH = (targetH + titleAndToolbarOffset + framePadding).coerceAtLeast(500)
+                        val gc = window.graphicsConfiguration
+                        val screenBounds = gc.bounds
+                        val targetX = (screenBounds.x + (screenBounds.width - newW) / 2).coerceAtLeast(screenBounds.x)
+                        val targetY = (screenBounds.y + (screenBounds.height - newH) / 2).coerceAtLeast(screenBounds.y)
+                        window.setBounds(targetX, targetY, newW, newH)
+                    },
                     windowDraggableArea = { content ->
                         WindowDraggableArea {
                             content()

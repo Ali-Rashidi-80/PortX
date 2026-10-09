@@ -1,27 +1,70 @@
 package com.mrcoder20.portx.domain.usecase
 
+import com.mrcoder20.portx.domain.isSuspectedTarpitOrWaf
+
 data class FingerprintResult(
     val deviceName: String?,
     val osFingerprint: String?
 )
 
 class DeviceFingerprintUseCase {
-    operator fun invoke(openPorts: Collection<Int>, banners: Map<Int, String>): FingerprintResult {
+    operator fun invoke(
+        openPorts: Collection<Int>,
+        banners: Map<Int, String>,
+        target: String = ""
+    ): FingerprintResult {
         val ports = openPorts.toSet()
         val allBannersLower = banners.values.joinToString(" ").lowercase()
+        val totalPorts = ports.size
 
-        // 1. Industrial ICS / SCADA
-        if (ports.contains(502)) return FingerprintResult("Industrial Controller", "Modbus/TCP PLC")
-        if (ports.contains(102)) return FingerprintResult("Siemens Simatic S7", "Siemens Industrial PLC")
-        if (ports.contains(47808)) return FingerprintResult("Building Controller", "BACnet/IP Automation Unit")
-        if (ports.contains(4840)) return FingerprintResult("Industrial Gateway", "OPC UA Server")
+        // Heuristic: Check for WAF / SYN-Proxy / Tarpit Reflexive Port Flooding
+        val isTarpitOrWaf = isSuspectedTarpitOrWaf(
+            target = target,
+            openPorts = ports,
+            banners = banners
+        )
 
-        // 2. Mobile / Android
-        if (ports.contains(5555)) return FingerprintResult("Android Device", "Android (ADB Enabled)")
+        // If WAF / Proxy is suspected, we MUST strictly rely on verified banners or standard web ports
+        if (isTarpitOrWaf) {
+            if (allBannersLower.contains("cloudflare")) {
+                return FingerprintResult("Web Application Host", "Cloudflare Protected Edge (WAF Active)")
+            }
+            if (allBannersLower.contains("nginx") || allBannersLower.contains("apache") || allBannersLower.contains("litespeed") || allBannersLower.contains("caddy") || allBannersLower.contains("iis")) {
+                val srv = when {
+                    allBannersLower.contains("nginx") -> "Nginx Web Server"
+                    allBannersLower.contains("apache") -> "Apache HTTP Server"
+                    allBannersLower.contains("litespeed") -> "LiteSpeed Web Server"
+                    allBannersLower.contains("iis") -> "Microsoft IIS Server"
+                    else -> "Web Server"
+                }
+                return FingerprintResult("Web Application Host", "$srv (Perimeter WAF Active)")
+            }
+            if (ports.contains(80) || ports.contains(443)) {
+                return FingerprintResult("Web Application Host", "Web Edge Platform (Stateful Firewall / SYN-Proxy Active)")
+            }
+            return FingerprintResult("Protected Host", "Stateful Firewall / SYN-Proxy Active")
+        }
 
-        // 3. Network Printer (Prioritized before Web Server since virtually all network printers expose Port 80)
-        if (ports.contains(9100) || ports.contains(515) || (ports.contains(631) && !ports.contains(22)) ||
-            allBannersLower.contains("jetdirect") || allBannersLower.contains("laserjet") || allBannersLower.contains("cups") ||
+        // 1. Explicit Verified Banner Signatures (Highest Confidence)
+        if (allBannersLower.contains("openwrt") || allBannersLower.contains("routeros") || allBannersLower.contains("mikrotik") ||
+            allBannersLower.contains("pfsense") || allBannersLower.contains("opnsense") || allBannersLower.contains("cisco") ||
+            allBannersLower.contains("ubiquiti") || allBannersLower.contains("unifi") || allBannersLower.contains("fortigate")
+        ) {
+            val os = when {
+                allBannersLower.contains("openwrt") -> "OpenWrt Linux"
+                allBannersLower.contains("routeros") || allBannersLower.contains("mikrotik") -> "MikroTik RouterOS"
+                allBannersLower.contains("pfsense") -> "pfSense FreeBSD"
+                allBannersLower.contains("opnsense") -> "OPNsense FreeBSD"
+                allBannersLower.contains("cisco") -> "Cisco IOS"
+                allBannersLower.contains("ubiquiti") || allBannersLower.contains("unifi") -> "UniFi OS"
+                allBannersLower.contains("fortigate") -> "FortiOS"
+                else -> "Embedded Network Router OS"
+            }
+            return FingerprintResult("Network Gateway", os)
+        }
+
+        // Network Printer Banners
+        if (allBannersLower.contains("jetdirect") || allBannersLower.contains("laserjet") || allBannersLower.contains("cups") ||
             allBannersLower.contains("epson") || allBannersLower.contains("brother") || allBannersLower.contains("canon") ||
             allBannersLower.contains("xerox") || allBannersLower.contains("kyocera") || allBannersLower.contains("ricoh")
         ) {
@@ -40,33 +83,7 @@ class DeviceFingerprintUseCase {
             return FingerprintResult("Network Printer", printerModel)
         }
 
-        // 4. Network Gateway / Router / Firewall / VPN
-        if (allBannersLower.contains("openwrt") || allBannersLower.contains("dd-wrt") || allBannersLower.contains("routeros") ||
-            allBannersLower.contains("mikrotik") || allBannersLower.contains("pfsense") || allBannersLower.contains("opnsense") ||
-            allBannersLower.contains("cisco") || allBannersLower.contains("ubiquiti") || allBannersLower.contains("unifi") ||
-            allBannersLower.contains("tp-link") || allBannersLower.contains("tplink") || allBannersLower.contains("netgear") ||
-            allBannersLower.contains("d-link") || allBannersLower.contains("dlink") || allBannersLower.contains("asuswrt") ||
-            allBannersLower.contains("fritz!box") || allBannersLower.contains("avm") || allBannersLower.contains("fortigate") ||
-            ports.contains(51820) || ports.contains(1194)
-        ) {
-            val os = when {
-                ports.contains(51820) -> "WireGuard VPN Gateway"
-                ports.contains(1194) -> "OpenVPN Server"
-                allBannersLower.contains("openwrt") -> "OpenWrt Linux"
-                allBannersLower.contains("routeros") || allBannersLower.contains("mikrotik") -> "MikroTik RouterOS"
-                allBannersLower.contains("pfsense") -> "pfSense FreeBSD"
-                allBannersLower.contains("opnsense") -> "OPNsense FreeBSD"
-                allBannersLower.contains("dd-wrt") -> "DD-WRT Linux"
-                allBannersLower.contains("cisco") -> "Cisco IOS"
-                allBannersLower.contains("ubiquiti") || allBannersLower.contains("unifi") -> "UniFi OS"
-                allBannersLower.contains("fritz!box") || allBannersLower.contains("avm") -> "FRITZ!OS"
-                allBannersLower.contains("fortigate") -> "FortiOS"
-                else -> "Embedded Network Router OS"
-            }
-            return FingerprintResult("Network Gateway", os)
-        }
-
-        // 5. Network Attached Storage (NAS)
+        // NAS Banners
         if (allBannersLower.contains("synology") || allBannersLower.contains("diskstation") || allBannersLower.contains("dsm") ||
             allBannersLower.contains("qnap") || allBannersLower.contains("qts") || allBannersLower.contains("truenas") ||
             allBannersLower.contains("freenas") || allBannersLower.contains("asustor")
@@ -79,6 +96,45 @@ class DeviceFingerprintUseCase {
                 else -> "NAS Storage OS"
             }
             return FingerprintResult("Network Storage (NAS)", nasOs)
+        }
+
+        // 2. Industrial ICS / SCADA (Requires sparse, dedicated port profile or verified ICS keywords)
+        val isIndustrialProfile = totalPorts <= 25 && !ports.contains(445) && !ports.contains(135)
+        if (allBannersLower.contains("modbus") || (ports.contains(502) && isIndustrialProfile)) {
+            return FingerprintResult("Industrial Controller", "Modbus/TCP PLC")
+        }
+        if (allBannersLower.contains("simatic") || allBannersLower.contains("s7comm") || (ports.contains(102) && isIndustrialProfile)) {
+            return FingerprintResult("Siemens Simatic S7", "Siemens Industrial PLC")
+        }
+        if (allBannersLower.contains("bacnet") || (ports.contains(47808) && isIndustrialProfile)) {
+            return FingerprintResult("Building Controller", "BACnet/IP Automation Unit")
+        }
+        if (allBannersLower.contains("opc ua") || allBannersLower.contains("opcua") || (ports.contains(4840) && isIndustrialProfile)) {
+            return FingerprintResult("Industrial Gateway", "OPC UA Server")
+        }
+
+        // 3. Mobile / Android
+        if (ports.contains(5555)) return FingerprintResult("Android Device", "Android (ADB Enabled)")
+
+        // 4. Network Printer (Ports 9100, 515, 631)
+        if (ports.contains(9100) || ports.contains(515) || (ports.contains(631) && !ports.contains(22))) {
+            return FingerprintResult("Network Printer", "Printer Firmware / CUPS")
+        }
+
+        // 5. Network Gateway / Router / VPN
+        if (ports.contains(51820) || ports.contains(1194) ||
+            allBannersLower.contains("dd-wrt") || allBannersLower.contains("asuswrt") || allBannersLower.contains("fritz!box") ||
+            allBannersLower.contains("avm") || allBannersLower.contains("tp-link") || allBannersLower.contains("tplink") ||
+            allBannersLower.contains("netgear") || allBannersLower.contains("d-link") || allBannersLower.contains("dlink")
+        ) {
+            val os = when {
+                ports.contains(51820) -> "WireGuard VPN Gateway"
+                ports.contains(1194) -> "OpenVPN Server"
+                allBannersLower.contains("dd-wrt") -> "DD-WRT Linux"
+                allBannersLower.contains("fritz!box") || allBannersLower.contains("avm") -> "FRITZ!OS"
+                else -> "Embedded Network Router OS"
+            }
+            return FingerprintResult("Network Gateway", os)
         }
 
         // 6. Cloud & Container Infrastructure
@@ -100,7 +156,7 @@ class DeviceFingerprintUseCase {
             return FingerprintResult(name, os)
         }
 
-        // 7. IoT & Sensor Nodes (CoAP RFC 7252, MQTT)
+        // 7. IoT & Sensor Nodes
         if (ports.contains(5683) || ports.contains(5684) || ports.contains(1883) || ports.contains(8883) || ports.contains(1884)) {
             val (name, os) = when {
                 ports.contains(5683) || ports.contains(5684) -> "IoT Constrained Node" to "CoAP Sensor Node (RFC 7252)"
@@ -112,7 +168,7 @@ class DeviceFingerprintUseCase {
             return FingerprintResult(name, os)
         }
 
-        // 8. Windows Systems (Ports 135, 139, 445, 3389 or banner keywords)
+        // 8. Windows Systems
         if (ports.contains(445) || (ports.contains(135) && ports.contains(139)) || ports.contains(3389) ||
             allBannersLower.contains("microsoft") || allBannersLower.contains("iis") || allBannersLower.contains("ms-wbt-server")
         ) {
@@ -132,7 +188,7 @@ class DeviceFingerprintUseCase {
             return FingerprintResult("Apple Device", "macOS / iOS (Darwin)")
         }
 
-        // 10. Dedicated Database Server (Prioritized before generic Web Server)
+        // 10. Dedicated Database Server
         if (ports.contains(3306) || ports.contains(5432) || ports.contains(27017) || ports.contains(6379) || ports.contains(1433) || ports.contains(1521) || ports.contains(9042) || ports.contains(8123)) {
             val dbType = when {
                 ports.contains(5432) -> "PostgreSQL Database Server"

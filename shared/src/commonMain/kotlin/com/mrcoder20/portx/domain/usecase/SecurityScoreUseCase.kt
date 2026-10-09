@@ -1,14 +1,19 @@
 package com.mrcoder20.portx.domain.usecase
 
+import com.mrcoder20.portx.domain.isSuspectedTarpitOrWaf
 import com.mrcoder20.portx.domain.model.ScanResult
 
 class SecurityScoreUseCase {
     operator fun invoke(scanResult: ScanResult): Int {
-        var score = 100
         val openPorts = scanResult.openPorts.toSet()
+        if (openPorts.isEmpty()) return 100
 
-        // Base deduction for open port surface
-        score -= (openPorts.size * 3)
+        val isWafOrTarpit = isSuspectedTarpitOrWaf(
+            target = scanResult.target,
+            openPorts = openPorts,
+            banners = scanResult.portBanners,
+            osFingerprint = scanResult.osFingerprint
+        )
 
         // Critical vulnerability & unauthenticated vector deductions
         val criticalDeductions = mapOf(
@@ -40,6 +45,32 @@ class SecurityScoreUseCase {
             47808 to 15// BACnet building automation system vector
         )
 
+        if (isWafOrTarpit) {
+            // Under WAF / SYN-Proxy protection:
+            // 1. Synthetic/reflexive open ports are shielded from artificial surface penalty.
+            // 2. Only ports with verified banners or unencrypted HTTP (without TLS) are penalized.
+            var wafScore = 95
+
+            // Deductions only apply if a dangerous port has an actual confirmed service banner
+            criticalDeductions.forEach { (port, deduction) ->
+                val banner = scanResult.portBanners[port]
+                if (openPorts.contains(port) && !banner.isNullOrBlank()) {
+                    wafScore -= deduction
+                }
+            }
+
+            // If only HTTP (80) is open without HTTPS (443), small deduction for lack of TLS
+            if (openPorts.contains(80) && !openPorts.contains(443)) {
+                wafScore -= 5
+            }
+
+            return wafScore.coerceIn(0, 100)
+        }
+
+        var score = 100
+        // Base deduction for open port surface
+        score -= (openPorts.size * 3)
+
         criticalDeductions.forEach { (port, deduction) ->
             if (openPorts.contains(port)) {
                 score -= deduction
@@ -49,3 +80,4 @@ class SecurityScoreUseCase {
         return score.coerceIn(0, 100)
     }
 }
+

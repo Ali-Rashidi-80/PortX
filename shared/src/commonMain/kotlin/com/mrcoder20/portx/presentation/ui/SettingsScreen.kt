@@ -12,6 +12,7 @@ import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
@@ -22,7 +23,15 @@ import androidx.compose.ui.unit.sp
 import com.mrcoder20.portx.domain.Language
 import com.mrcoder20.portx.domain.LocalizedStrings
 import com.mrcoder20.portx.domain.SettingsManager
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import com.mrcoder20.portx.presentation.ui.components.LaunchedAutoScrollHint
 import com.mrcoder20.portx.presentation.ui.components.PortXScrollStateVerticalScrollbar
+import com.mrcoder20.portx.presentation.ui.components.horizontalFadingEdges
+import com.mrcoder20.portx.presentation.ui.components.springPress
+import com.mrcoder20.portx.presentation.ui.components.touchDragScroll
 import com.mrcoder20.portx.presentation.ui.theme.*
 import org.koin.compose.koinInject
 
@@ -35,7 +44,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
     val uriHandler = LocalUriHandler.current
     val githubUrl = "https://github.com/mr-coder20/PortX"
     val scrollState = rememberScrollState()
-    val isRtl = state.language == "fa" || state.language == "ar"
+    val isRtl = state.language == "fa"
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -43,42 +52,53 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
-                .padding(
-                    start = if (isRtl) 14.dp else 0.dp,
-                    end = if (!isRtl) 14.dp else 0.dp
+                .absolutePadding(
+                    right = if (isRtl) 14.dp else 0.dp,
+                    left = if (!isRtl) 14.dp else 0.dp
                 )
+                .touchDragScroll(scrollState, isVertical = true)
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Spacer(modifier = Modifier.height(28.dp))
 
-            // 1. LANGUAGE SELECTOR (RESPONSIVE FLOW GRID)
+            // 1. LANGUAGE SELECTOR (3 BUTTONS IN A ROW)
             SettingsSectionTitle(LocalizedStrings.get("language", state.language))
 
-            FlowRow(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Language.entries.forEach { langItem ->
                     val isSelected = state.language == langItem.code
                     Surface(
                         onClick = { settingsManager.updateLanguage(langItem.code) },
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f)),
-                        border = BorderStroke(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else GlassBorderLight)),
-                        modifier = Modifier.widthIn(min = 100.dp, max = 140.dp).height(64.dp)
+                        color = if (isSelected) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.White),
+                        border = BorderStroke(1.dp, if (isSelected) accent else (if (isDark) GlassBorder else BorderLight)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .then(
+                                if (isDark || isSelected) Modifier else Modifier.shadow(
+                                    elevation = 1.5.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                    ambientColor = Color(0x100F172A),
+                                    spotColor = Color(0x140F172A)
+                                )
+                            )
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.Center
                         ) {
                             Surface(
-                                color = if (isSelected) accent else (if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f)),
-                                shape = RoundedCornerShape(6.dp)
+                                color = if (isSelected) accent else (if (isDark) Color.White.copy(alpha = 0.1f) else SurfaceInsetLight),
+                                shape = RoundedCornerShape(6.dp),
+                                border = if (isSelected) null else BorderStroke(1.dp, if (isDark) Color.Transparent else BorderLight)
                             ) {
                                 Text(
                                     langItem.code.uppercase(),
@@ -88,80 +108,28 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                                         fontFamily = FontFamily.Monospace
                                     ),
                                     color = if (isSelected) Color.Black else (if (isDark) Color.White else Color.Black),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                                 )
                             }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    langItem.label,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 12.sp
-                                    ),
-                                    color = if (isSelected) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
-                                    maxLines = 1
-                                )
-                            }
+                            Spacer(Modifier.width(6.dp))
 
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(accent)
-                                )
-                            }
+                            Text(
+                                langItem.label,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 11.5.sp
+                                ),
+                                color = if (isSelected) (if (isDark) Color.White else Color.Black) else (if (isDark) TextMuted else TextMutedLight),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
             }
 
-            // 2. SCAN ENGINE PERFORMANCE PRESETS
-            SettingsSectionTitle(LocalizedStrings.get("scan_presets", state.language))
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val presets = listOf(
-                        Triple(LocalizedStrings.get("preset_fast", state.language), "500 Conns • 100ms", SecondaryNeon),
-                        Triple(LocalizedStrings.get("preset_balanced", state.language), "100 Conns • 500ms", accent),
-                        Triple(LocalizedStrings.get("preset_deep", state.language), "20 Conns • 1500ms", TertiaryNeon)
-                    )
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        presets.forEachIndexed { idx, (title, meta, pColor) ->
-                            val isDefault = idx == 1
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f),
-                                border = BorderStroke(1.dp, if (isDefault) pColor.copy(alpha = 0.5f) else (if (isDark) GlassBorder else GlassBorderLight)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(10.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        title,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (isDark) Color.White else Color.Black
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        meta,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 9.sp,
-                                            fontFamily = FontFamily.Monospace
-                                        ),
-                                        color = pColor
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 3. APPEARANCE (Theme Mode & Accent Color)
+            // 2. APPEARANCE (Theme Mode & Accent Color)
             SettingsSectionTitle(LocalizedStrings.get("theme", state.language))
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -174,9 +142,19 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                         Surface(
                             onClick = { settingsManager.updateTheme("DARK") },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isDark) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f)),
-                            border = BorderStroke(1.dp, if (isDark) accent else (if (isDark) GlassBorder else GlassBorderLight)),
-                            modifier = Modifier.weight(1f).height(56.dp)
+                            color = if (isDark) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.White),
+                            border = BorderStroke(1.dp, if (isDark) accent else (if (isDark) GlassBorder else BorderLight)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .then(
+                                    if (isDark) Modifier else Modifier.shadow(
+                                        elevation = 1.5.dp,
+                                        shape = RoundedCornerShape(12.dp),
+                                        ambientColor = Color(0x100F172A),
+                                        spotColor = Color(0x140F172A)
+                                    )
+                                )
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
@@ -196,9 +174,19 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                         Surface(
                             onClick = { settingsManager.updateTheme("LIGHT") },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (!isDark) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.03f)),
-                            border = BorderStroke(1.dp, if (!isDark) accent else (if (isDark) GlassBorder else GlassBorderLight)),
-                            modifier = Modifier.weight(1f).height(56.dp)
+                            color = if (!isDark) accent.copy(alpha = 0.15f) else (if (isDark) Color.White.copy(alpha = 0.04f) else Color.White),
+                            border = BorderStroke(1.dp, if (!isDark) accent else (if (isDark) GlassBorder else BorderLight)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .then(
+                                    if (isDark) Modifier else Modifier.shadow(
+                                        elevation = 1.5.dp,
+                                        shape = RoundedCornerShape(12.dp),
+                                        ambientColor = Color(0x100F172A),
+                                        spotColor = Color(0x140F172A)
+                                    )
+                                )
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
@@ -215,7 +203,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                         }
                     }
 
-                    HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.4f) else GlassBorderLight.copy(alpha = 0.4f))
+                    HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.4f) else BorderLight)
 
                     // Accent Colors
                     Column {
@@ -225,9 +213,15 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                             color = if (isDark) TextMuted else TextMutedLight
                         )
                         Spacer(modifier = Modifier.height(10.dp))
+                        val colorsScrollState = rememberScrollState()
+                        LaunchedAutoScrollHint(colorsScrollState)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalFadingEdges(colorsScrollState, fadeWidth = 14.dp, isRtl = isRtl)
+                                .touchDragScroll(colorsScrollState, isVertical = false, isRtl = isRtl)
+                                .horizontalScroll(colorsScrollState),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val colors = listOf(
@@ -245,104 +239,13 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                                     onClick = { settingsManager.updateAccentColor(color) }
                                 )
                             }
+                            Spacer(Modifier.width(8.dp))
                         }
                     }
                 }
             }
 
-            // 4. SYSTEM & CORE DIAGNOSTICS HUD
-            SettingsSectionTitle(LocalizedStrings.get("system_info", state.language))
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            LocalizedStrings.get("runtime_arch", state.language),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextMuted else TextMutedLight
-                        )
-                        Text(
-                            "KMP • Compose Multiplatform 1.7.3",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = accent
-                        )
-                    }
-
-                    HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Core Engine",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextMuted else TextMutedLight
-                        )
-                        Text(
-                            "Asynchronous NIO Sockets",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = SecondaryNeon
-                        )
-                    }
-
-                    HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Threat Intelligence",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextMuted else TextMutedLight
-                        )
-                        Text(
-                            "NVD / CVE Embedded v2026.1",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = TertiaryNeon
-                        )
-                    }
-
-                    HorizontalDivider(color = if (isDark) GlassBorder.copy(alpha = 0.3f) else GlassBorderLight.copy(alpha = 0.3f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Local Persistence",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextMuted else TextMutedLight
-                        )
-                        Text(
-                            "Encrypted SQLite Local-First",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = WarningNeon
-                        )
-                    }
-                }
-            }
-
-            // 5. COMMUNICATION & COMMUNITY
+            // 3. COMMUNICATION & COMMUNITY
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CommunicationGlassButton(
                     label = LocalizedStrings.get("about", state.language),
@@ -375,7 +278,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "PortX Professional Cyber Suite v5.2.1 • Production Build",
+                        LocalizedStrings.get("app_footer_build", state.language),
                         color = if (isDark) TextSecondary else Color.Black.copy(alpha = 0.6f),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
@@ -390,7 +293,7 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
         PortXScrollStateVerticalScrollbar(
             scrollState = scrollState,
             modifier = Modifier
-                .align(if (isRtl) AbsoluteAlignment.CenterLeft else AbsoluteAlignment.CenterRight)
+                .align(if (isRtl) AbsoluteAlignment.CenterRight else AbsoluteAlignment.CenterLeft)
                 .fillMaxHeight()
         )
 
@@ -400,12 +303,13 @@ fun SettingsScreen(settingsManager: SettingsManager = koinInject()) {
 @Composable
 fun SettingsSectionTitle(title: String) {
     val isDark = LocalAppSettings.current.theme == "DARK"
+    val isRtl = LocalAppSettings.current.language == "fa"
     Text(
-        title.uppercase(),
+        text = if (isRtl) title else title.uppercase(),
         style = MaterialTheme.typography.labelSmall.copy(
             color = if (isDark) TextMuted else Color.Black.copy(alpha = 0.5f),
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
+            letterSpacing = if (isRtl) 0.sp else 1.sp
         ),
         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
     )
@@ -414,23 +318,31 @@ fun SettingsSectionTitle(title: String) {
 @Composable
 fun ColorCircle(color: Color, isSelected: Boolean, onClick: () -> Unit) {
     val isDark = LocalAppSettings.current.theme == "DARK"
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(42.dp)
-            .clickable(onClick = onClick),
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .springPress(pressedScale = 0.92f, interactionSource = interactionSource)
+            .pointerHoverIcon(PointerIcon.Hand),
         contentAlignment = Alignment.Center
     ) {
         if (isSelected) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
                     .border(2.dp, color, CircleShape)
             )
         }
         Box(
             modifier = Modifier
-                .size(28.dp)
+                .size(30.dp)
                 .clip(CircleShape)
                 .background(color)
                 .border(
@@ -454,9 +366,19 @@ fun CommunicationGlassButton(
     Surface(
         modifier = modifier
             .height(80.dp)
+            .then(
+                if (isDark) Modifier else Modifier.shadow(
+                    elevation = 2.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    ambientColor = Color(0x100F172A),
+                    spotColor = Color(0x140F172A)
+                )
+            )
             .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, if (isDark) GlassBorder else GlassBorderLight, RoundedCornerShape(14.dp)),
-        color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.02f),
+            .border(1.dp, if (isDark) GlassBorder else BorderLight, RoundedCornerShape(14.dp))
+            .springPress(pressedScale = 0.96f)
+            .pointerHoverIcon(PointerIcon.Hand),
+        color = if (isDark) Color.White.copy(alpha = 0.04f) else Color.White,
         onClick = onClick
     ) {
         Column(
@@ -469,7 +391,9 @@ fun CommunicationGlassButton(
             Text(
                 label,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = if (isDark) Color.White else Color.Black
+                color = if (isDark) Color.White else Color.Black,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }
