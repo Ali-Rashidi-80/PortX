@@ -20,6 +20,8 @@ CREATE TABLE ScanEntity (
     timeout INTEGER NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_scan_timestamp ON ScanEntity(timestamp DESC);
+
 CREATE TABLE SettingsEntity (
     id INTEGER PRIMARY KEY NOT NULL DEFAULT 0 CHECK (id = 0),
     language TEXT NOT NULL DEFAULT 'en',
@@ -48,6 +50,12 @@ SELECT * FROM ScanEntity ORDER BY timestamp DESC;
 
 selectLatestScan:
 SELECT * FROM ScanEntity ORDER BY timestamp DESC LIMIT 1;
+
+selectRecentScans:
+SELECT * FROM ScanEntity ORDER BY timestamp DESC LIMIT :limit;
+
+selectScansByTarget:
+SELECT * FROM ScanEntity WHERE target = ? ORDER BY timestamp DESC;
 
 insertDevice:
 INSERT OR REPLACE INTO DeviceEntity (ipAddress, hostname, osName, osVersion, macAddress, vendor)

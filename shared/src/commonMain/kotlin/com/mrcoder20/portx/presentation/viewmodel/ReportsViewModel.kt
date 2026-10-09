@@ -33,25 +33,45 @@ class ReportsViewModel(
         _uiState.update { it.copy(exportFormat = format) }
     }
 
-    fun shareScan(scan: ScanResult) {
-        val (_, content, fileName, mimeType) = prepareExport(scan)
-        fileSharer.shareFile(content, fileName, mimeType)
+    fun getExportContent(scan: ScanResult, format: String = _uiState.value.exportFormat): String {
+        return exportReportUseCase(scan, format)
     }
 
-    fun downloadScan(scan: ScanResult) {
-        val (_, content, fileName, mimeType) = prepareExport(scan)
-        val path = fileSharer.downloadFile(content, fileName, mimeType)
-        if (path != null) {
-            showSnackbar("Saved to: $path")
-        } else {
-            showSnackbar("Download failed")
+    fun shareScan(scan: ScanResult, format: String = _uiState.value.exportFormat) {
+        try {
+            val (_, content, fileName, mimeType) = prepareExport(scan, format)
+            fileSharer.shareFile(content, fileName, mimeType)
+        } catch (e: Exception) {
+            showSnackbar("share_failed:${e.message ?: "Unknown error"}")
         }
     }
 
-    private var snackbarJob: Job? = null
+    fun downloadScan(scan: ScanResult, format: String = _uiState.value.exportFormat) {
+        try {
+            val (_, content, fileName, mimeType) = prepareExport(scan, format)
+            val path = fileSharer.downloadFile(content, fileName, mimeType)
+            if (path != null) {
+                showSnackbar("saved_to:$path")
+            } else {
+                showSnackbar("download_failed")
+            }
+        } catch (e: Exception) {
+            showSnackbar("download_failed:${e.message ?: "Unknown error"}")
+        }
+    }
+
+    fun saveScanAs(scan: ScanResult, format: String = _uiState.value.exportFormat) {
+        shareScan(scan, format)
+    }
+
+    fun quickSaveScan(scan: ScanResult, format: String = _uiState.value.exportFormat) {
+        downloadScan(scan, format)
+    }
+
+    var snackbarJob: Job? = null
     private var loadScansJob: Job? = null
 
-    private fun showSnackbar(message: String) {
+    fun showSnackbar(message: String) {
         snackbarJob?.cancel()
         snackbarJob = viewModelScope.launch {
             _uiState.update { it.copy(snackbarMessage = message) }
@@ -60,8 +80,8 @@ class ReportsViewModel(
         }
     }
 
-    private fun prepareExport(scan: ScanResult): ExportData {
-        val format = _uiState.value.exportFormat
+    private fun prepareExport(scan: ScanResult, targetFormat: String = _uiState.value.exportFormat): ExportData {
+        val format = targetFormat.uppercase()
         val content = exportReportUseCase(scan, format)
         val extension = if (format == "MD") "md" else format.lowercase()
         val sanitizedTarget = scan.target.replace(Regex("[^a-zA-Z0-9._-]"), "_")
@@ -84,21 +104,45 @@ class ReportsViewModel(
         loadScansJob?.cancel()
         loadScansJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            scanRepository.getAllScans().collect { scans ->
-                _uiState.update { it.copy(scans = scans, isLoading = false) }
+            try {
+                scanRepository.getAllScans().collect { scans ->
+                    _uiState.update { it.copy(scans = scans, isLoading = false) }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+                showSnackbar("failed_load:${e.message ?: ""}")
             }
         }
     }
 
     fun deleteScan(id: Long) {
+        _uiState.update { current -> current.copy(scans = current.scans.filter { it.id != id }) }
         viewModelScope.launch {
-            scanRepository.deleteScan(id)
+            try {
+                scanRepository.deleteScan(id)
+                showSnackbar("scan_report_deleted")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showSnackbar("failed_delete:${e.message ?: ""}")
+            }
         }
     }
 
     fun clearAll() {
+        _uiState.update { it.copy(scans = emptyList()) }
         viewModelScope.launch {
-            scanRepository.deleteAllScans()
+            try {
+                scanRepository.deleteAllScans()
+                showSnackbar("all_reports_cleared")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showSnackbar("failed_clear:${e.message ?: ""}")
+            }
         }
     }
 }
+

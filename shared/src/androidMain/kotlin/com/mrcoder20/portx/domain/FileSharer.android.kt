@@ -16,7 +16,7 @@ class AndroidFileSharer : FileSharer {
         if (!cacheDir.exists()) cacheDir.mkdirs()
         
         val file = File(cacheDir, fileName)
-        file.writeText(content)
+        file.writeText(content, Charsets.UTF_8)
         
         val uri = FileProvider.getUriForFile(
             appContext,
@@ -27,11 +27,13 @@ class AndroidFileSharer : FileSharer {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = android.content.ClipData.newRawUri("Scan Report", uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         
         val chooserIntent = Intent.createChooser(intent, "Share Scan Report").apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         
@@ -52,14 +54,16 @@ class AndroidFileSharer : FileSharer {
                 
                 uri?.let {
                     resolver.openOutputStream(it)?.use { outputStream ->
-                        outputStream.write(content.toByteArray())
+                        outputStream.write(content.toByteArray(Charsets.UTF_8))
                     }
                     "Downloads/$fileName"
                 }
             } else {
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
                 val file = File(downloadsDir, fileName)
-                FileOutputStream(file).use { it.write(content.toByteArray()) }
+                file.parentFile?.mkdirs()
+                FileOutputStream(file).use { it.write(content.toByteArray(Charsets.UTF_8)) }
                 "Downloads/$fileName"
             }
         } catch (e: Exception) {

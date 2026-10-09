@@ -53,7 +53,14 @@ class ScanViewModel(
     init {
         viewModelScope.launch {
             scanRepository.getLatestScan().collect { latest ->
-                _uiState.update { it.copy(result = latest, ip = latest?.target ?: it.ip) }
+                _uiState.update { 
+                    it.copy(
+                        result = latest, 
+                        ip = if (it.ip.isBlank()) (latest?.target ?: "") else it.ip,
+                        firewallStatus = latest?.let { res -> firewallDetectionUseCase(res) },
+                        anomalies = latest?.let { res -> anomalyDetectionUseCase(res) } ?: emptyList()
+                    ) 
+                }
             }
         }
 
@@ -72,7 +79,17 @@ class ScanViewModel(
         viewModelScope.launch {
             ScanManager.currentResult.collect { result ->
                 if (result != null) {
-                    _uiState.update { it.copy(result = result) }
+                    val fw = firewallDetectionUseCase(result)
+                    val anom = anomalyDetectionUseCase(result)
+                    val completionLog = "Scan completed: ${result.openPorts.size} open ports found on ${result.target} (Score: ${result.securityScore}%)"
+                    _uiState.update { 
+                        it.copy(
+                            result = result,
+                            firewallStatus = fw,
+                            anomalies = anom,
+                            logs = (it.logs + completionLog).takeLast(50)
+                        ) 
+                    }
                 }
             }
         }
@@ -80,7 +97,13 @@ class ScanViewModel(
         viewModelScope.launch {
             ScanManager.error.collect { error ->
                 if (error != null) {
-                    _uiState.update { it.copy(error = error) }
+                    val errorLog = "Engine error: $error"
+                    _uiState.update { 
+                        it.copy(
+                            error = error,
+                            logs = (it.logs + errorLog).takeLast(50)
+                        ) 
+                    }
                 }
             }
         }
@@ -124,6 +147,14 @@ class ScanViewModel(
         _uiState.update { it.copy(allPorts = enabled) }
     }
 
+    fun setPortRange(start: String, end: String, allPorts: Boolean = false) {
+        _uiState.update { it.copy(startPort = start, endPort = end, allPorts = allPorts, error = null) }
+    }
+
+    fun clearLogs() {
+        _uiState.update { it.copy(logs = emptyList()) }
+    }
+
     fun toggleAllProtocols(enabled: Boolean) {
         _uiState.update { it.copy(allProtocols = enabled) }
     }
@@ -132,23 +163,19 @@ class ScanViewModel(
         val state = _uiState.value
         if (state.isLoading) return
         
-        // 1. STRICT Target Validation
-        val target = state.ip.trim()
-        if (target.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter an IP or Hostname") }
+        // 1. STRICT Target Validation & Sanitization
+        val rawInput = state.ip.trim()
+        if (rawInput.isBlank()) {
+            _uiState.update { it.copy(error = "err_enter_ip") }
             return
         }
+        val target = com.mrcoder20.portx.domain.sanitizeHost(rawInput)
 
-        // Support IPv4, Domain names, and Local hostnames (e.g. localhost, router, server-01)
-        val ipRegex = Regex("""^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$""")
-        val hostnameRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$""")
-        
-        val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
-        val isValid = if (isAllNumericDotted) ipRegex.matches(target) else hostnameRegex.matches(target)
-        val isLocal = target.lowercase() == "localhost" || target == "127.0.0.1" || target.startsWith("192.168.") || target.startsWith("10.") || target.startsWith("172.")
+        val isValid = com.mrcoder20.portx.domain.isValidTarget(target)
+        val isLocal = com.mrcoder20.portx.domain.isTargetLocalOrPrivate(target)
         
         if (!isValid) {
-            _uiState.update { it.copy(error = "Invalid target format (e.g. 8.8.8.8, router, or example.com)") }
+            _uiState.update { it.copy(error = "err_invalid_target") }
             return
         }
 
@@ -159,12 +186,12 @@ class ScanViewModel(
                 val start = state.startPort.toInt()
                 val end = state.endPort.toInt()
                 if (start < 1 || end > 65535 || start > end) {
-                    _uiState.update { it.copy(error = "Range must be 1-65535") }
+                    _uiState.update { it.copy(error = "err_port_range") }
                     return
                 }
                 start..end
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Invalid numeric port range") }
+                _uiState.update { it.copy(error = "err_numeric_range") }
                 return
             }
         }
@@ -201,16 +228,18 @@ class ScanViewModel(
                 if (!isLocal) {
                     try {
                         val selector = SelectorManager(Dispatchers.Default)
-                        withTimeout(2500) {
-                            try {
+                        try {
+                            withTimeout(2500) {
                                 val socket = aSocket(selector).tcp().connect(InetSocketAddress("1.1.1.1", 53)) {
                                     socketTimeout = 2000
                                 }
-                                socket.close()
+                                try {
+                                    socket.close()
+                                } catch (_: Exception) {}
                                 addLog("External connectivity confirmed.")
-                            } finally {
-                                selector.close()
                             }
+                        } finally {
+                            try { selector.close() } catch (_: Exception) {}
                         }
                     } catch (e: CancellationException) {
                         throw e
@@ -227,7 +256,7 @@ class ScanViewModel(
                 // Ignore unexpected probe exceptions
             }
 
-            addLog("Engine v5.1.0 initializing...")
+            addLog("Engine v5.3.0 initializing...")
             delay(400)
             
             if (state.allPorts) addLog("Full port scan mode [1-65535] active")
@@ -244,10 +273,12 @@ class ScanViewModel(
     fun stopScan() {
         scanLauncherJob?.cancel()
         scannerController.stopScan()
+        addLog("Scan stopped by user.")
+        _uiState.update { it.copy(isLoading = false) }
     }
 
-    fun exportReport(): String? {
+    fun exportReport(format: String = "JSON"): String? {
         val result = _uiState.value.result ?: return null
-        return exportReportUseCase(result)
+        return exportReportUseCase(result, format)
     }
 }

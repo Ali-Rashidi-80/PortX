@@ -30,22 +30,53 @@ class AndroidSecurityProvider : SecurityProvider {
 
     private fun isHookingDetected(): Boolean {
         return try {
-            val libraries = File("/proc/self/maps").readLines()
-            libraries.any { line ->
-                line.contains("frida", true) || line.contains("xposed", true) || 
-                line.contains("substrate", true) || line.contains("magisk", true)
+            File("/proc/self/maps").useLines { lines ->
+                lines.any { line ->
+                    line.contains("frida", true) || line.contains("xposed", true) || 
+                    line.contains("substrate", true) || line.contains("magisk", true)
+                }
             }
         } catch (e: Exception) { false }
     }
 
     private fun checkRootFiles(): Boolean {
-        val paths = arrayOf("/system/app/Superuser.apk", "/sbin/su", "/system/bin/su", "/system/xbin/su")
+        val paths = arrayOf(
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/data/local/su",
+            "/system/app/SuperSU.apk",
+            "/system/app/SuperSU/SuperSU.apk",
+            "/system/app/Magisk/Magisk.apk"
+        )
         return paths.any { File(it).exists() }
     }
 
     private fun checkSuBinary(): Boolean {
         return try {
-            Runtime.getRuntime().exec("which su").inputStream.bufferedReader().readLine() != null
+            val process = ProcessBuilder(listOf("which", "su")).redirectErrorStream(true).start()
+            val finished = process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            if (!finished) {
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        process.destroyForcibly()
+                    } else {
+                        process.destroy()
+                    }
+                } catch (_: Throwable) { process.destroy() }
+                return false
+            }
+            val output = process.inputStream.bufferedReader().readLine()?.trim()
+            val exitCode = process.exitValue()
+            try { process.destroy() } catch (_: Throwable) {}
+            exitCode == 0 && !output.isNullOrBlank() && 
+                !output.contains("not found", ignoreCase = true) && 
+                !output.contains("no su", ignoreCase = true)
         } catch (e: Exception) { false }
     }
 

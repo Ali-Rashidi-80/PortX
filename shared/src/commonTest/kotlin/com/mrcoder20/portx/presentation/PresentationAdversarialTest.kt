@@ -2,22 +2,22 @@ package com.mrcoder20.portx.presentation
 
 import com.mrcoder20.portx.domain.model.ScanResult
 import com.mrcoder20.portx.domain.usecase.ExportReportUseCase
+import com.mrcoder20.portx.presentation.ui.getServiceTitle
+import com.mrcoder20.portx.presentation.ui.getServiceDescription
+import com.mrcoder20.portx.presentation.ui.getPortColor
+import com.mrcoder20.portx.presentation.ui.DisplayPort
+import com.mrcoder20.portx.presentation.ui.theme.DangerNeon
+import com.mrcoder20.portx.presentation.ui.theme.SecondaryNeon
+import com.mrcoder20.portx.presentation.ui.theme.TertiaryNeon
+import androidx.compose.ui.graphics.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+import com.mrcoder20.portx.domain.isValidTarget
+
 class PresentationAdversarialTest {
-
-    private val ipRegex = Regex("""^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$""")
-    private val hostnameRegex = Regex("""^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$""")
-
-    private fun isValidTarget(raw: String): Boolean {
-        val target = raw.trim()
-        if (target.isBlank()) return false
-        val isAllNumericDotted = Regex("""^[0-9.]+$""").matches(target)
-        return if (isAllNumericDotted) ipRegex.matches(target) else hostnameRegex.matches(target)
-    }
 
     private fun validatePortRange(startStr: String, endStr: String, allPorts: Boolean): Pair<Boolean, String?> {
         if (allPorts) return true to null
@@ -143,4 +143,139 @@ class PresentationAdversarialTest {
         assertTrue(md.contains("- **Security Score:** 95%"))
         assertTrue(md.contains("| `80` | http | nginx/1.24.0, gzip |"))
     }
+
+    @Test
+    fun testDashboardProtocolRegistryAndColors() {
+        val testAccent = Color(0xFF00D1FF)
+
+        // 1. Critical & Industrial Ports -> DangerNeon
+        val dangerPorts = listOf(21, 23, 102, 135, 139, 445, 502, 1883, 2375, 47808, 5555, 10250, 11211)
+        dangerPorts.forEach { port ->
+            assertEquals(DangerNeon, getPortColor(port, testAccent), "Port $port must be colored DangerNeon")
+        }
+
+        // 2. High-Privilege & Database Ports -> SecondaryNeon
+        val adminPorts = listOf(22, 1433, 1521, 3306, 3389, 4840, 5432, 5900, 6379, 6443, 8200, 8500, 9200, 27017)
+        adminPorts.forEach { port ->
+            assertEquals(SecondaryNeon, getPortColor(port, testAccent), "Port $port must be colored SecondaryNeon")
+        }
+
+        // 3. Web & Proxy Ports -> testAccent
+        val webPorts = listOf(80, 443, 8080, 8443, 8000, 3000, 5000)
+        webPorts.forEach { port ->
+            assertEquals(testAccent, getPortColor(port, testAccent), "Port $port must be colored with accent")
+        }
+
+        // 4. Low risk / standard -> TertiaryNeon
+        assertEquals(TertiaryNeon, getPortColor(53, testAccent))
+        assertEquals(TertiaryNeon, getPortColor(123, testAccent))
+        assertEquals(TertiaryNeon, getPortColor(49152, testAccent))
+
+        // 5. Service Titles
+        assertEquals("Modbus Industrial ICS", getServiceTitle(502))
+        assertEquals("BACnet Building Automation", getServiceTitle(47808))
+        assertEquals("Siemens S7comm PLC", getServiceTitle(102))
+        assertEquals("MQTT IoT Broker", getServiceTitle(1883))
+        assertEquals("Android ADB Debugger", getServiceTitle(5555))
+        assertEquals("PostgreSQL Database", getServiceTitle(5432))
+        assertEquals("MariaDB Database", getServiceTitle(3306))
+        assertEquals("Redis In-Memory DB", getServiceTitle(6379))
+        assertEquals("SSH Secure Shell", getServiceTitle(22))
+        assertEquals("HTTP Web Server", getServiceTitle(80))
+        assertEquals("OpenVPN Server", getServiceTitle(1194))
+        assertEquals("WireGuard VPN Tunnel", getServiceTitle(51820))
+        assertEquals("CoAP IoT Node", getServiceTitle(5683))
+        assertEquals("etcd Datastore", getServiceTitle(2379))
+        assertEquals("Cassandra Database", getServiceTitle(9042))
+        assertEquals("ClickHouse Analytical DB", getServiceTitle(8123))
+        assertEquals("Custom-api Service", getServiceTitle(9999, "custom-api"))
+        assertEquals("Service on Port 8899", getServiceTitle(8899, null))
+
+        // 6. Service Descriptions
+        assertTrue(getServiceDescription(502).contains("Modbus TCP"))
+        assertTrue(getServiceDescription(47808).contains("BACnet/IP"))
+        assertTrue(getServiceDescription(102).contains("Siemens Step7"))
+        assertTrue(getServiceDescription(1883).contains("MQTT"))
+        assertTrue(getServiceDescription(5555).contains("Android Debug Bridge"))
+        assertTrue(getServiceDescription(445).contains("Microsoft SMB"))
+        assertTrue(getServiceDescription(51820).contains("WireGuard"))
+        assertTrue(getServiceDescription(1194).contains("OpenVPN"))
+        assertTrue(getServiceDescription(5683).contains("Constrained Application Protocol"))
+        assertEquals("Active custom-proxy service", getServiceDescription(8099, "custom-proxy"))
+        assertEquals("Active Network Service", getServiceDescription(60000, null))
+
+        // 7. Verify banned technologies are absent from all registered ports
+        val registeredPorts = listOf(21, 22, 23, 25, 53, 80, 443, 1194, 1433, 1521, 1883, 2049, 2375, 2379, 3000, 3306, 3389, 4222, 4840, 5000, 5432, 5555, 5672, 5683, 5900, 6379, 6443, 8000, 8080, 8123, 8200, 8443, 8500, 9000, 9042, 9092, 9200, 10250, 11211, 27017, 47808, 50051, 51820)
+        registeredPorts.forEach { port ->
+            val title = getServiceTitle(port)
+            val desc = getServiceDescription(port)
+            assertFalse(title.contains("MySQL", ignoreCase = true), "Port $port title contains MySQL: $title")
+            assertFalse(desc.contains("MySQL", ignoreCase = true), "Port $port desc contains MySQL: $desc")
+            assertFalse(title.contains("Node.js", ignoreCase = true), "Port $port title contains Node.js: $title")
+            assertFalse(desc.contains("Node.js", ignoreCase = true), "Port $port desc contains Node.js: $desc")
+            assertFalse(title.contains("PHP", ignoreCase = true), "Port $port title contains PHP: $title")
+            assertFalse(desc.contains("PHP", ignoreCase = true), "Port $port desc contains PHP: $desc")
+            assertFalse(title.contains("Flask", ignoreCase = true), "Port $port title contains Flask: $title")
+            assertFalse(desc.contains("Flask", ignoreCase = true), "Port $port desc contains Flask: $desc")
+        }
+
+        // 8. DisplayPort data class contract
+        val dp = DisplayPort(
+            number = 502,
+            title = getServiceTitle(502),
+            description = getServiceDescription(502),
+            color = getPortColor(502, testAccent)
+        )
+        assertEquals(502, dp.number)
+        assertEquals("Modbus Industrial ICS", dp.title)
+        assertEquals(DangerNeon, dp.color)
+    }
+
+    @Test
+    fun testTimeoutConfigurationAndLocalization() {
+        // 1. Verify Localization of socket_timeout and ms in EN, FA, RU
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "en"))
+        assertEquals("مهلت زمانی اتصال", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fa"))
+        assertEquals("Тайм-аут сокета", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "ru"))
+
+        assertEquals("ms", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "en"))
+        assertEquals("میلی‌ثانیه", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "fa"))
+        assertEquals("мс", com.mrcoder20.portx.domain.LocalizedStrings.get("ms", "ru"))
+
+        // 2. Fallback to English for unmapped or removed languages
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "xx"))
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "fr"))
+        assertEquals("Socket Timeout", com.mrcoder20.portx.domain.LocalizedStrings.get("socket_timeout", "zh"))
+
+        // 3. ScanUIState timeout default and bounds
+        val defaultState = com.mrcoder20.portx.presentation.viewmodel.ScanUIState()
+        assertEquals(1000, defaultState.timeout)
+        val modifiedState = defaultState.copy(timeout = 2500)
+        assertEquals(2500, modifiedState.timeout)
+    }
+
+    @Test
+    fun testEngineLogsLocalization() {
+        val targetLog = "Target validated: 127.0.0.1"
+        assertEquals("Target validated: 127.0.0.1", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(targetLog, "en"))
+        assertEquals("هدف اعتبارسنجی شد: 127.0.0.1", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(targetLog, "fa"))
+        assertEquals("Цель проверена: 127.0.0.1", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(targetLog, "ru"))
+
+        val probeLog = "Probing network interface..."
+        assertEquals("Probing network interface...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(probeLog, "en"))
+        assertEquals("در حال بررسی رابط شبکه...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(probeLog, "fa"))
+
+        val engineInitLog = "Engine v5.3.0 initializing..."
+        assertEquals("Engine v5.3.0 initializing...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(engineInitLog, "en"))
+        assertEquals("در حال مقداردهی اولیه موتور v5.3.0...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(engineInitLog, "fa"))
+
+        val opScanLog = "Operationalizing TCP scan..."
+        assertEquals("Operationalizing TCP scan...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(opScanLog, "en"))
+        assertEquals("راه‌اندازی و اجرای اسکن TCP...", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(opScanLog, "fa"))
+
+        val completedLog = "Scan completed: 3 open ports found on 127.0.0.1 (Score: 61%)"
+        assertEquals("Scan completed: 3 open ports found on 127.0.0.1 (Score: 61%)", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(completedLog, "en"))
+        assertEquals("اسکن پایان یافت: ۳ پورت باز در 127.0.0.1 یافت شد (امتیاز امنیت: ۶۱٪)", com.mrcoder20.portx.domain.LocalizedStrings.formatLog(completedLog, "fa"))
+    }
 }
+

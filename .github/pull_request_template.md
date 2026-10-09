@@ -14,4 +14,4 @@
 - [ ] Linux (Ubuntu/Debian)
 - [ ] macOS (Intel/Apple Silicon)
 - [ ] Windows 10/11
-- [ ] Android (API 24 to 35+)
+- [ ] Android (API 24 to 37 / Android 17)

@@ -26,14 +26,21 @@ class ScanRepositoryImpl(
         onProgress: (Int) -> Unit
     ): ScanResult {
         val summary = scanner.scan(config, onProgress)
-        val openResults = summary.results.filter { it.state == "open" }
+        val openResults = summary.results.filter { it.state == "open" || it.state == "open|filtered" }
+        val openPortList = openResults.map { it.port }.distinct().sorted()
+        val bannersMap = openResults.associate { it.port to it.banner }
+        val servicesMap = openResults.associate { it.port to it.service }
+        val fingerprint = com.mrcoder20.portx.domain.usecase.DeviceFingerprintUseCase()(openPortList, bannersMap, summary.target)
+        val score = calculateScore(summary.target, openPortList, bannersMap, servicesMap, fingerprint)
         val scanResult = ScanResult(
             target = summary.target,
-            openPorts = openResults.map { it.port }.distinct(),
-            portBanners = openResults.associate { it.port to it.banner },
-            portServices = openResults.associate { it.port to it.service },
+            openPorts = openPortList,
+            portBanners = bannersMap,
+            portServices = servicesMap,
             timestamp = Clock.System.now().toEpochMilliseconds(),
-            securityScore = calculateScore(openResults.size),
+            securityScore = score,
+            deviceName = fingerprint.deviceName,
+            osFingerprint = fingerprint.osFingerprint,
             scanType = config.scanType,
             bannerGrabbing = config.serviceDetect,
             concurrentScans = config.concurrency,
@@ -44,6 +51,15 @@ class ScanRepositoryImpl(
 
     override fun getAllScans(): Flow<List<ScanResult>> {
         return queries.selectAllScans()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { entities ->
+                entities.map { it.toDomain() }
+            }
+    }
+
+    override fun getScansByTarget(target: String): Flow<List<ScanResult>> {
+        return queries.selectScansByTarget(target)
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { entities ->
@@ -63,7 +79,7 @@ class ScanRepositoryImpl(
             database.transaction {
                 queries.insertScan(
                     target = scan.target,
-                    openPorts = scan.openPorts,
+                    openPorts = scan.openPorts.distinct().sorted(),
                     portBanners = scan.portBanners,
                     portServices = scan.portServices,
                     timestamp = scan.timestamp,
@@ -75,6 +91,16 @@ class ScanRepositoryImpl(
                     concurrentScans = scan.concurrentScans.toLong(),
                     timeout = scan.timeout.toLong()
                 )
+                if (!scan.deviceName.isNullOrBlank() || !scan.osFingerprint.isNullOrBlank()) {
+                    queries.insertDevice(
+                        ipAddress = scan.target,
+                        hostname = scan.deviceName,
+                        osName = scan.osFingerprint,
+                        osVersion = null,
+                        macAddress = null,
+                        vendor = null
+                    )
+                }
             }
         }
     }
@@ -91,13 +117,24 @@ class ScanRepositoryImpl(
         }
     }
 
-    private fun calculateScore(openPortsCount: Int): Int {
-        return when {
-            openPortsCount == 0 -> 100
-            openPortsCount < 5 -> 80
-            openPortsCount < 20 -> 50
-            else -> 20
-        }
+    private fun calculateScore(
+        target: String,
+        openPorts: List<Int>,
+        banners: Map<Int, String>,
+        services: Map<Int, String>,
+        fingerprint: com.mrcoder20.portx.domain.usecase.FingerprintResult
+    ): Int {
+        val dummy = ScanResult(
+            target = target,
+            openPorts = openPorts,
+            portBanners = banners,
+            portServices = services,
+            timestamp = 0L,
+            securityScore = 0,
+            deviceName = fingerprint.deviceName,
+            osFingerprint = fingerprint.osFingerprint
+        )
+        return com.mrcoder20.portx.domain.usecase.SecurityScoreUseCase()(dummy)
     }
 
     private fun ScanEntity.toDomain(): ScanResult {

@@ -7,13 +7,13 @@ val listOfIntAdapter = object : ColumnAdapter<List<Int>, String> {
         val cleanValue = databaseValue.trim().removePrefix("[").removeSuffix("]")
         if (cleanValue.isEmpty()) return emptyList()
         return try {
-            cleanValue.split(",").map { it.trim().toInt() }
-        } catch (e: Exception) {
+            cleanValue.split(Regex("""[,;\s]+""")).mapNotNull { it.trim().toIntOrNull() }.distinct().sorted()
+        } catch (_: Exception) {
             emptyList()
         }
     }
 
-    override fun encode(value: List<Int>): String = value.joinToString(separator = ",")
+    override fun encode(value: List<Int>): String = value.distinct().sorted().joinToString(separator = ",")
 }
 
 val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
@@ -21,22 +21,32 @@ val mapIntStringAdapter = object : ColumnAdapter<Map<Int, String>, String> {
         val cleanValue = databaseValue.trim().removePrefix("{").removeSuffix("}")
         if (cleanValue.isEmpty()) return emptyMap()
         return try {
-            cleanValue.split("|").associate { entry ->
-                val parts = entry.split(":")
-                if (parts.size >= 2) {
-                    parts[0].trim().toInt() to parts.subList(1, parts.size).joinToString(":")
-                } else {
-                    // Fallback for malformed entry
-                    0 to "unknown"
-                }
-            }.filter { it.key != 0 }
-        } catch (e: Exception) {
+            val entries = when {
+                cleanValue.contains("|") -> cleanValue.split("|")
+                // Only split on comma if followed by a subsequent port entry (e.g. legacy '80:http, 443:https' or '\"80\":\"http\", \"443\":...')
+                Regex(""",\s*"?\d+"?\s*:""").containsMatchIn(cleanValue) -> cleanValue.split(Regex(""",\s*(?="?\d+"?\s*:)"""))
+                else -> listOf(cleanValue)
+            }
+            entries.mapNotNull { entry ->
+                if (!entry.contains(":")) return@mapNotNull null
+                val rawPort = entry.substringBefore(":").trim().removeSurrounding("\"")
+                val port = rawPort.toIntOrNull()
+                if (port != null) {
+                    val rawVal = entry.substringAfter(":").trim().removeSurrounding("\"")
+                    val unescapedVal = rawVal.replace("&#124;", "|")
+                    port to unescapedVal
+                } else null
+            }.toMap()
+        } catch (_: Exception) {
             emptyMap()
         }
     }
 
     override fun encode(value: Map<Int, String>): String =
-        value.entries.joinToString(separator = "|") { "${it.key}:${it.value}" }
+        value.toSortedMap().entries.joinToString(separator = "|") { (port, text) ->
+            val escapedText = text.replace("|", "&#124;")
+            "$port:$escapedText"
+        }
 }
 
 val booleanAdapter = object : ColumnAdapter<Boolean, Long> {

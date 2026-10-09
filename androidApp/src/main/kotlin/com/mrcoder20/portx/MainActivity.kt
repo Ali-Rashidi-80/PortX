@@ -12,7 +12,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.mrcoder20.portx.domain.ScanManager
 import com.mrcoder20.portx.domain.ScanUIEvent
 import kotlinx.coroutines.launch
@@ -32,10 +34,12 @@ class MainActivity : AppCompatActivity() {
         hideSystemBars()
         
         lifecycleScope.launch {
-            ScanManager.uiEvents.collect { event ->
-                when (event) {
-                    is ScanUIEvent.RequestNotificationPermission -> {
-                        requestNotificationPermission()
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                ScanManager.uiEvents.collect { event ->
+                    when (event) {
+                        is ScanUIEvent.RequestNotificationPermission -> {
+                            requestNotificationPermission()
+                        }
                     }
                 }
             }

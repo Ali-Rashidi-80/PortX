@@ -1,6 +1,7 @@
 package com.mrcoder20.portx.domain
 
 import com.mrcoder20.portx.domain.model.ScanResult
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -8,7 +9,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object ScanManager {
-    private val _uiEvents = MutableSharedFlow<ScanUIEvent>()
+    private val _uiEvents = MutableSharedFlow<ScanUIEvent>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val uiEvents = _uiEvents.asSharedFlow()
 
     private val _progress = MutableStateFlow(0)
@@ -40,8 +45,8 @@ object ScanManager {
         _currentResult.value = result
     }
 
-    suspend fun triggerUiEvent(event: ScanUIEvent) {
-        _uiEvents.emit(event)
+    fun triggerUiEvent(event: ScanUIEvent) {
+        _uiEvents.tryEmit(event)
     }
 
     fun setError(message: String?) {

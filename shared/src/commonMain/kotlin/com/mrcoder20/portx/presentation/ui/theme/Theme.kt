@@ -14,13 +14,14 @@ fun PortXTheme(
     content: @Composable () -> Unit
 ) {
     val settingsState by settingsManager.settings.collectAsState()
-    val accent = settingsState.accentColor
+    val rawAccent = settingsState.accentColor
     val isDark = settingsState.theme == "DARK"
+    val accessibleAccent = getAccessibleAccent(rawAccent, isDark)
 
     val colorScheme = if (isDark) {
         darkColorScheme(
-            primary = accent,
-            secondary = accent.copy(alpha = 0.7f),
+            primary = accessibleAccent,
+            secondary = accessibleAccent.copy(alpha = 0.75f),
             background = BackgroundDark,
             surface = SurfaceDark,
             onPrimary = Color.Black,
@@ -30,29 +31,42 @@ fun PortXTheme(
         )
     } else {
         lightColorScheme(
-            primary = accent,
-            secondary = accent.copy(alpha = 0.7f),
+            primary = accessibleAccent,
+            secondary = accessibleAccent.copy(alpha = 0.8f),
             background = BackgroundLight,
             surface = SurfaceLight,
-            onPrimary = Color.Black,
-            onSecondary = Color.Black,
-            onBackground = Color(0xFF1A1A1A),
-            onSurface = Color(0xFF1A1A1A)
+            onPrimary = Color.White,
+            onSecondary = Color.White,
+            onBackground = Color(0xFF0F172A),
+            onSurface = Color(0xFF0F172A)
         )
     }
 
-    // Update global neon colors for the rest of the app to use
+    val layoutDirection = if (settingsState.language == "fa") {
+        androidx.compose.ui.unit.LayoutDirection.Rtl
+    } else {
+        androidx.compose.ui.unit.LayoutDirection.Ltr
+    }
+
+    val typography = remember(settingsState.language) {
+        getPortXTypography(settingsState.language)
+    }
+
+    // Provide accessible accent, raw accent, app settings and directional typography
     CompositionLocalProvider(
-        LocalAccentColor provides accent,
-        LocalAppSettings provides settingsState
+        LocalAccentColor provides accessibleAccent,
+        LocalRawAccentColor provides rawAccent,
+        LocalAppSettings provides settingsState,
+        androidx.compose.ui.platform.LocalLayoutDirection provides layoutDirection
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
+            typography = typography,
             content = content
         )
     }
 }
 
-val LocalAccentColor = staticCompositionLocalOf { Color(0xFF00D1FF) }
-val LocalAppSettings = staticCompositionLocalOf { com.mrcoder20.portx.domain.AppSettings() }
-
+val LocalAccentColor = compositionLocalOf { Color(0xFF00D1FF) }
+val LocalRawAccentColor = compositionLocalOf { Color(0xFF00D1FF) }
+val LocalAppSettings = compositionLocalOf { com.mrcoder20.portx.domain.AppSettings() }

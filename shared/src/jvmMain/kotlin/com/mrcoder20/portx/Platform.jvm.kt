@@ -20,9 +20,25 @@ actual fun createDatabaseDriver(passphrase: String?): SqlDriver {
     val databaseFile = File(appDir, "portx.db")
     val driver: SqlDriver = JdbcSqliteDriver("jdbc:sqlite:${databaseFile.absolutePath}")
     try {
-        AppDatabase.Schema.create(driver)
+        driver.execute(null, "PRAGMA journal_mode = WAL;", 0)
+        driver.execute(null, "PRAGMA busy_timeout = 5000;", 0)
+        driver.execute(null, "PRAGMA synchronous = NORMAL;", 0)
+
+        val currentVersion = driver.executeQuery(null, "PRAGMA user_version;", { cursor ->
+            app.cash.sqldelight.db.QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
+        }, 0).value
+
+        if (currentVersion == 0L) {
+            AppDatabase.Schema.create(driver)
+            driver.execute(null, "PRAGMA user_version = ${AppDatabase.Schema.version};", 0)
+        } else if (currentVersion < AppDatabase.Schema.version) {
+            AppDatabase.Schema.migrate(driver, currentVersion, AppDatabase.Schema.version)
+            driver.execute(null, "PRAGMA user_version = ${AppDatabase.Schema.version};", 0)
+        }
     } catch (e: Exception) {
-        // Schema exists
+        try {
+            AppDatabase.Schema.create(driver)
+        } catch (_: Exception) {}
     }
     return driver
 }

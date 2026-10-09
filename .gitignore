@@ -55,3 +55,9 @@ notes/
 /notes/
 scratch/
 /scratch/
+
+# Knowledge Graph & Development Caches
+graphify-out/
+.kotlin/
+*.hprof
+*.log

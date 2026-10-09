@@ -28,7 +28,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "PortX"
-            packageVersion = "5.1.0"
+            packageVersion = "5.3.0"
             description = "Ultra-Fast Network Port Scanner"
             vendor = "mr-coder20"
             copyright = "© 2026 mr-coder20"
@@ -36,15 +36,25 @@ compose.desktop {
             modules("java.instrument", "java.management", "java.sql", "jdk.unsupported", "java.naming", "java.desktop", "jdk.security.auth")
 
             windows {
+                upgradeUuid = "a916ed53-0d8b-3247-87c7-42f057d8a5d4"
                 iconFile.set(project.file("src/main/resources/ic1.ico"))
+                shortcut = true
+                menu = true
+                menuGroup = "PortX"
+                dirChooser = true
                 // Ensure the runtime has more memory and clear error reporting
                 jvmArgs("-Xmx2G", "-Dcompose.application.configure.stdio=true")
             }
             macOS {
                 iconFile.set(project.file("src/main/resources/ic1.icns"))
+                bundleID = "com.mrcoder20.portx"
+                dockName = "PortX"
+                appCategory = "public.app-category.developer-tools"
             }
             linux {
                 iconFile.set(project.file("../shared/src/commonMain/composeResources/drawable/ic1.png"))
+                shortcut = true
+                menuGroup = "Utility"
             }
         }
     }

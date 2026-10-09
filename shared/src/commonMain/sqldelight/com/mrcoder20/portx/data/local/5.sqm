@@ -1,0 +1,4 @@
+-- Migration for Version 5 to 6
+-- Add index on timestamp for ScanEntity to optimize chronological queries and reports
+
+CREATE INDEX IF NOT EXISTS idx_scan_timestamp ON ScanEntity(timestamp DESC);

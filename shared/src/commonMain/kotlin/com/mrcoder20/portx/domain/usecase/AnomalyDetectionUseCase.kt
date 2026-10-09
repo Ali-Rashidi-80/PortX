@@ -1,24 +1,80 @@
 package com.mrcoder20.portx.domain.usecase
 
+import com.mrcoder20.portx.domain.isSuspectedTarpitOrWaf
 import com.mrcoder20.portx.domain.model.ScanResult
 
 class AnomalyDetectionUseCase {
     operator fun invoke(scanResult: ScanResult): List<String> {
         val anomalies = mutableListOf<String>()
-        
-        // Critical/Suspicious ports
-        val suspiciousPorts = listOf(23, 445, 135, 139, 3389, 5900)
-        val openSuspicious = scanResult.openPorts.intersect(suspiciousPorts)
-        if (openSuspicious.isNotEmpty()) {
-            anomalies.add("High Risk: Dangerous ports open (${openSuspicious.joinToString(", ")})")
+        val openPorts = scanResult.openPorts.toSet()
+        if (openPorts.isEmpty()) return anomalies
+
+        val isWafOrTarpit = isSuspectedTarpitOrWaf(
+            target = scanResult.target,
+            openPorts = openPorts,
+            banners = scanResult.portBanners,
+            osFingerprint = scanResult.osFingerprint
+        )
+
+        if (isWafOrTarpit) {
+            anomalies.add("Perimeter Defense: Stateful Firewall / Cloud WAF SYN-Proxy detected responding reflexively across ${openPorts.size} ports. Synthetic port threats are filtered; evaluating verified service responses.")
         }
-        
-        // Uncommon ports for consumer devices
-        val uncommonPorts = scanResult.openPorts.filter { it > 1024 && it < 10000 }
-        if (uncommonPorts.size > 5) {
-            anomalies.add("Warning: High number of uncommon open ports")
+
+        // Known high-risk and unauthenticated vectors
+        val threats = mapOf(
+            21 to "FTP (Cleartext credential transmission risk)",
+            23 to "Telnet (Unencrypted remote shell exposure)",
+            102 to "Siemens S7comm (Industrial PLC communication exposure)",
+            135 to "RPC Endpoint Mapper (Remote attack surface)",
+            139 to "NetBIOS Session Service (Legacy Windows vector)",
+            161 to "SNMP (Unauthenticated UDP community string / information disclosure risk)",
+            389 to "LDAP (Unencrypted directory access & credential exposure risk)",
+            445 to "SMB (WannaCry / EternalBlue ransomware vector)",
+            502 to "Modbus/TCP (Unauthenticated industrial PLC control protocol exposure)",
+            1883 to "MQTT (Unencrypted IoT broker / telemetry command exposure)",
+            1900 to "SSDP / UPnP (Unauthenticated discovery & reflection amplification risk)",
+            2049 to "NFS (Network File System unauthenticated share exposure risk)",
+            2181 to "ZooKeeper (Unauthenticated coordination cluster & metadata exposure risk)",
+            2375 to "Docker Daemon (Unauthenticated remote container escape risk)",
+            2379 to "etcd (Unauthenticated distributed datastore / cluster state exposure)",
+            3389 to "RDP (Remote Desktop exposed)",
+            4840 to "OPC UA (Industrial automation server discovery risk)",
+            5555 to "ADB (Android Debug Bridge unauthenticated access)",
+            5683 to "CoAP (Unencrypted Constrained Application Protocol / IoT amplification vector)",
+            5900 to "VNC (Remote control service exposed)",
+            6379 to "Redis (Unauthenticated key-value store risk)",
+            9200 to "Elasticsearch (Unauthenticated cluster API risk)",
+            10250 to "Kubernetes Kubelet (Remote execution risk)",
+            11211 to "Memcached (Unauthenticated cache & DDoS amplification risk)",
+            27017 to "MongoDB (Unauthenticated database risk)",
+            47808 to "BACnet (Building automation & HVAC controller protocol exposure)"
+        )
+
+        threats.forEach { (port, desc) ->
+            if (openPorts.contains(port)) {
+                if (isWafOrTarpit) {
+                    val banner = scanResult.portBanners[port]
+                    if (!banner.isNullOrBlank()) {
+                        anomalies.add("High Risk [Port $port]: $desc (Verified Banner: $banner)")
+                    }
+                } else {
+                    anomalies.add("High Risk [Port $port]: $desc")
+                }
+            }
         }
-        
+
+        if (!isWafOrTarpit) {
+            // Uncommon ports for consumer devices (excluding common web/proxy services)
+            val knownServicePorts = setOf(
+                80, 443, 8080, 8443, 8000, 3000, 5000, 5173, 8888, 9090, 53, 22, 123
+            )
+            val uncommonPorts = openPorts.filter { it in 1025..65535 && !knownServicePorts.contains(it) && !threats.containsKey(it) }
+            if (uncommonPorts.size > 8) {
+                anomalies.add("Warning: Elevated number of unusual open ports (${uncommonPorts.size} ports: ${uncommonPorts.take(5).joinToString(", ")}...)")
+            }
+        }
+
         return anomalies
     }
 }
+
